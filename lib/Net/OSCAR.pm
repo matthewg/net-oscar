@@ -613,12 +613,12 @@ sub findbuddy_byid($$$) {
 
 sub newid($;$) {
 	my($self, $group) = @_;
-	my $id = 0;
+	my $id = 4;
 	my %ids = ();
 
 	if($group) {
 		%ids = map { $_->{buddyid} => 1 } values %$group;
-		do { ++$id; } while($ids{$id});
+		do { ++$id; } while($ids{$id}) and $id < 4;
 	} else {
 		do { $id = ++$self->{nextid}->{__GROUPID__}; } while($self->findgroup($id));
 	}
@@ -914,7 +914,7 @@ sub mod_permit($$$@) {
 	if($action == MODBL_ACTION_ADD) {
 		foreach my $buddy(@buddies) {
 			next if exists($self->{$group}->{$buddy});
-			$self->{$group}->{$buddy}->{buddyid} = $self->newid($self->{group});
+			$self->{$group}->{$buddy}->{buddyid} = $self->newid($self->{$group});
 		}
 	} else {
 		foreach my $buddy(@buddies) {
