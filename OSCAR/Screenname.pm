@@ -10,7 +10,8 @@ use Net::OSCAR::OldPerl;
 
 use overload
 	"cmp" => "compare",
-	'""' => "stringify";
+	'""' => "stringify",
+	"bool" => "boolify";
 
 sub new($$) {
 	return $_[1] if ref($_[0]);
@@ -29,5 +30,11 @@ sub compare {
 }
 
 sub stringify { my $self = shift; return $$self; }
+
+sub boolify {
+	my $self = shift;
+	return 0 if !defined($$self) or $$self eq "" or $$self eq "0";
+	return 1;
+}
 
 1;
