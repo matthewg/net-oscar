@@ -1182,9 +1182,18 @@ sub chat_join($$; $) {
 	my $reqid = (8<<16) | (unpack("n", randchars(2)))[0];
 	$self->{chats}->{pack("N", $reqid)} = $name;
 	$self->svcdo(CONNTYPE_CHATNAV, family => 0x0D, subtype => 0x08, reqid => $reqid, data =>
-		pack("n Ca*n3C na*", $exchange,
-			length("create"), "create", 0xFFFF, 0x100, 0x100, 0xD3,
-			length($name), $name
+		#pack("n Ca*n3C na*", $exchange,
+		#	length("create"), "create", 0xFFFF, 0x100, 0x100, 0xD3,
+		#	length($name), $name
+		#)
+
+		pack("n Ca*n2C a*", $exchange,
+			length("create"), "create", 0xFFFF, 0x100, 0x03,
+			tlv(
+				0xD7 => "en",
+				0xD6 => "us-ascii",
+				0xD3 => $name
+			)
 		)
 	);
 }
