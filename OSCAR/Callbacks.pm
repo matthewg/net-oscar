@@ -135,6 +135,9 @@ sub process_snac($$) {
 			delete $session->{admin_queue};
 		} elsif($conntype == CONNTYPE_CHAT) {
 			$connection->ready();
+
+			# We don't get the 0x0E/0x02 callback for exchange 5 chats until it's too late
+			$session->callback_chat_joined($connection->name, $connection) if $connection->exchange == 5;
 		}
 	} elsif($subtype == 0x1) {
 		$subtype = $reqid >> 16;
@@ -354,9 +357,6 @@ sub process_snac($$) {
 
 		$session->log_print(OSCAR_DBG_DEBUG, "ChatNav told us where to find $chat->{name}");
 
-		# We don't get the 0x0E/0x02 callback for exchange 5 chats
-		$session->callback_chat_joined($chat->name, $chat) if $chat->exchange == 5;
-
 		# Generate a random request ID
 		my($reqid) = "";
 		$reqid = pack("n", 4);
@@ -387,7 +387,7 @@ sub process_snac($$) {
 		my($tlvcount) = unpack("n", substr($data, 0, 2, ""));
 		my $tlv = tlv_decode($data);
 
-		$session->callback_chat_joined($connection->{name}, $connection);
+		$session->callback_chat_joined($connection->{name}, $connection) unless $connection->exchange == 5;
 
 		my $occupants = 0;
 		($occupants) = unpack("n", $tlv->{0x6F}) if $tlv->{0x6F};
