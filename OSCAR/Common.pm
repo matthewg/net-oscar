@@ -136,9 +136,9 @@ sub debug_print($@) {
 	return unless $session->{DEBUG};
 
 	my $message = "";
-	$message .= "(",$session->{screenname},") " if $session->{SNDEBUG};
-	$message .= $obj->{description}, ": " if $obj->{description};
-	$message .= join("", @_), "\n";
+	$message .= "(".$session->{screenname}.") " if $session->{SNDEBUG};
+	$message .= $obj->{description}. ": " if $obj->{description};
+	$message .= join("", @_). "\n";
 
 	if($session->{callbacks}->{debug_print}) {
 		$session->callback_debug_print($message);
@@ -153,9 +153,9 @@ sub debug_printf($@) {
 	return unless $session->{DEBUG};
 
 	my $message = "";
-	$message .= "(",$session->{screenname},") " if $session->{SNDEBUG};
+	$message .= "(".$session->{screenname}.") " if $session->{SNDEBUG};
 	$message .= $obj->{description} . ": " if $obj->{description};
-	$message .= $fmtstr, @_;
+	$message .= sprintf($fmtstr, @_);
 	$message .= "\n";
 
 	if($session->{callbacks}->{debug_print}) {
