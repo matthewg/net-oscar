@@ -1,0 +1,56 @@
+<!ELEMENT oscar (define)+>
+
+<!ELEMENT define (ref|byte|word|dword|data|tlvchain|if)+>
+<!ATTLIST define
+	name ID #REQUIRED
+	channel CDATA #IMPLIED
+	family CDATA #IMPLIED
+	subtype CDATA #IMPLIED
+>
+
+<!ELEMENT ref (EMPTY)>
+<!ATTLIST ref
+	name IDREF #REQUIRED
+>
+
+<!ELEMENT byte (#PCDATA)>
+<!ATTLIST byte
+	name CDATA #IMPLIED
+>
+<!ELEMENT word (#PCDATA)>
+<!ATTLIST word
+	name CDATA #IMPLIED
+	order (network|vax) #DEFAULT network
+>
+<!ELEMENT dword (#PCDATA)>
+<!ATTLIST dword
+	name CDATA #IMPLIED
+	order (network|vax) #DEFAULT network
+>
+<!ELEMENT data (#PCDATA)>
+<!ATTLIST data
+	name CDATA #IMPLIED
+	order (network|vax) #DEFAULT network
+	length_prefix (byte|word|dword) #IMPLIED
+>
+
+<!ELEMENT tlvchain (tlv*)>
+<!ATTLIST tlvchain
+	name CDATA #IMPLIED
+	short (yes|no) #DEFAULT no <!-- A 'short' TLV is type/num/length/value, where num and length are both bytes.  It's used in extended status. -->
+	count_prefix (byte|word|dword) #IMPLIED
+	length_prefix (byte|word|dword) #IMPLIED
+>
+
+<!ELEMENT tlv (ref|byte|word|dword|data|tlvchain|if)+>
+<!ATTLIST tlv
+	name CDATA #IMPLIED
+	num CDATA #REQUIRED
+	num2 CDATA #IMPLIED
+>
+
+<!ELEMENT if (condition+)>
+<!ELEMENT condition (ref|byte|word|dword|data|tlvchain|if)+>
+<!ATTLIST condition
+	test CDATA #REQUIRED
+>

@@ -7,7 +7,7 @@ WriteMakefile(
     'dist'		=> { DIST_DEFAULT => 'predist tardist' },
     'NAME'		=> 'Net::OSCAR',
     'VERSION_FROM'	=> 'OSCAR.pm', # finds $VERSION
-    'PREREQ_PM'		=> { Filter::Util::Call => 1.0, Digest::MD5 => 2.0, Scalar::Util => 1.00 }, # e.g., Module::Name => 1.1
+    'PREREQ_PM'		=> { Filter::Util::Call => 1.0, Digest::MD5 => 2.0, Scalar::Util => 1.00, Memoize => 1.00, XML::Parser => 2.00 }, # e.g., Module::Name => 1.1
     ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM => 'OSCAR.pm', # retrieve abstract from module
        AUTHOR     => 'Matthew Sachs <matthewg@zevils.com>') : ()),

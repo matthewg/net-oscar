@@ -1,0 +1,40 @@
+<oscar>
+        <define name="flap">
+                <byte>0x2A</byte> <!-- FLAP packet start indicator -->
+                <byte name="channel">FLAP_CHAN_SNAC</byte>
+                <word name="seqno" />
+                <data length_prefix="word" name="msg" />
+        </define>
+
+	<define name="snac">
+		<word name="family" />
+		<word name="subtype" />
+		<word name="flags" />
+		<dword name="reqid" />
+		<data name="data" />
+	</define>
+
+	<define name="userinfo">
+		<data name="screenname" length_prefix="byte" />
+		<word name="evil" />
+		<tlvchain count_prefix="word">
+			<tlv name="flags" num="1"><word /></tlv>
+			<tlv name="membersince" num="2"><dword /></tlv>
+			<tlv name="onsince" num="3"><dword /></tlv>
+			<tlv name="idle" num="4"><word /></tlv>
+			<tlv name="capabilities" num="13"><data length="16" count="-1"></tlv>
+			<tlv num="29">
+				<tlvchain short="yes">
+					<tlv name="icon_md5sum" num="1" num2="1"><data /></tlv>
+					<tlv name="extended_status" num="2"><data length_prefix="word" /></tlv>
+				</tlvchain>
+			</tlv>
+		</tlvchain>
+		<tlvchain>
+			<tlv name="profile" num="2"><data /></tlv>
+			<tlv name="awaymsg" num="4"><data /></tlv>
+			<tlv name="chatdata" num="5"><data /></tlv>
+		</tlvchain>
+	</define>
+</oscar>
+

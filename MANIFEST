@@ -14,6 +14,8 @@ OSCAR/Common.pm
 OSCAR/Connection.pm
 OSCAR/Constants.pm
 OSCAR/OldPerl.pm
+OSCAR/Protocol.dtd
+OSCAR/Protocol.xml
 OSCAR/Proxy.pm
 OSCAR/Screenname.pm
 OSCAR/TLV.pm

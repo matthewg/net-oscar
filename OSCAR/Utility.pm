@@ -10,16 +10,37 @@ $VERSION = '0.62';
 $REVISION = '$Revision$';
 
 use strict;
-use vars qw(@ISA @EXPORT $VERSION);
+use vars qw(@ISA @EXPORT $VERSION $xmlparser);
 use Digest::MD5;
+use XML::Parser;
+
 use Net::OSCAR::TLV;
+use Net::OSCAR::OldPerl;
 use Carp;
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(
-	randchars log_print log_printf hexdump normalize tlv_decode tlv_encode tlv send_error bltie signon_tlv encode_password
+	randchars log_print log_printf hexdump normalize tlv_decode tlv_encode tlv send_error bltie signon_tlv encode_password protoparse
 );
 
+use Memoize;
+memoize('protoparse');
+
+# This function takes a Net::OSCAR protocol specification template as an argument.
+# (Net::OSCAR protocol specification templates are documented in Net::OSCAR::Protocol)
+# It returns a reference to a subroutine.  This subroutine takes, as arguments, either
+# a single scalar, which is data to unpack according to the template, or data which
+# should be packed into the format specified by the template.  The unpacked data takes
+# the form of a hash with keys whose names are given in the templates.
+#
+# This will make more sense if you look at Net::OSCAR::Protocol .
+#
+$xmlparser = new XML::Parser(Style => "Tree");
+sub protoparse($) {
+	my $template = shift;
+	my $tree = $xmlparser->parse($template);
+	
+}
 
 sub tlv(;@) {
 	my %tlv = ();
