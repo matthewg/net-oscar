@@ -1,6 +1,7 @@
 =pod
 
 Net::OSCAR::Buddylist -- tied hash class whose keys are Net::OSCAR::Screennames
+and which also maintains the ordering of its keys.
 
 OSCAR screennames don't compare like normal scalars; they're case and whitespace-insensitive.
 This is a tied hash class that has that behavior for its keys.
