@@ -60,34 +60,59 @@ sub flap_get($) {
 	my ($buffer, $channel, $len);
 	my $nchars;
 
-	if(!sysread($self->{socket}, $buffer, 6)) {
-		if($self == $self->{session}->{bos}) {
-			$self->{session}->crapout($self, "$!");
+	print STDERR "flap_get\n";
+	if(!exists($self->{buff_gotflap})) {
+		$self->{buffsize} ||= 6;
+		$self->{buffer} ||= "";
+
+		if(!sysread($self->{socket}, $buffer, $self->{buffsize} - length($self->{buffer}))) {
+			if($self == $self->{session}->{bos}) {
+				$self->{session}->crapout($self, "$!");
+			} else {
+				$self->log_print(OSCAR_DBG_NOTICE, "Lost connection.");
+				$self->{sockerr} = 1;
+				$self->disconnect();
+				return undef;
+			}
 		} else {
-			$self->log_print(OSCAR_DBG_NOTICE, "Lost connection.");
-			$self->{sockerr} = 1;
-			$self->disconnect();
-			return undef;
+			$self->{buffer} .= $buffer;
+		}
+
+		if(length($self->{buffer}) == 6) {
+			$self->{buff_gotflap} = 1;
+			($buffer) = delete $self->{buffer};
+			(undef, $self->{channel}, undef, $self->{buffsize}) = unpack("CCnn", $buffer);
+			$self->{buffer} = "";
+		} else {
+			return "";
 		}
 	}
-	(undef, $channel, undef, $len) = unpack("CCnn", $buffer);
-	$self->{channel} = $channel;
-	$nchars = sysread($self->{socket}, $buffer, $len);
+
+	print STDERR "Reading $self->{buffsize} - " . length($self->{buffer}) . " chars.\n";
+	$nchars = sysread($self->{socket}, $buffer, $self->{buffsize} - length($self->{buffer}));
 	if(!$nchars) {
 		$self->log_print(OSCAR_DBG_NOTICE, "Lost connection.");
 		$self->{sockerr} = 1;
 		$self->disconnect();
 		return undef;
-	}
-	if($len > $nchars) {
-		my $abuff = "";
-		$len -= $nchars;
-		$nchars = sysread($self->{socket}, $abuff, $len);
-		$buffer .= $abuff;
+	} else {
+		$self->{buffer} .= $buffer;
 	}
 
-	$self->log_print(OSCAR_DBG_PACKETS, "Got ", hexdump($buffer));
-	return $buffer;
+	if(length($self->{buffer}) == $self->{buffsize}) {
+		print STDERR "Done.\n";
+		$self->log_print(OSCAR_DBG_PACKETS, "Got ", hexdump($self->{buffer}));
+		$buffer = $self->{buffer};
+
+		delete $self->{buffer};
+		delete $self->{buff_gotflap};
+		delete $self->{buffsize};
+
+		return $buffer;
+	} else {
+		print STDERR "Returning.\n";
+		return "";
+	}
 }
 
 sub snac_encode($%) {
