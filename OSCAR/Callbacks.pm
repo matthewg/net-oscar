@@ -354,6 +354,8 @@ sub process_snac($$) {
 
 		$session->log_print(OSCAR_DBG_DEBUG, "ChatNav told us where to find $chat->{name}");
 
+		$session->callback_chat_found($chat);
+
 		# Generate a random request ID
 		my($reqid) = "";
 		$reqid = pack("n", 4);

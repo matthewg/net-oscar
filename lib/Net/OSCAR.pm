@@ -1586,6 +1586,15 @@ that they specified on the invitation.  CHAT is the name of the chatroom.
 CHATURL is a chat URL and not a C<Net::OSCAR::Chat> object.  CHATURL can
 be passed to the L<chat_accept> method to accept the invitation.
 
+=item chat_found(OSCAR, CHAT)
+
+Called when the chat navigator finds the URL for a chat that
+we are trying to join.  This is useful for exchange 5 chats,
+such as those on AOL's "Hot Chats" list, because for those
+chats the next time you'll be able to associate a chat
+name with a chat URL is when you get the chat_buddy_in
+callback.
+
 =item chat_joined(OSCAR, CHATNAME, CHAT)
 
 Called when you enter a chatroom.  CHAT is the C<Net::OSCAR::Chat>
@@ -1680,6 +1689,7 @@ sub callback_error(@) { do_callback("error", @_); }
 sub callback_buddy_in(@) { do_callback("buddy_in", @_); }
 sub callback_buddy_out(@) { do_callback("buddy_out", @_); }
 sub callback_im_in(@) { do_callback("im_in", @_); }
+sub callback_chat_found(@) { do_callback("chat_found", @_); }
 sub callback_chat_joined(@) { do_callback("chat_joined", @_); }
 sub callback_chat_buddy_in(@) { do_callback("chat_buddy_in", @_); }
 sub callback_chat_buddy_out(@) { do_callback("chat_buddy_out", @_); }
@@ -1702,6 +1712,7 @@ sub set_callback_error($\&) { set_callback("error", @_); }
 sub set_callback_buddy_in($\&) { set_callback("buddy_in", @_); }
 sub set_callback_buddy_out($\&) { set_callback("buddy_out", @_); }
 sub set_callback_im_in($\&) { set_callback("im_in", @_); }
+sub set_callback_char_found($\&) { set_callback("chat_found", @_); }
 sub set_callback_chat_joined($\&) { set_callback("chat_joined", @_); }
 sub set_callback_chat_buddy_in($\&) { set_callback("chat_buddy_in", @_); }
 sub set_callback_chat_buddy_out($\&) { set_callback("chat_buddy_out", @_); }
@@ -1755,6 +1766,11 @@ with the chat_joined that C<Net::OSCAR> sends when you've join the chatroom.
 =item name
 
 Returns the name of the chatroom.
+
+=item exchange
+
+Returns the exchange of the chatroom.
+This is normally 4 but can be 5 for certain chatrooms.
 
 =back
 
