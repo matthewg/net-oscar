@@ -196,6 +196,7 @@ sub process_snac($$) {
 	} elsif($protobit eq "buddy signoff") {
 		my $buddy = $data{screenname};
 		my $group = $session->findbuddy($buddy);
+		return unless $group;
 		$session->{buddies}->{$group}->{members}->{$buddy}->{online} = 0;
 		$connection->log_print(OSCAR_DBG_DEBUG, "And so, another former ally has abandoned us.  Curse you, $buddy!");
 		$session->callback_buddy_out($buddy, $group);

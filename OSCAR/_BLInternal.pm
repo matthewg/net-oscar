@@ -160,13 +160,13 @@ sub BLI_to_NO($) {
 
 			if($item->{__BLI_DELETED}) {
 				delete $bli->{0}->{$gid}->{$bid};
-				next if $gid == 0;
+				next if $gid == 0 or !$group;
 
 				delete $session->{buddies}->{$group}->{members}->{$item->{name}} if $group;
 				push @ret, {type => MODBL_WHAT_BUDDY, action => MODBL_ACTION_DEL, group => $group, buddy => $item->{name}};
 			} elsif($item->{__BLI_DIRTY}) {
 				$item->{__BLI_DIRTY} = 0;
-				next if $gid == 0;
+				next if $gid == 0 or !$group;
 
 				my $comment = undef;
 				$comment = $item->{data}->{0x13C} if exists($item->{data}->{0x13C});
@@ -196,13 +196,13 @@ sub BLI_to_NO($) {
 
 		if($item->{__BLI_DELETED}) {
 			delete $bli->{1}->{$gid}->{0};
-			next if $gid == 0;
+			next if $gid == 0 or !$item->{name};
 
 			delete $session->{buddies}->{$item->{name}};
 			push @ret, {type => MODBL_WHAT_GROUP, action => MODBL_ACTION_DEL, group => $item->{name}};
 		} elsif($item->{__BLI_DIRTY}) {
 			$item->{__BLI_DIRTY} = 0;
-			next if $gid == 0;
+			next if $gid == 0 or !$item->{name};
 
 			$session->{buddies}->{$item->{name}} ||= {};
 			my $entry = $session->{buddies}->{$item->{name}};

@@ -423,7 +423,7 @@ sub findbuddy($$) {
 	my($self, $buddy) = @_;
 
 	foreach my $group(keys %{$self->{buddies}}) {
-		next if $group eq "__BLI_DIRTY";
+		next if $group eq "__BLI_DIRTY" or !$group;
 		return $group if
 			$self->{buddies}->{$group}->{members}->{$buddy} and
 			not $self->{buddies}->{$group}->{members}->{$buddy}->{__BLI_DELETED};
@@ -581,7 +581,7 @@ a hashref as per L<USER INFORMATION> below.
 
 =cut
 
-sub groups($) { return grep {$_ ne "__BLI_DIRTY"} keys %{shift->{buddies}}; }
+sub groups($) { return grep {$_ and $_ ne "__BLI_DIRTY"} keys %{shift->{buddies}}; }
 sub buddies($;$) {
 	my($self, $group) = @_;
 
@@ -594,8 +594,8 @@ sub buddies($;$) {
 	}
 
 	my @buddies;
-	foreach my $group (values %{$self->{buddies}}) {
-		next unless ref($group);
+	foreach my $group (keys %{$self->{buddies}}) {
+		next if !$group or $group eq "__BLI_DIRTY";
 		push @buddies, grep { not $group->{members}->{$_}->{__BLI_DELETED} } keys %{$group->{members}};
 	}
 	return @buddies;
