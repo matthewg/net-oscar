@@ -164,7 +164,7 @@ sub process_snac($$) {
 
 		$session->callback_buddy_in($screenname, $group, $session->{buddies}->{$group}->{members}->{$screenname});
 	} elsif($family == 0x3 and $subtype == 0xC) {
-		my ($buddy) = unpack("C/a*", $data);
+		my ($buddy) = new Net::OSCAR::Screenname(unpack("C/a*", $data));
 		my $group = $session->findbuddy($buddy);
 		$session->{buddies}->{$group}->{members}->{$buddy}->{online} = 0;
 		$connection->log_print(OSCAR_DBG_DEBUG, "And so, another former ally has abandoned us.  Curse you, $buddy!");
