@@ -168,8 +168,14 @@ sub flap_put($;$$) {
 	$self->write($msg);
 }
 
-sub read($$) {
-	my($self, $len) = @_;
+# We need to do non-buffered reading so that stdio's buffers don't screw up select, poll, etc.
+# Thus, for efficiency, we do our own buffering.
+# To prevent a single OSCAR conneciton from monopolizing processing time, for instance if it has
+# a flood of incoming data wide enough that we never run out of stuff to read, we'll only fill
+# the buffer once per call to process_one.
+sub read($$;$) {
+	my($self, $len, $no_reread) = @_;
+	$no_reread ||= 0;
 
 	my $buffsize = $self->{buffsize};
 	$buffsize = $len if $len > $buffsize;
@@ -179,6 +185,7 @@ sub read($$) {
 		$self->log_print_cond(OSCAR_DBG_PACKETS, sub { "Got '", hexdump($ret), "'" });
 		return $ret;
 	}
+	return "" if $no_reread;
 
 	my $buffer = "";
 	my $nchars = sysread($self->{socket}, $buffer, $buffsize - length($self->{buffer}));
@@ -204,14 +211,14 @@ sub read($$) {
 	}
 }
 
-sub flap_get($) {
-	my $self = shift;
+sub flap_get($;$) {
+	my ($self, $no_reread) = @_;
 	my $socket = $self->{socket};
 	my ($buffer, $channel, $len);
 	my $nchars;
 
 	if(!$self->{buff_gotflap}) {
-		my $header = $self->read(6);
+		my $header = $self->read(6, $no_reread);
 		if(!defined($header)) {
 			return undef;
 		} elsif($header eq "") {
@@ -224,7 +231,7 @@ sub flap_get($) {
 	}
 
 	if($self->{flap_size} > 0) {
-		my $data = $self->read($self->{flap_size});
+		my $data = $self->read($self->{flap_size}, $no_reread);
 		if(!defined($data)) {
 			return undef;
 		} elsif($data eq "") {
@@ -274,9 +281,9 @@ sub snac_put($%) {
 	}
 }
 
-sub snac_get($) {
-	my($self) = shift;
-	my $snac = $self->flap_get() or return 0;
+sub snac_get($;$) {
+	my($self, $no_reread) = @_;
+	my $snac = $self->flap_get($no_reread) or return 0;
 	return $self->snac_decode($snac);
 }
 
@@ -472,12 +479,13 @@ sub process_one($;$$$) {
 		$self->log_print(OSCAR_DBG_DEBUG, "SNAC time.");
 		$self->{ready} = 1;
 	} elsif($read) {
+		my $no_reread = 0;
 		while(1) {
 			if(!$self->{session}->{svcdata}->{hashlogin}) {
-				$snac = $self->snac_get() or return 0;
+				$snac = $self->snac_get($no_reread) or return 0;
 				Net::OSCAR::Callbacks::process_snac($self, $snac);
 			} else {
-				my $data = $self->flap_get() or return 0;
+				my $data = $self->flap_get($no_reread) or return 0;
 				$snac = {data => $data, reqid => 0, family => 0x17, subtype => 0x3};
 				if($self->{channel} == FLAP_CHAN_CLOSE) {
 					$self->{conntype} = CONNTYPE_LOGIN;
@@ -496,6 +504,8 @@ sub process_one($;$$$) {
 					}
 				}
 			}
+		} continue {
+			$no_reread = 1;
 		}
 	}
 }
