@@ -3917,34 +3917,36 @@ Matthew Sachs E<lt>matthewg@zevils.comE<gt>.
 
 =head1 CREDITS
 
-John "VBScript" for a lot of technical assistance, including the explanation of rates.
-
-Adam Fritzler and the libfaim team for their documentation and an OSCAR implementation that
-was used to help figure out a lot of the protocol details.  E<lt>http://www.zigamorph.net/faim/protocol/E<gt>
-
-Mark Doliner for help with remote buddylists.  E<lt>http://kingant.net/libfaim/ReadThis.htmlE<gt>
-
-Sam Wong E<lt>sam@uhome.netE<gt> for a patch implementing ICQ2000 support.
-
-Bill Atkins for typing status notification and mobile user support.  E<lt>http://www.milkbone.org/E<gt>
-
-Jonathon Wodnicki for additional help with typing status notification.
-
-Roy Camp for loads of bug reports and ideas and helping with user support.
-
-The gaim team - the source to their libfaim client was also very helpful.  E<lt>http://gaim.sourceforge.net/E<gt>
-
-The users of aimirc for being reasonably patient while this module was developed.  E<lt>http://www.zevils.com/programs/aimirc/E<gt>
-
-Jayson Baker for some last-minute debugging help.
-
-Rocco Caputo for helping to work out the hooks that let use be used with
-POE.  E<lt>http://poe.perl.org/E<gt>
-
 AOL, for creating the AOL Instant Messenger service, even though they aren't terribly helpful to
 developers of third-party clients.
 
 Apple Computer for help with mac.com support.
+
+The users of IMIRC for being reasonably patient while this module was developed.  E<lt>http://www.zevils.com/programs/imirc/E<gt>
+
+Bill Atkins for typing status notification and mobile user support.  E<lt>http://www.milkbone.org/E<gt>
+
+Jayson Baker for some last-minute debugging help.
+
+Roy Camp for loads of bug reports and ideas and helping with user support.
+
+Rocco Caputo for helping to work out the hooks that let use be used with
+POE.  E<lt>http://poe.perl.org/E<gt>
+
+Mark Doliner for help with remote buddylists.  E<lt>http://kingant.net/libfaim/ReadThis.htmlE<gt>
+
+Adam Fritzler and the libfaim team for their documentation and an OSCAR implementation that
+was used to help figure out a lot of the protocol details.  E<lt>http://www.zigamorph.net/faim/protocol/E<gt>
+
+The gaim team - the source to their libfaim client was also very helpful.  E<lt>http://gaim.sourceforge.net/E<gt>
+
+Nick Gray for sponsoring scalability work.
+
+John "VBScript" for a lot of technical assistance, including the explanation of rates.
+
+Jonathon Wodnicki for additional help with typing status notification.
+
+Sam Wong E<lt>sam@uhome.netE<gt> for a patch implementing ICQ2000 support.
 
 =head1 LEGAL
 
