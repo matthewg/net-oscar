@@ -60,7 +60,7 @@ sub import {
 	my($type, @arguments) = @_;
 	my(@constants) = ();
 
-	return if $] > 5.006;
+	return if $] >= 5.006;
 
 	open(OSCARCOMMON, $INC{"Net/OSCAR/Common.pm"});
 	while(<OSCARCOMMON>) {
