@@ -2686,6 +2686,10 @@ warning followed by the program freezing.
 
 =item *
 
+C<add_group> and C<remove_group> methods added.
+
+=item *
+
 Fixed a potential memory leak which could impact programs which create many transient Net::OSCAR
 objects.
 
