@@ -2411,7 +2411,8 @@ Copyright (c) 2001 Matthew Sachs.  All rights reserved.
 This program is free software; you can redistribute it and/or modify it under the
 same terms as Perl itself.  B<AOL> and B<AMERICA ONLINE> are registered trademarks
 owned by America Online, Inc.  The B<INSTANT MESSENGER> mark is owned by America
-Online, Inc.  C<Net::OSCAR> is not endorsed by, or affiliated with, America Online, Inc.
+Online, Inc.  B<ICQ> is a trademark and/or servicemark of ICQ.  C<Net::OSCAR> is not
+endorsed by, or affiliated with, America Online, Inc or ICQ.
 
 =cut
 
