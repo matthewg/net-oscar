@@ -853,6 +853,30 @@
 			<tlv type="6"><data name="cookie" /></tlv>
 		</tlvchain>
 	</define>
-	
+
+
+	<!-- Direct connect proxy -->
+	<!-- In front of any of these is a 16-bit network order length -->
+	<define name="direct_connect_proxy_hdr">
+		<word name="magic">1098</word>
+		<word name="msg_type" />
+		<dword>0</dword>
+		<data name="data" />
+	</define>
+	<define name="direct_connect_proxy_init"> <!-- msg_type 2 -->
+		<ref name="direct_connect_proxy_hdr" />
+		<word>0</word>
+		<data length_prefix="byte" name="screenname" />
+		<data length="8" name="cookie" />
+		<tlvchain>
+			<tlv type="1"><data name="capability" /></tlv>
+		</tlvchain>
+	</define>
+	<define name="direct_connect_proxy_reply"> <!-- msg_type 3 -->
+		<ref name="direct_connect_proxy_hdr" />
+		<word>544</word>
+		<word name="port" />
+		<dword name="ip" />
+	</define>
 </oscar>
 

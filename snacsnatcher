@@ -154,6 +154,8 @@ sub got_packet($$$) {
 		substr($pkt, 0, 16) = "";
 	} elsif($datalink == DLT_PPP) {
 		substr($pkt, 0, 4) = "";
+	} elsif($datalink == DLT_LINUX_SLL) {
+		substr($pkt, 0, 16) = "";
 	} else {
 		die "Unsupported datalink $datalink\n";
 	}

@@ -16,3 +16,4 @@ CVS
 ^aims
 ^bench
 ^ftapi\.html$
+^checksum$

@@ -2,6 +2,7 @@ package Net::OSCAR::Callbacks;
 use strict;
 use warnings;
 use vars qw($connection $snac $conntype $family $subtype $data $reqid $reqdata $session $protobit %data);
+use Socket qw(inet_ntoa);
 sub {
 
 my $sender = Net::OSCAR::Screenname->new(\$data{screenname});
@@ -70,6 +71,9 @@ if($data{channel} == 1) { # Regular IM
 		$rv->{sender} = $sender;
 		$rv->{recipient} = $session->{screenname};
 		$rv->{cookie} = $data{cookie};
+	} elsif($rv->{peer} ne $sender) {
+		$connection->log_printf(OSCAR_DBG_WARN, "$sender tried to send a rendezvous which was previously sent by %s; discarding.", $rv->{peer});
+		return;
 	}
 
 	if($type eq "chat") {
@@ -91,16 +95,31 @@ if($data{channel} == 1) { # Regular IM
 			$session->callback_chat_invite($sender, $data{invitation_msg}, $chat, $svcdata{url});
 		}
 	} elsif($type eq "filexfer") {
-		my %svcdata = protoparse($session, "file_transfer_rendezvous_data")->unpack($data{svcdata});
-		$rv->{ip} = $data{client_1_ip};
-		$rv->{port} = $data{port};
-		$rv->{external_ip} = $data{client_external_ip};
-		$rv->{proxy} = $data{proxy_ip};
+		# If proposal is being revised, no svcdata will be present.
+		my %svcdata;
+		if($data{svcdata}) {
+			%svcdata = protoparse($session, "file_transfer_rendezvous_data")->unpack($data{svcdata});
 
-		$rv->{direction} = "receive";
-		$rv->{accepted} = 0;
-		$rv->{filenames} = $svcdata{files};
-		$rv->{total_size} = $svcdata{size};
+			$rv->{direction} = "receive";
+			$rv->{accepted} = 0;
+			$rv->{filenames} = $svcdata{files};
+			$rv->{total_size} = $svcdata{size};
+			$rv->{file_count} = $svcdata{file_count};
+			$rv->{using_proxy} = 0;
+			$rv->{tried_proxy} = 0;
+			$rv->{tried_listen} = 0;
+			$rv->{tried_connect} = 0;
+		} elsif($rv->{connection}) {
+			$session->delconn($rv->{connection});
+			delete $rv->{connection};
+		}
+
+		$rv->{port} = $data{port};
+		$rv->{external_ip} = $data{client_external_ip} ? inet_ntoa(pack("N", $data{client_external_ip})) : "";
+		$rv->{ip} = $data{client_1_ip} ? inet_ntoa(pack("N", $data{client_1_ip})) : $rv->{external_ip};
+		$rv->{ft_state} = "unconnected";
+
+		$connection->log_printf(OSCAR_DBG_DEBUG, "Got proposal %s for %s:%d (external %s)", hexdump($rv->{cookie}), $rv->{ip}, $rv->{port}, $rv->{external_ip});
 	} elsif($type eq "sendlist") {
 		my %svcdata = protoparse($session, "buddy_list_transfer_rendezvous_data")->unpack($data{svcdata});
 		delete $session->{rv_proposals}->{$data{cookie}};

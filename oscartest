@@ -255,6 +255,7 @@ sub connection_changed($$$) {
 	my($oscar, $connection, $status) = @_;
 
 	my $h = $connection->get_filehandle();
+	return unless $h;
 	$connection->log_printf(OSCAR_DBG_DEBUG, "State changed (FD %d) to %s", fileno($h), $status);
 	my $mask = 0;
 

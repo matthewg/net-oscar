@@ -183,6 +183,7 @@ sub read($$;$) {
 	my($self, $len, $no_reread) = @_;
 	$no_reread ||= 0;
 
+	$self->{buffsize} ||= $len;
 	my $buffsize = $self->{buffsize};
 	$buffsize = $len if $len > $buffsize;
 	my $readlen;
@@ -219,7 +220,8 @@ sub read($$;$) {
 		return "";
 	} else {
 		my $ret;
-		if(length(${$self->{buffer}}) == $len) {	
+		delete $self->{buffsize};
+		if(length(${$self->{buffer}}) == $len) {
 			$ret = $self->{buffer};
 			$self->{buffer} = \"";
 		} else {
@@ -571,10 +573,18 @@ sub ready($) {
 
 sub session($) { return shift->{session}; }
 
-sub local_ip($) {
+sub peer_ip($) {
 	my($self) = @_;
 
 	my $sockaddr = getpeername($self->{socket});
+	my($port, $iaddr) = sockaddr_in($sockaddr);
+	return inet_ntoa($iaddr);
+}
+
+sub local_ip($) {
+	my($self) = @_;
+
+	my $sockaddr = getsockname($self->{socket});
 	my($port, $iaddr) = sockaddr_in($sockaddr);
 	return inet_ntoa($iaddr);
 }

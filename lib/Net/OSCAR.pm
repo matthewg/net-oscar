@@ -1583,44 +1583,54 @@ sub file_send($$@) {
 	my $connection = $self->addconn(conntype => CONNTYPE_DIRECT_IN);
 	my($port) = sockaddr_in(getsockname($connection->{socket}));
 
-	open(DATA, "/etc/passwd");
-	my $data = join("", <DATA>);
-	close DATA;
+	my $size = 0;
+	$size += length($_->{data}) foreach @filerefs;
 
 	my %svcdata = (
-		file_count_status => 1, #(@filerefs > 1 ? 2 : 1),
-		file_count => 1,
-		size => length($data),
-		files => ["passwd"]
+		file_count_status => (@filerefs > 1 ? 2 : 1),
+		file_count => scalar(@filerefs),
+		size => $size,
+		files => [map {$_->{name}} @filerefs]
 	);
 
 	my $cookie = randchars(8);
+	my($ip) = unpack("N", inet_aton($self->{services}->{CONNTYPE_BOS()}->local_ip()));
 	my %protodata = (
 		capability => OSCAR_CAPS()->{filexfer}->{value},
+		charset => "us-ascii",
 		cookie => $cookie,
 		invitation_msg => $message,
+		language => 101,
 		push_pull => 1,
 		status => 0,
-		client_1_ip => $self->{ip},
-		client_2_ip => $self->{ip},
+		client_1_ip => $ip,
+		client_2_ip => $ip,
 		port => $port,
+		proxy_ip => unpack("N", inet_aton("63.87.248.248")), # TODO: What's this really supposed to be?
 		svcdata_charset => "us-ascii",
 		svcdata => protoparse($self, "file_transfer_rendezvous_data")->pack(%svcdata)
 	);
 
-	my($req_id) = $self->send_message($screenname, 2, protoparse($self, "rendezvous_IM")->pack(%protodata), 0, $cookie);
+	my($req_id) = $self->send_message($screenname, 2, pack("nn", 3, 0) . protoparse($self, "rendezvous_IM")->pack(%protodata), 0, $cookie);
 
 	$self->{rv_proposals}->{$cookie} = $connection->{rv} = {
 		cookie => $cookie,
 		sender => $self->{screenname},
 		recipient => $screenname,
+		peer => $screenname,
 		type => "filexfer",
 		connection => $connection,
 		ft_state => "listening",
 		direction => "send",
 		accepted => 0,
-		filenames => ["passwd"],
-		data => [$data],
+		filenames => [map {$_->{name}} @filerefs],
+		data => [map {$_->{data}} @filerefs],
+		using_proxy => 0,
+		tried_proxy => 0,
+		tried_listen => 1,
+		tried_connect => 0,
+		total_size => $size,
+		file_count => scalar(@filerefs)
 	};
 
 	return ($req_id, $cookie);
@@ -3771,14 +3781,16 @@ sub delconn($$) {
 	my($self, $connection) = @_;
 
 	return unless $self->{connections};
-	$self->callback_connection_changed($connection, "deleted");
+	$self->callback_connection_changed($connection, "deleted") if $connection->{socket};
 	for(my $i = scalar @{$self->{connections}} - 1; $i >= 0; $i--) {
 		next unless $self->{connections}->[$i] == $connection;
 		$connection->log_print(OSCAR_DBG_NOTICE, "Closing.");
 		splice @{$self->{connections}}, $i, 1;
 		if(!$connection->{sockerr}) {
 			eval {
-				$connection->flap_put("", FLAP_CHAN_CLOSE) if $connection->{socket};
+				if($connection->{socket} and $connection->{conntype} != CONNTYPE_DIRECT_IN and $connection->{conntype} != CONNTYPE_DIRECT_OUT) {
+					$connection->flap_put("", FLAP_CHAN_CLOSE);
+				}
 				close $connection->{socket} if $connection->{socket};
 			};
 		} else {
@@ -4041,42 +4053,101 @@ sub send_message($$$$;$$) {
 	return ($reqid, $protodata{cookie});
 }
 
-sub rendezvous_accept($$) {
-	my($self, $cookie) = @_;
-
+sub rendezvous_revise($$;$) {
+	my($self, $cookie, $ip) = @_;
 	return unless exists($self->{rv_proposals}->{$cookie});
 	my $proposal = $self->{rv_proposals}->{$cookie};
 
-	if($self->{rv_neg_mode} eq OSCAR_RV_AUTO) {
-		$self->log_print(OSCAR_DBG_DEBUG, "Negotiating rendezvous.");
-		if($proposal->{ip} ne $proposal->{external_ip}) {
-			$self->log_printf(OSCAR_DBG_DEBUG, "Rendezvous: IP mismatch (%s vs. %s).", $proposal->{ip}, $proposal->{external_ip});
-
-			# If we haven't tried hosting the connection and it 
-			# doesn't look like we're behind NAT, or we have
-			# a designated file transfer IP, try hosting.
-			# Otherwise, use the proxy.
-			#
-			if(!$proposal->{tried_host} and
-			  $self->{ft_ip} or ($self->{ip} and $self->{bos}->local_ip eq $self->{ip})
-			) {
-				$self->rendezvous_revise($cookie, $self->{ft_ip} || $self->{ip});
-				return;
-			} else {
-				$self->rendezvous_revise($cookie);
-			}
-		}
+	if($proposal->{connection}) {
+		$self->delconn($proposal->{connection});
+		delete $proposal->{connection};
 	}
 
+	if(!$ip) {
+		croak "OSCAR server FT proxy not yet supported!";
+	}
 
-	$self->log_printf(OSCAR_DBG_INFO, "Establishing rendezvous connection to %s:%d", $proposal->{data}->{client_1_ip}, $proposal->{data}->{port});
+	my $connection = $self->addconn(conntype => CONNTYPE_DIRECT_IN);
+	my($port) = sockaddr_in(getsockname($connection->{socket}));
+
+	my %protodata = (
+		capability => OSCAR_CAPS()->{filexfer}->{value},
+		cookie => $proposal->{cookie},
+		status => 0,
+		client_1_ip => $self->{ip},
+		client_2_ip => $self->{ip},
+		port => $port,
+	);
+	$proposal->{connection} = $connection;
+	$proposal->{ft_state} = "listening";
+	$proposal->{accepted} = 0;
+	$proposal->{tried_listen} = 1;
+
+	my($req_id) = $self->send_message($proposal->{peer}, 2, protoparse($self, "rendezvous_IM")->pack(%protodata), 0, $cookie);
+}
+
+sub rendezvous_proxy_host($) {
+	return "ars.oscar.aol.com";
+}
+
+sub rendezvous_negotiate($$) {
+	my($self, $cookie) = @_;
+	return unless exists($self->{rv_proposals}->{$cookie});
+	my $proposal = $self->{rv_proposals}->{$cookie};
+
+	if($proposal->{tried_connect} or !$proposal->{ip} or $proposal->{ip} eq "0.0.0.0" or $proposal->{ip} eq "255.255.255.255") {
+		$self->log_print(OSCAR_DBG_DEBUG, "Negotiating rendezvous.");
+
+		# If we haven't tried hosting the connection and it 
+		# doesn't look like we're behind NAT, or we have
+		# a designated file transfer IP, try hosting.
+		# Otherwise, use the proxy.
+		#
+		if(!$proposal->{tried_listen} and
+		  $self->{ft_ip} or ($self->{ip} and $self->{bos}->local_ip eq $self->{ip})
+		) {
+			$self->log_print(OSCAR_DBG_DEBUG, "Hosting.");
+			$self->rendezvous_revise($cookie, $self->{ft_ip} || $self->{ip});
+			$proposal->{using_proxy} = 0;
+			$proposal->{tried_listen} = 1;
+			$proposal->{ft_state} = "listening";
+			return;
+		} elsif(!$proposal->{tried_proxy}) {
+			$self->log_print(OSCAR_DBG_DEBUG, "Using proxy.");
+			$proposal->{using_proxy} = 1;
+			$proposal->{tried_proxy} = 1;
+			$proposal->{ft_state} = "proxy_connect";
+			$proposal->{ip} = $self->rendezvous_proxy_host();
+		} else {
+			$self->rendezvous_reject($cookie);
+			$self->log_printf(OSCAR_DBG_WARN, "Couldn't figure out how to connect for file transfer (%s, %s).", $proposal->{ip}, $proposal->{proxy});
+			return;
+		}
+	} else {
+		$proposal->{using_proxy} = 0;
+		$proposal->{tried_connect} = 1;
+		$proposal->{ft_state} = "connecting";
+	}
+
+	return 1;
+}
+
+sub rendezvous_accept($$) {
+	my($self, $cookie) = @_;
+	return unless exists($self->{rv_proposals}->{$cookie});
+	my $proposal = $self->{rv_proposals}->{$cookie};
+
+	return unless $self->rendezvous_negotiate($cookie);
+
+	$self->log_printf(OSCAR_DBG_INFO, "Establishing rendezvous connection to %s:%d", $proposal->{ip}, $proposal->{port});
+	$proposal->{ip} .= ":" . $proposal->{port} if $proposal->{port};
 	my $newconn = $self->addconn(
 		conntype => CONNTYPE_DIRECT_OUT,
-		peer => $proposal->{ip} . ":" . $proposal->{port},
+		peer => $proposal->{ip},
 		description => "transfer of files: " . join(", ", @{$proposal->{filenames}}),
 		rv => $proposal,
-		ft_status => "connecting"
 	);
+	$proposal->{connection} = $newconn;
 }
 
 sub rendezvous_reject($$) {

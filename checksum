@@ -11,18 +11,19 @@ my $data = <STDIN>;
 # Adopted from Gaim's implementation
 sub checksum($) {
 	my($part) = @_;
-	my $check = (0xFFFF0000 >> 16) & 0xFFFF;
+	my $check = sprintf("%lu", (0xFFFF0000 >> 16) & 0xFFFF);
 
-	foreach my $val (unpack("n*", $part)) {
+	for(my $i = 0; $i < length($part); $i++) {
 		my $oldcheck = $check;
 
+		my $byte = ord(substr($part, $i, 1));
+		my $val = ($i & 1) ? $byte : ($byte << 8);
 		$check -= $val;
+		$check = sprintf("%lu", $check);
 
-		# Straight $check > $oldcheck you say?
-		# Well, these are 32-bit unsigned values, and it tries to
-		# compare them as signed.
-		if(pack("N", $check) gt pack("N", $oldcheck)) {
+		if($check > $oldcheck) {
 			$check--;
+			$check = sprintf("%lu", $check);
 		}
 	}
 
@@ -30,7 +31,7 @@ sub checksum($) {
 	$check = (($check & 0x0000FFFF) + ($check >> 16));
 	$check = $check << 16;
 
-	printf "%u\n", $check;
+	printf "%lu\n", $check;
 }
 
 checksum($data);
