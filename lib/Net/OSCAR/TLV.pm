@@ -26,7 +26,7 @@ sub setorder {
 	# Anything not specified gets shoved at the end
 	my @end = grep { my $inbud = $_; not grep { $_ eq $inbud } @_ } @{$self->{ORDER}};
 
-	@{$self->{ORDER}} = map { pack("n", $_) } @_;
+	@{$self->{ORDER}} = map { pack("n", 0+$_) } @_;
 	push @{$self->{ORDER}}, @end;
 }
 
@@ -38,12 +38,12 @@ sub TIEHASH {
 
 sub FETCH {
 	my($self, $key) = @_;
-	$self->{DATA}->{pack("n", $key)};
+	$self->{DATA}->{pack("n", 0+$key)};
 }
 
 sub STORE {
 	my($self, $key, $value) = @_;
-	my($normalkey) = pack("n", $key);
+	my($normalkey) = pack("n", 0+$key);
 
 	#print STDERR "Storing: ", Data::Dumper->Dump([$value], ["${self}->{$key}"]);
 	if(!exists $self->{DATA}->{$normalkey}) {
@@ -73,7 +73,7 @@ sub STORE {
 
 sub DELETE {
 	my($self, $key) = @_;
-	my($packedkey) = pack("n", $key);
+	my($packedkey) = pack("n", 0+$key);
 	delete $self->{DATA}->{$packedkey};
 	for(my $i = 0; $i < scalar @{$self->{ORDER}}; $i++) {
 		next unless $packedkey eq $self->{ORDER}->[$i];
@@ -92,7 +92,7 @@ sub CLEAR {
 
 sub EXISTS {
 	my($self, $key) = @_;
-	my($packedkey) = pack("n", $key);
+	my($packedkey) = pack("n", 0+$key);
 	return exists $self->{DATA}->{$packedkey};
 }
 
