@@ -453,30 +453,4 @@ sub process_snac($$) {
 	return 1;
 }
 
-sub get_buddy($\$) {
-	my ($session, $data) = @_;
-	confess "Bad data $data!" unless ref($data) eq "SCALAR";
-	confess "Too short" if length($$data) < 10;
-	if(substr($$data, 0, 2) eq pack("n", 0xC8)) { ## Sometimes we get TLV 0xC8?
-		my($tlvlen) = unpack("xx n", $$data);
-		substr($$data, 0, 4+$tlvlen) = "";
-	}
-	my($name, $groupid, $buddyid, $pdflag, $groupmembers) = unpack("n/a* n n n n", $$data);
-	return undef unless $name;
-	substr($$data, 0, 10+length($name)) = "";
-	my(@groupmembers) = ();
-	@groupmembers = unpack("n*", substr($$data, 0, $groupmembers, "")) if $groupmembers;
-	if($groupmembers) {
-		$session->{buddies}->{$name}->{groupid} = $groupid;
-		$session->{buddies}->{$name}->{members} = $session->bltie();
-	}
-	return {
-		name => $name,
-		groupid => $groupid,
-		buddyid => $buddyid,
-		pdflag => $pdflag,
-		groupmembers => \@groupmembers
-	};
-}
-
 1;

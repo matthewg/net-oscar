@@ -50,7 +50,7 @@ sub flap_encode($$;$) {
 sub flap_put($$;$) {
 	my($self, $msg, $channel) = @_;
 	my $emsg = $self->flap_encode($msg, $channel);
-	syswrite($self->{socket}, $emsg) or confess "$self->{description} Couldn't write to socket: $!";
+	syswrite($self->{socket}, $emsg) or return $self->{session}->crapout($self, "Couldn't write to socket: $!");
 	$self->log_print(OSCAR_DBG_PACKETS, "Put ", hexdump($emsg));
 }
 
