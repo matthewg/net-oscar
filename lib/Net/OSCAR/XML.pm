@@ -31,10 +31,8 @@ use XML::Parser;
 use Carp;
 use Data::Dumper;
 
-use Net::OSCAR::XML::Template;
-use Net::OSCAR::Common qw(:loglevels);
-use Net::OSCAR::Utility qw(hexdump);
 use Net::OSCAR::TLV;
+use Net::OSCAR::XML::Template;
 our(%xmlmap, %xml_revmap, $PROTOPARSE_DEBUG);
 
 require Exporter;
@@ -178,6 +176,11 @@ sub _xmlnode_to_template($$) {
 
 		while(@$value) {
 			my($subtag, $subval) = splice(@$value, 0, 2);
+			if($subtag eq "0") {
+				$datum->{value} ||= $subval if $subval =~ /\S/;
+				next;
+			}
+
 			my $item = _xmlnode_to_template($subtag, $subval);
 			push @{$datum->{items}}, $item;
 		}

@@ -70,7 +70,11 @@ sub unpack($$) {
 			if($datum->{prefix} and $datum->{prefix} eq "length") {
 				($size) = unpack($datum->{prefix_packlet}, substr($packet, 0, $datum->{prefix_len}, ""));
 			} elsif(exists($datum->{len})) {
-				$size = $datum->{len};
+				if($count == -1) {
+					$size = length($packet);
+				} else {
+					$size = $datum->{len} * $count;
+				}
 			}
 		}
 
@@ -104,11 +108,20 @@ sub unpack($$) {
 
 				my %tmp;
 				if($datum->{type} eq "data") {
+					my $subinput;
+					if($datum->{len}) {
+						$subinput = substr($input, 0, $datum->{len}, "");
+					} else {
+						$subinput = $input;
+						$input = "";
+					}
+
 					if(@{$datum->{items}}) {
-						(%tmp) = $self->new($datum->{items})->unpack(\$input);
+						(%tmp) = $self->new($datum->{items})->unpack(\$subinput);
+						$input = $subinput unless $datum->{len};
 					} else {
 						# The simple case -- raw <data />
-						push @results, $input if $datum->{name};
+						push @results, $subinput if $datum->{name};
 					}
 				} elsif($datum->{type} eq "ref") {
 					(%tmp) = protoparse($oscar, $datum->{name})->unpack(\$input);
@@ -138,6 +151,7 @@ sub unpack($$) {
 				}
 
 				if($datum->{subtyped}) {
+					assert(exists($tlv{subtype}));
 					if(!exists($tlvmap->{$tlv{type}}->{$tlv{subtype}}) and exists($tlvmap->{$tlv{type}}->{-1})) {
 						$tlv{subtype} = -1;
 					}
@@ -154,7 +168,7 @@ sub unpack($$) {
 				if($datum->{subtyped}) {
 					while(my($subtype, $subval) = each %$val) {
 						if(exists($subval->{data})) {
-							if(@{$subval->{items}} and $subval->{data}) {
+							if(ref($subval->{items}) and @{$subval->{items}} and $subval->{data}) {
 								my(%tmp) = $self->new($subval->{items})->unpack($subval->{data});
 								if($subval->{name}) {
 									push @results, {$subval->{name} => \%tmp};
@@ -166,7 +180,7 @@ sub unpack($$) {
 					}
 				} else {
 					if(exists($val->{data})) {
-						if(@{$val->{items}} and $val->{data}) {
+						if(ref($val->{items}) and @{$val->{items}} and $val->{data}) {
 							my(%tmp) = $self->new($val->{items})->unpack($val->{data});
 							if($val->{name}) {
 								push @results, {$val->{name} => \%tmp};
@@ -241,7 +255,7 @@ sub pack($%) {
 
 		## Pack it
 		if($datum->{type} eq "num") {
-			next unless $value;
+			next unless defined($value);
 
 			for($count = 0; ($max_count == -1 or $count < $max_count) and @valarray; $count++) {
 				$output .= pack($datum->{packlet}, shift @valarray);
@@ -279,6 +293,7 @@ sub pack($%) {
 				$count++;
 				if($datum->{subtyped}) {
 					my $subtype = 0;
+					assert(exists($tlv->{subtype}));
 					$subtype = $tlv->{subtype} if $tlv->{subtype} != -1;
 
 					$output .= protoparse($oscar, "subtyped TLV")->pack(

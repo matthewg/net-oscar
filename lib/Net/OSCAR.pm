@@ -1100,9 +1100,9 @@ sub send_im($$$;$;) {
 	);
 
 	if($away) {
-		$protodata{is_automatic} = "";
+		$protodata{is_automatic} = {};
 	} else {
-		$protodata{request_server_confirmation} = "";
+		$protodata{request_server_confirmation} = {};
 	}
 
 	if($self->{capabilities}->{buddy_icons} and $self->{icon_checksum} and $self->{icon_timestamp} and
@@ -1118,7 +1118,10 @@ sub send_im($$$;$;) {
 	}
 
 	
-	my $flags2 = $self->{capabilities}->{typing_status} ? 0xB : 0;
+	my $flags2 = 0;
+	if($self->{capabilities}->{typing_status}) {
+		$flags2 = 0xB;
+	}
 
 	$self->svcdo(CONNTYPE_BOS, protobit => "outgoing IM", protodata => \%protodata, flags2 => $flags2);
 

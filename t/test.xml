@@ -22,6 +22,7 @@
 
 	<!-- Fixed values -->
 	<define name="fixed_value"><word>123</word></define>
+	<define name="fixed_value_data"><data>foo</data></define>
 
 	<!-- Length prefixes, counts -->
 	<define name="length_prefix"><data length_prefix="word" name="x" /></define>
@@ -29,11 +30,14 @@
 	<define name="repeated_data"><word count="-1" name="x" /></define>
 	<define name="fixed_width_data"><data length="10" name="x" /><data name="y" /></define>
 
+	<!-- Count and Length -->
+	<define name="count_len"><data count="-1" length="1" name="foo" /></define>
+
 	<!-- TLVs -->
 	<define name="basic_tlv">
 		<tlvchain>
-			<tlv type="1"><data name="x" /></tlv>
-			<tlv type="2"><data name="y" /></tlv>
+			<tlv type="1"><word name="x" /></tlv>
+			<tlv type="2"><word name="y" /></tlv>
 		</tlvchain>
 	</define>
 	<define name="named_tlv">
@@ -54,8 +58,8 @@
 	</define>
 	<define name="subtyped_tlv">
 		<tlvchain subtyped="yes">
-			<tlv type="1" subtype="1" name="foo"><data name="x" /></tlv>
-			<tlv type="1" subtype="2" name="bar"><data name="y" /></tlv>
+			<tlv type="1" subtype="1" name="foo"><word name="x" /></tlv>
+			<tlv type="1" subtype="2" name="bar"><word name="y" /></tlv>
 		</tlvchain>
 	</define>
 	<define name="count_prefix_tlv">

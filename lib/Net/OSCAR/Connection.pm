@@ -51,7 +51,7 @@ sub proto_send($%) {
 
 	my %snac;
 	($snac{family}, $snac{subtype}) = protobit_to_snacfam($data{protobit}) or croak "Couldn't find protobit $data{protobit}";
-	$snac{data} = protoparse($self->{session}, $data{protobit})->(%{$data{protodata}});
+	$snac{data} = protoparse($self->{session}, $data{protobit})->pack(%{$data{protodata}});
 
 	$self->log_printf(OSCAR_DBG_DEBUG, "Put SNAC 0x%04X/0x%04X: %s", $snac{family}, $snac{subtype}, $data{protobit});
 	$self->snac_put(%snac);
@@ -69,7 +69,7 @@ sub flap_encode($$;$) {
 	my ($self, $msg, $channel) = @_;
 
 	$channel ||= FLAP_CHAN_SNAC;
-	return protoparse($self->{session}, "flap")->(
+	return protoparse($self->{session}, "flap")->pack(
 		channel => $channel,
 		seqno => ++$self->{seqno},
 		msg => $msg
@@ -179,7 +179,7 @@ sub snac_encode($%) {
 	$snac{reqid} ||= ($snac{subtype}<<16) | (unpack("n", randchars(2)))[0];
 	$self->{reqdata}->[$snac{family}]->{pack("N", $snac{reqid})} = $snac{reqdata} if $snac{reqdata};
 
-	my $snac = protoparse($self->{session}, "snac")->(%snac);
+	my $snac = protoparse($self->{session}, "snac")->pack(%snac);
 	return $snac;
 }
 
@@ -197,7 +197,7 @@ sub snac_get($) {
 
 sub snac_decode($$) {
 	my($self, $snac) = @_;
-	my(%data) = protoparse($self->{session}, "snac")->($snac);
+	my(%data) = protoparse($self->{session}, "snac")->unpack($snac);
 
 	if($data{flags1} & 0x80) {
 		my($minihdr_len) = unpack("n", $data{data});

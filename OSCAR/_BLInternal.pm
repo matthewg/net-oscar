@@ -371,7 +371,7 @@ sub BLI_to_OSCAR($$) {
 		my(@reqdata, @packets);
 		my $packet = "";
 		foreach my $change(@$changelist) {
-			$packet .= protoparse($session, "buddylist modification")->(%{$change->{protodata}});
+			$packet .= protoparse($session, "buddylist modification")->pack(%{$change->{protodata}});
 			push @reqdata, $change->{reqdata};
 
 			if(length($packet) > 7*1024) {

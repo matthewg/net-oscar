@@ -26,9 +26,18 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		data => {x => "UML model of a modern major general"},
 		template => "just_data"
 	},{
+		binary => pack("n", 0),
+		data => {x => 0},
+		template => "just_word",
+		name => "zero word"
+	},{
 		binary => pack("n", 123),
 		data => {},
 		template => "fixed_value"
+	},{
+		binary => "foo",
+		data => {},
+		template => "fixed_value_data"
 	},{
 		binary => pack("na*", length("Cthulhu"), "Cthulhu"),
 		data => {x => "Cthulhu"},
@@ -46,9 +55,18 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		data => {x => "1234567890", y => "XXX"},
 		template => "fixed_width_data"
 	},{
-		binary => pack("nna* nna*", 1, length("foo"), "foo", 2, length("bar"), "bar"),
-		data => {x => "foo", y => "bar"},
+		binary => "abc",
+		data => {foo => [qw(a b c)]},
+		template => "count_len"
+	},{
+		binary => pack("nnn nnn", 1, 2, 3, 2, 2, 20),
+		data => {x => 3, y => 20},
 		template => "basic_tlv"
+	},{
+		binary => pack("nnn nnn", 1, 2, 0, 2, 2, 0),
+		data => {x => 0, y => 0},
+		template => "basic_tlv",
+		name => "zero TLV"
 	},{
 		binary => pack("nna* nna*", 1, length("Baby"), "Baby", 2, length("Surge"), "Surge"),
 		data => {foo => {x => "Baby"}, bar => {y => "Surge"}},
@@ -58,9 +76,14 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		data => {foo => "foo", bar => 3142, baz => 27},
 		template => "complex_data_tlv"
 	},{
-		binary => pack("nCCa* nCCa*", 1, 1, length("foo"), "foo", 1, 2, length("foobar"), "foobar"),
-		data => {foo => {x => "foo"}, bar => {y => "foobar"}},
+		binary => pack("nCCn nCCn", 1, 1, 2, 3, 1, 2, 2, 20),
+		data => {foo => {x => 3}, bar => {y => 20}},
 		template => "subtyped_tlv"
+	},{
+		binary => pack("nCCn nCCn", 1, 1, 2, 0, 1, 2, 2, 0),
+		data => {foo => {x => 0}, bar => {y => 0}},
+		template => "subtyped_tlv",
+		name => "zero subtyped TLV"
 	},{
 		binary => pack("n nna*", 1, 1, length("foo"), "foo"),
 		data => {x => "foo"},
@@ -87,13 +110,13 @@ foreach (@tests) {
 	is(
 		protoparse($oscar, $_->{template})->pack(%{$_->{data}}),
 		$_->{binary},
-		"Encode: " . $_->{template}
+		"Encode: " . (exists($_->{name}) ? $_->{name} : $_->{template})
 	);
 
 	is_deeply(
 		{protoparse($oscar, $_->{template})->unpack($_->{binary})},
 		$_->{data},
-		"Decode: " . $_->{template}
+		"Decode: " . (exists($_->{name}) ? $_->{name} : $_->{template})
 	);
 }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-use Test::More tests => 20;
+use Test::More tests => 22;
 use File::Basename;
 use strict;
 use lib "./blib/lib";
@@ -19,10 +19,12 @@ is_deeply([sort keys(%Net::OSCAR::XML::xmlmap)], [sort qw(
 		just_dword
 		just_data
 		fixed_value
+		fixed_value_data
 		length_prefix
 		vax_prefix
 		repeated_data
 		fixed_width_data
+		count_len
 		basic_tlv
 		named_tlv
 		complex_data_tlv
@@ -62,6 +64,11 @@ is_deeply(
 is_deeply(
 	[protoparse($oscar, "fixed_value")],
 	[{len => 2, type => 'num', packlet => 'n', value => 123}],
+	"fixed-value word"
+);
+is_deeply(
+	[protoparse($oscar, "fixed_value_data")],
+	[{type => 'data', value => 'foo'}],
 	"fixed-value data"
 );
 
@@ -87,16 +94,22 @@ is_deeply(
 );
 
 is_deeply(
+	[protoparse($oscar, "count_len")],
+	[{type => 'data', count => -1, len => 1, name => 'foo'}],
+	"count length data"
+);
+
+is_deeply(
 	[protoparse($oscar, "basic_tlv")],
 	[{type => 'tlvchain', items => [
 		{
 			type => 'data',
 			num => 1,
-			items => [{type => 'data', name => 'x'}],
+			items => [{type => 'num', packlet => 'n', len => 2, name => 'x'}],
 		},{
 			type => 'data',
 			num => 2,
-			items => [{type => 'data', name => 'y'}],
+			items => [{type => 'num', packlet => 'n', len => 2, name => 'y'}],
 		}
 	]}],
 	"TLV chain"
@@ -141,12 +154,12 @@ is_deeply(
 			type => 'data',
 			name => 'foo',
 			num => 1, subtype => 1,
-			items => [{type => 'data', name => 'x'}]
+			items => [{type => 'num', packlet => 'n', len => 2, name => 'x'}]
 		},{
 			type => 'data',
 			name => 'bar',
 			num => 1, subtype => 2,
-			items => [{type => 'data', name => 'y'}]
+			items => [{type => 'num', packlet => 'n', len => 2, name => 'y'}]
 		}
 	]}],
 	"TLV chain, subtyped TLVs"

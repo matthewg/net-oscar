@@ -251,19 +251,6 @@ print "\n";
 chomp $username;
 chomp $password;
 
-if($loglevel > 10) {
-	$pid = fork();
-	if(!$pid) {
-		umask 022;
-		unlink "dormouse.pcap";
-		system("touch dormouse.pcap");
-		system("chown matthewg dormouse.pcap");
-		close STDOUT;
-		close STDERR;
-		exec("/home/matthewg/tethereal", "-n", "-p", "-w", "dormouse.pcap", "port", "5190");
-	}
-}
-
 $oscar = Net::OSCAR->new(capabilities => [qw(typing_status extended_status buddy_icons)]);
 $oscar->set_callback_error(\&error);
 $oscar->set_callback_buddy_in(\&buddy_in);

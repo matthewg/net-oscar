@@ -44,7 +44,7 @@
 			<tlv type="29">
 				<tlvchain subtyped="yes">
 					<tlv type="1" subtype="1"><data name="icon_md5sum" /></tlv>
-					<tlv type="2"><data length_prefix="word" name="extended_status" /></tlv>
+					<tlv type="2" subtype="-1"><data length_prefix="word" name="extended_status" /></tlv>
 				</tlvchain>
 			</tlv>
 
@@ -246,12 +246,18 @@
 
 	<!-- User information -->
 
-	<define name="get info" family="2" subtype="6">
+	<define name="get info" family="2" subtype="21">
+		<word>0</word>
+		<word>1</word>
+		<data length_prefix="byte" name="screenname" />
+	</define>
+	<define name="get away" family="2" subtype="21">
+		<word>0</word>
+		<word>3</word>
+		<data length_prefix="byte" name="screenname" />
+	</define>
+	<define name="incoming profile" family="2" subtype="6">
 		<ref name="userinfo" />
-		<tlvchain>
-			<tlv type="2"><data name="profile" /></tlv>
-			<tlv type="4"><data name="awaymsg" /></tlv>
-		</tlvchain>
 	</define>
 
 	<define name="set info" family="2" subtype="4">
@@ -290,7 +296,7 @@
 			<tlv type="0" subtype="129"><data name="resend_checksum" /></tlv>
 			<tlv type="1" subtype="129"><data name="resend_checksum" /></tlv>
 
-			<tlv type="2"><data length_prefix="word" name="status_message" /></tlv>
+			<tlv type="2" subtype="-1"><data length_prefix="word" name="status_message" /></tlv>
 		</tlvchain>
 	</define>
 
@@ -379,7 +385,11 @@
 		<ref name="standard IM footer" />
 	</define>
 
-	<define name="IM acknowledgement" family="4" subtype="12" />
+	<define name="IM acknowledgement" family="4" subtype="12">
+		<data length="8" name="cookie" />
+		<word name="channel" />
+		<data length_prefix="byte" name="screenname" />
+	</define>
 
 
 

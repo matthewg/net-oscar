@@ -217,7 +217,6 @@ sub send_versions($$) {
 	my $conntype = $connection->{conntype};
 	my @services;
 
-	$connection->{session}->loglevel(10);
 	if($conntype != CONNTYPE_BOS) {
 		@services = (1, $conntype);
 	} else {

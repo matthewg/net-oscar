@@ -30,7 +30,7 @@ sub process_snac($$) {
 
 	my $protobit = snacfam_to_protobit($family, $subtype);
 	die "Unknown SNAC: $family/$subtype\n" unless $protobit;
-	my %data = protoparse($session, $protobit)->($data);
+	my %data = protoparse($session, $protobit)->unpack($data);
 	$connection->log_printf(OSCAR_DBG_DEBUG, "Got SNAC 0x%04X/0x%04X: %s", $snac->{family}, $snac->{subtype}, $protobit);
 
 	if(!$protobit) {
@@ -203,7 +203,7 @@ sub process_snac($$) {
 		my $sender_info = $session->{userinfo}->{$sender} ||= {};
 
 		if($data{channel} == 1) { # Regular IM
-			%data = protoparse($session, "standard IM footer")->($data{IM});
+			%data = protoparse($session, "standard IM footer")->unpack($data{IM});
 
 			# Typing status
 			my $typing_status = 0;
@@ -234,7 +234,7 @@ sub process_snac($$) {
 			$session->callback_im_in($sender, $data{message}, exists($data{is_automatic}) ? 1 : 0);
 
 		} elsif($data{channel} == 3) { # Chat invite
-			%data = protoparse($session, "chat invitation IM footer")->($data{IM});
+			%data = protoparse($session, "chat invitation IM footer")->unpack($data{IM});
 
 			# Ignore invites for chats that we're already in
 			if(not grep { $_->{url} eq $data{chat_url} }
@@ -342,7 +342,7 @@ sub process_snac($$) {
 		} else {
 			$connection->log_print(OSCAR_DBG_INFO, "Buddylist error:", hexdump($data{data}));
 		}
-	} elsif($protobit eq "get info") {
+	} elsif($protobit eq "incoming profile") {
 		$session->postprocess_userinfo(\%data);
 		$session->callback_buddy_info($data{screenname}, \%data);
 	} elsif($protobit eq "chat navigator response") {
