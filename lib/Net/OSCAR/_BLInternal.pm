@@ -285,6 +285,9 @@ sub BLI_to_OSCAR($$) {
 
 	# First, delete stuff that we no longer use and modify everything else
 	foreach my $type(keys %$oldbli) {
+
+		my $budtype = (BUDTYPES)[$type] || "unknown type $type";
+
 		foreach my $gid(keys %{$oldbli->{$type}}) {
 			foreach my $bid(keys %{$oldbli->{$type}->{$gid}}) {
 				my $oldentry = $oldbli->{$type}->{$gid}->{$bid};
@@ -307,7 +310,7 @@ sub BLI_to_OSCAR($$) {
 						$session->log_print(OSCAR_DBG_DEBUG, "Modifying.");
 
 						push @{$budmods{modify}}, {
-							reqdata => {desc => "modifying ".(BUDTYPES)[$type]." $newentry->{name}", type => $type, gid => $gid, bid => $bid},
+							reqdata => {desc => "modifying $budtype $newentry->{name}", type => $type, gid => $gid, bid => $bid},
 							protodata => {
 								entry_name => $newentry->{name},
 								group_id => $gid,
@@ -325,7 +328,7 @@ sub BLI_to_OSCAR($$) {
 					$session->log_print(OSCAR_DBG_DEBUG, "Deleting.");
 
 					push @{$budmods{delete}}, {
-						reqdata => {desc => "deleting ".(BUDTYPES)[$type]." $oldentry->{name}", type => $type, gid => $gid, bid => $bid},
+						reqdata => {desc => "deleting $budtype $oldentry->{name}", type => $type, gid => $gid, bid => $bid},
 						protodata => {
 							entry_name => $oldentry->{name},
 							group_id => $gid,
@@ -341,6 +344,9 @@ sub BLI_to_OSCAR($$) {
 
 	# Now, add the new stuff
 	foreach my $type(keys %$newbli) {
+
+		my $budtype = (BUDTYPES)[$type] || "unknown type $type";
+
 		foreach my $gid(keys %{$newbli->{$type}}) {
 			foreach my $bid(keys %{$newbli->{$type}->{$gid}}) {
 				next if exists($oldbli->{$type}) and exists($oldbli->{$type}->{$gid}) and exists($oldbli->{$type}->{$gid}->{$bid}) and $oldbli->{$type}->{$gid}->{$bid}->{name} eq $newbli->{$type}->{$gid}->{$bid}->{name};
@@ -350,7 +356,7 @@ sub BLI_to_OSCAR($$) {
 				$session->log_printf(OSCAR_DBG_DEBUG, "New BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $entry->{name}, $type, $gid, $bid, length($data), hexdump($data));
 
 				push @{$budmods{add}}, {
-					reqdata => {desc => "adding ".(BUDTYPES)[$type]." $entry->{name}", type => $type, gid => $gid, bid => $bid},
+					reqdata => {desc => "adding $budtype $entry->{name}", type => $type, gid => $gid, bid => $bid},
 					protodata => {
 						entry_name => $entry->{name},
 						group_id => $gid,
