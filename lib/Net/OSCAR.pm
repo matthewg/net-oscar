@@ -1128,19 +1128,15 @@ their profile.
 
 =cut
 
-sub get_info($$) {
-	my($self, $screenname) = @_;
+sub get_info($$;$) {
+	my($self, $screenname, $type) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, family => 0x2, subtype => 0x15, data => pack("nnCa*", 0, 1, length($screenname), $screenname));
+	$type ||= 1;
+	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, family => 0x2, subtype => 0x15, data => pack("nnCa*", 0, $type, length($screenname), $screenname));
 }
 
-sub get_away($$) {
-	my($self, $screenname) = @_;
-	return must_be_on($self) unless $self->{is_on};
-
-	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, family => 0x2, subtype => 0x15, data => pack("nnCa*", 0, 3, length($screenname), $screenname));
-}
+sub get_away($$) { shift->get_info(@_, 3); }
 
 =pod
 
