@@ -95,6 +95,7 @@ use constant RATE_DISCONNECT => dualvar(4, "disconnect");
 
 use constant ENCODING => 'text/aolrtf; charset="us-ascii"';
 
+# I'm not 100% sure about error 29
 use constant ERRORS => split(/\n/, <<EOF);
 Invalid error
 Invalid SNAC
@@ -121,6 +122,10 @@ List overflow
 Request ambiguous
 Queue full
 Not while on AOL
+Unknown error 26
+Unknown error 27
+Unknown error 28
+There have been too many recent signons from this address.  Please wait a few minutes and try again.
 EOF
 
 sub randchars($) {
