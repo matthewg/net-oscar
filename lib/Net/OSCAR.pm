@@ -3773,6 +3773,7 @@ sub mod_buddylist($$$$;@) {
 		if(exists $self->{buddies}->{$group}) {
 			my $grp = $self->{buddies}->{$group};
 			$grp->{__BLI_DIRTY} = 1;
+			$grp->{__BLI_DELETED} = 0;
 			$grp->{data} = tlv();
 			$_->{__BLI_DELETED} = 1 foreach values %{$grp->{members}};
 		} else {
@@ -3808,6 +3809,7 @@ sub mod_buddylist($$$$;@) {
 			if(exists($grp->{members}->{$buddy})) {
 				my $bud = $grp->{members}->{$buddy};
 				$bud->{__BLI_DIRTY} = 1;
+				$bud->{__BLI_DELETED} = 0;
 				$bud->{data} = tlv();
 				$bud->{comment} = undef;
 				$bud->{alias} = undef;
