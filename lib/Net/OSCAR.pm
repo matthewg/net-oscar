@@ -723,17 +723,12 @@ sub mod_permit($$$@) {
 	my($self, $action, $group, @buddies) = @_;
 
 	return must_be_on($self) unless $self->{is_on};
-	my $othergroup = ($group eq "permit") ? "deny" : "permit";
 	if($action == MODBL_ACTION_ADD) {
-		@buddies = grep { not exists $self->{$group}->{$_} } @buddies;
-		return unless @buddies;
-		$self->mod_permit(MODBL_ACTION_DEL, $othergroup, @buddies);
 		foreach my $buddy(@buddies) {
+			next if exists($self->{$group}->{$buddy});
 			$self->{$group}->{$buddy}->{buddyid} = $self->newid($self->{group});
 		}
 	} else {
-		@buddies = grep { exists $self->{$group}->{$_} } @buddies;
-		return unless @buddies;
 		foreach my $buddy(@buddies) {
 			delete $self->{$group}->{$buddy};
 		}
