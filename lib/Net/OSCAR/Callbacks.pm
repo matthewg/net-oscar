@@ -1,6 +1,6 @@
 package Net::OSCAR::Callbacks;
 
-$VERSION = 0.01;
+$VERSION = 0.05;
 
 use strict;
 use vars qw($VERSION);
@@ -494,15 +494,15 @@ sub process_snac($$) {
 		my($subreq) = unpack("n", $tlv->{0x3}) if $tlv->{0x3};
 		$subreq ||= 0;
 		if($reqtype == 2) {
-			$reqdesc = "password change";
+			$reqdesc = ADMIN_TYPE_PASSWORD_CHANGE;
 		} elsif($reqtype == 3) {
 			if($subreq == 0x11) {
-				$reqdesc = "email change";
+				$reqdesc = ADMIN_TYPE_EMAIL_CHANGE;
 			} else {
-				$reqdesc = "screenname format";
+				$reqdesc = ADMIN_TYPE_SCREENNAME_FORMAT;
 			}
 		} elsif($reqtype == 0x1E) {
-			$reqdesc = "account confirm";
+			$reqdesc = ADMIN_TYPE_ACCOUNT_CONFIRM;
 		}
 		$reqdesc ||= sprintf "unknown admin reply type 0x%04X/0x%04X", $reqtype, $subreq;
 
@@ -514,15 +514,15 @@ sub process_snac($$) {
 			} else {
 				my($result) = unpack("n", $tlv->{0x08});
 				if($result == 2) {
-					$errdesc = "Incorrect password.";
+					$errdesc = ADMIN_ERROR_BADPASS;
 				} elsif($result == 6) {
-					$errdesc = "Invalid input.";
+					$errdesc = ADMIN_ERROR_BADINPUT;
 				} elsif($result == 0xB or $result == 0xC) {
-					$errdesc = "The screenname/email/password is too long or too short.";
+					$errdesc = ADMIN_ERROR_BADLENGTH;
 				} elsif($result == 0x13) {
-					$errdesc = "Your request could not be processed.  Wait a few minutes and try again.";
+					$errdesc = ADMIN_ERROR_TRYLATER;
 				} elsif($result == 0x1D) {
-					$errdesc = "You already have a pending email change request.";
+					$errdesc = ADMIN_ERROR_REQPENDING;
 				} else {
 					$errdesc = sprintf "Unknown error 0x%04X.", $result;
 				}

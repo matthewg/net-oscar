@@ -1,6 +1,6 @@
 package Net::OSCAR::Connection;
 
-$VERSION = 0.01;
+$VERSION = 0.05;
 
 use strict;
 use vars qw($VERSION);

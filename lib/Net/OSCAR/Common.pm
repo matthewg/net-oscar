@@ -1,15 +1,27 @@
 package Net::OSCAR::Common;
 
-$VERSION = 0.01;
+$VERSION = 0.05;
 
 use strict;
 use warnings;
 use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS $VERSION);
+use Scalar::Util qw(dualvar);
 require Exporter;
 @ISA = qw(Exporter);
 
 %EXPORT_TAGS = (
 	standard => [qw(
+		ADMIN_TYPE_PASSWORD_CHANGE
+		ADMIN_TYPE_EMAIL_CHANGE
+		ADMIN_TYPE_SCREENNAME_FORMAT
+		ADMIN_TYPE_ACCOUNT_CONFIRM
+		ADMIN_ERROR_UNKNOWN
+		ADMIN_ERROR_BADPASS
+		ADMIN_ERROR_BADINPUT
+		ADMIN_ERROR_BADLENGTH
+		ADMIN_ERROR_TRYLATER
+		ADMIN_ERROR_REQPENDING
+		ADMIN_ERROR_CONNREF
 		VISMODE_PERMITALL
 		VISMODE_DENYALL
 		VISMODE_PERMITSOME
@@ -21,6 +33,8 @@ require Exporter;
 		RATE_DISCONNECT
 	)],
 	all => [qw(
+		ADMIN_TYPE_PASSWORD_CHANGE ADMIN_TYPE_EMAIL_CHANGE ADMIN_TYPE_SCREENNAME_FORMAT ADMIN_TYPE_ACCOUNT_CONFIRM
+		ADMIN_ERROR_UNKNOWN ADMIN_ERROR_BADPASS ADMIN_ERROR_BADINPUT ADMIN_ERROR_BADLENGTH ADMIN_ERROR_TRYLATER ADMIN_ERROR_REQPENDING ADMIN_ERROR_CONNREF
 		VISMODE_PERMITALL VISMODE_DENYALL VISMODE_PERMITSOME VISMODE_DENYSOME VISMODE_PERMITBUDS RATE_CLEAR RATE_ALERT RATE_LIMIT RATE_DISCONNECT
 		FLAP_CHAN_NEWCONN FLAP_CHAN_SNAC FLAP_CHAN_ERR FLAP_CHAN_CLOSE
 		CONNTYPE_LOGIN CONNTYPE_BOS CONNTYPE_ADMIN CONNTYPE_CHAT CONNTYPE_CHATNAV
@@ -33,16 +47,29 @@ require Exporter;
 );
 @EXPORT_OK = map { @$_ } values %EXPORT_TAGS;
 
-use constant FLAP_CHAN_NEWCONN => 0x01;
-use constant FLAP_CHAN_SNAC => 0x02;
-use constant FLAP_CHAN_ERR => 0x03;
-use constant FLAP_CHAN_CLOSE => 0x04;
+use constant ADMIN_TYPE_PASSWORD_CHANGE => dualvar(1, "password change");
+use constant ADMIN_TYPE_EMAIL_CHANGE => dualvar(2, "email change");
+use constant ADMIN_TYPE_SCREENNAME_FORMAT => dualvar(3, "screenname format");
+use constant ADMIN_TYPE_ACCOUNT_CONFIRM => dualvar(4, "account confirm");
 
-use constant CONNTYPE_LOGIN => 0;
-use constant CONNTYPE_BOS => 0x2;
-use constant CONNTYPE_ADMIN => 0x7;
-use constant CONNTYPE_CHAT => 0xE;
-use constant CONNTYPE_CHATNAV => 0xD;
+use constant ADMIN_ERROR_UNKNOWN => dualvar(0, "unknown error");
+use constant ADMIN_ERROR_BADPASS => dualvar(1, "incorrect password");
+use constant ADMIN_ERROR_BADINPUT => dualvar(2, "invalid input");
+use constant ADMIN_ERROR_BADLENGTH => dualvar(3, "screenname/email/password is too long or too short");
+use constant ADMIN_ERROR_TRYLATER => dualvar(4, "request could not be processed; wait a few minutes and try again");
+use constant ADMIN_ERROR_REQPENDING => dualvar(5, "request pending");
+use constant ADMIN_ERROR_CONNREF => dualvar(6, "couldn't connect to the admin server");
+
+use constant FLAP_CHAN_NEWCONN => dualvar(0x01, "new connection");
+use constant FLAP_CHAN_SNAC => dualvar(0x02, "SNAC");
+use constant FLAP_CHAN_ERR => dualvar(0x03, "error");
+use constant FLAP_CHAN_CLOSE => dualvar(0x04, "close connection");
+
+use constant CONNTYPE_LOGIN => dualvar(0, "login");
+use constant CONNTYPE_BOS => dualvar(0x2, "BOS");
+use constant CONNTYPE_ADMIN => dualvar(0x7, "admin");
+use constant CONNTYPE_CHAT => dualvar(0xE, "chat");
+use constant CONNTYPE_CHATNAV => dualvar(0xD, "ChatNav");
 
 use constant MODBL_ACTION_ADD => 0x1;
 use constant MODBL_ACTION_DEL => 0x2;
@@ -52,19 +79,19 @@ use constant MODBL_WHAT_GROUP => 0x2;
 use constant MODBL_WHAT_PERMIT => 0x3;
 use constant MODBL_WHAT_DENY => 0x4;
 
-use constant VISMODE_PERMITALL  => 0x1;
-use constant VISMODE_DENYALL    => 0x2;
-use constant VISMODE_PERMITSOME => 0x3;
-use constant VISMODE_DENYSOME   => 0x4;
-use constant VISMODE_PERMITBUDS => 0x5;
+use constant VISMODE_PERMITALL  => dualvar(0x1, "permit all");
+use constant VISMODE_DENYALL    => dualvar(0x2, "deny all");
+use constant VISMODE_PERMITSOME => dualvar(0x3, "permit some");
+use constant VISMODE_DENYSOME   => dualvar(0x4, "deny some");
+use constant VISMODE_PERMITBUDS => dualvar(0x5, "permit buddies");
 
 use constant GROUP_PERMIT => 0x0002;
 use constant GROUP_DENY   => 0x0003;
 
-use constant RATE_CLEAR => 1;
-use constant RATE_ALERT => 2;
-use constant RATE_LIMIT => 3;
-use constant RATE_DISCONNECT => 4;
+use constant RATE_CLEAR => dualvar(1, "clear");
+use constant RATE_ALERT => dualvar(2, "alert");
+use constant RATE_LIMIT => dualvar(3, "limit");
+use constant RATE_DISCONNECT => dualvar(4, "disconnect");
 
 use constant ENCODING => 'text/aolrtf; charset="us-ascii"';
 

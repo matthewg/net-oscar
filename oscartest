@@ -33,12 +33,9 @@ sub rate_alert($$$) {
 sub admin_error($$$$) {
 	my($oscar, $reqtype, $error, $errurl) = @_;
 
-	# reqtype is "all", "password change", "email change", "screenname format", or "account confirm"
-	if($reqtype eq "all") {
-		print STDERR "Your password, email, screenname, or confirmation change request couldn't be completed because we couldn't connect to the administrative server.\n";
-	} else {
-		print STDERR "Your $reqtype request was unsuccessful: $error  See $errurl for more info.\n";
-	}
+	print STDERR "Your $reqtype request was unsuccessful (", 0+$error, "): $error.";
+	print STDERR "  See $errurl for more info." if $errurl;
+	print STDERR "\n";
 }
 
 sub admin_ok($$) {
@@ -296,7 +293,9 @@ EOF
 		} elsif($cmd eq "set_permit_mode") {
 			$oscar->set_visibility($params[0]);
 		} elsif($cmd eq "list_permit_modes") {
-			print "Permit all: 1\nDeny all: 2\nPermit some: 3\nDeny some: 4\nPermit buddies: 5\n";
+			foreach my $permmode(VISMODE_PERMITALL, VISMODE_DENYALL, VISMODE_PERMITSOME, VISMODE_DENYSOME, VISMODE_PERMITBUDS) {
+				print "$permmode: ", 0+$permmode, "\n";
+			}
 		} elsif($cmd eq "buddylist") {
 			foreach my $group(sort $oscar->groups) {
 				printf "%s\n", $group, $oscar->{buddies}->{$group}->{groupid};

@@ -1,6 +1,6 @@
 package Net::OSCAR::Buddylist;
 
-$VERSION = 0.01;
+$VERSION = 0.05;
 
 use strict;
 use vars qw($VERSION);
