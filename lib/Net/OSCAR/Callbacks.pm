@@ -354,7 +354,8 @@ sub process_snac($$) {
 
 		$session->log_print(OSCAR_DBG_DEBUG, "ChatNav told us where to find $chat->{name}");
 
-		$session->callback_chat_found($chat);
+		# We don't get the 0x0E/0x02 callback for exchange 5 chats
+		$session->callback_chat_joined($chat->name, $chat) if $chat->exchange == 5;
 
 		# Generate a random request ID
 		my($reqid) = "";
