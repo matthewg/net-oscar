@@ -10,6 +10,7 @@ sub {
 my @migfamilies = grep { $_ != 0 } @{$data{families}};
 
 $connection->log_print(OSCAR_DBG_WARN, "Migration families received: ", join(" ", @migfamilies));
+$session->loglevel(10);
 
 my $pause_queue;
 if(@{$data{families}} == keys %{$connection->{families}} or @migfamilies == 0) {

@@ -74,6 +74,12 @@ sub DELETE {
 		next unless $key eq $self->{ORDERFORM}->[$i];
 		$foo = 1;
 		splice(@{$self->{ORDERFORM}}, $i, 1);
+
+		# What if the user deletes a key while iterating?  We need to correct for the new index.
+		if($self->{CURRKEY} != -1 and $i <= $self->{CURRKEY}) {
+			$self->{CURRKEY}--;
+		}
+
 		last;
 	}
 	return $retval;
