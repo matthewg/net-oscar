@@ -215,6 +215,7 @@ sub new($) {
 		options => {
 			direct_connect_port => 0
 		}
+		_parameters => [@_];
 	};
 	bless $self, $class;
 
@@ -242,11 +243,41 @@ sub new($) {
 	$self->{timeout} = 0.01;
 	$self->{capabilities} = {};
 
+	$self->{direct_requests} = {};
+
 	if($parameters{capabilities}) {
 		$self->{capabilities}->{$_} = 1 foreach @{$parameters{capabilities}};
 	}
 
 	return $self;
+}
+
+=pod
+
+=item option (NAME[, NEWVAL])
+
+Gets or sets any of the following options, as per the L<new> method:
+
+=over 4
+
+=item direct_connect_port
+
+=back
+
+Returns the current value or, if C<NEWVAL> is specified, the previous value.
+
+=cut
+
+sub option($$;$) {
+	my($self, $opt, $newval) = @_;
+
+	if($opt eq "direct_connect_port") {
+		my $val = $self->{options}->{direct_connect_port};
+		$self->{options}->{direct_connect_port} = $newval if defined($newval);
+		return $val;
+	} else {
+		croak "Invalid option '$opt' in option method.";
+	}
 }
 
 
@@ -1244,11 +1275,12 @@ sub direct_im_connect($$) {
 	my $cookie = randchars(8);
 	$self->send_im(
 		$to,
-		encode_tlv(tlv(0x05 =>
+		encode_tlv(tlv(
+		   0x05 =>
 			pack("na*a*a*",
 				0, $cookie, OSCAR_CAPS()->{directim}->{value},
 				encode_tlv(tlv(0x0A => pack("n", 1), 0x0F => "", 0x03 => $self->ip(), 0x05 => pack("n", $listener->port())))
-			), 0x03 => ""
+			), 0x04 => $self->ip()
 		)),
 		0,
 		2
@@ -1803,9 +1835,9 @@ and then call the L<signon> method on the object returned by clone.
 
 sub clone($) {
 	my $self = shift;
-	my $clone = $self->new(); 	# Born in a science lab late one night
-					# Without a mother or a father
-					# Just a test tube and womb with a view...
+	my $clone = $self->new(@{$self->{_parameters}}); 	# Born in a science lab late one night
+								# Without a mother or a father
+								# Just a test tube and womb with a view...
 
 	# Okay, now we don't want to just copy the reference.
 	# If we did that, changing ourself would change the clone.
