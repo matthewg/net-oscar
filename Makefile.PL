@@ -32,7 +32,7 @@ POSTOP = cp \$(DISTVNAME).tar\$(SUFFIX) /home/webstuff/programs/net-oscar/Net-OS
 predist:
 	\@rcs2log -R > ~/tmp/rcslog
 	\@pico OSCAR.pm
-	\@find -name \\*.pm -exec perl -npi -e "s/VERSION = .*/VERSION = \$(OSCARVER);/" \\{\\} \\;
+	\@find -name \\*.pm -exec perl -npi -e "s/VERSION = .*/VERSION = '\$(OSCARVER)';/" \\{\\} \\;
 	\@cvs commit -m "Changed version number for release \$(OSCARVER)"
 	\@cvs rtag -R -F \$(CVS_TAG) net-oscar
 	\@pod2html OSCAR.pm > /home/webstuff/programs/net-oscar/net-oscar.html
