@@ -5,11 +5,9 @@ $VERSION = 0.25;
 use strict;
 use vars qw($VERSION);
 use Carp;
-use Socket;
-use Symbol;
 use Digest::MD5;
-use Fcntl;
 use POSIX qw(:errno_h);
+use IO::Socket;
 
 use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::TLV;
@@ -174,21 +172,7 @@ sub disconnect($) {
 	$self->{session}->delconn($self);
 }
 
-sub set_blocking($$) {
-	my $self = shift;
-	my $blocking = shift;
-	my $flags = 0;
-
-	fcntl($self->{socket}, F_GETFL, $flags);
-	if($blocking) {
-		$flags &= ~O_NONBLOCK;
-	} else {
-		$flags |= O_NONBLOCK;
-	}
-	fcntl($self->{socket}, F_SETFL, $flags);
-
-	return $self->{socket};
-}
+sub set_blocking($$) { shift->{socket}->blocking(shift); }
 
 sub connect($$) {
 	my($self, $host) = @_;
@@ -216,17 +200,16 @@ sub connect($$) {
 	$self->{port} = $port;
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Connecting to $host:$port.");
-	$self->{socket} = gensym;
-	socket($self->{socket}, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
+	$self->{socket} = IO::Socket::INET->new;
 
 	$self->{ready} = 0;
 	$self->{connected} = 0;
 
 	$self->set_blocking(0);
-	my $addr = inet_aton($host) or return $self->{session}->crapout($self, "Couldn't resolve $host.");
-	if(!connect($self->{socket}, sockaddr_in($port, $addr))) {
+	
+	if(!$self->{socket}->configure({PeerAddr => $host, PeerPort => $port})) {
 		return 1 if $! == EINPROGRESS;
-		croak "Couldn't connect to $host:$port: $!";
+		croak "Couldn't connect to $host:$port: $@";
 	}
 
 	return 1;
