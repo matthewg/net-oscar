@@ -168,6 +168,19 @@ sub process_snac($$) {
 			$session->{buddies}->{$group}->{members}->{$screenname}->{$key} = $buddy->{$key};
 		}
 
+		# Sync $session->{userinfo}->{$foo} with buddylist entry
+		if($session->{userinfo}->{$screenname}) {
+			if(!$session->{userinfo}->{$screenname}->{online}) {
+				foreach my $key(keys %{$session->{userinfo}->{$screenname}}) {
+					$session->{buddies}->{$group}->{members}->{$screenname}->{$key} = $session->{userinfo}->{$screenname}->{$key};
+				}
+				delete $session->{userinfo}->{$screenname};
+				$session->{userinfo}->{$screenname} = $session->{buddies}->{$group}->{members}->{$screenname};
+			}
+		} else {
+			$session->{userinfo}->{$screenname} = $session->{buddies}->{$group}->{members}->{$screenname};
+		}
+
 		$session->callback_buddy_in($screenname, $group, $session->{buddies}->{$group}->{members}->{$screenname});
 	} elsif($family == 0x3 and $subtype == 0xC) {
 		my ($buddy) = new Net::OSCAR::Screenname(unpack("C/a*", $data));
@@ -236,6 +249,11 @@ sub process_snac($$) {
 				$session->callback_im_in($from, $msg, $away);
 			}
 		}
+	} elsif($family == 0x4 and $subtype == 0x14) {
+		$connection->log_print(OSCAR_DBG_DEBUG, "Got typing notification.");
+
+		my ($unknown1, $unknown2, $type1, $sn, $type2 ) = unpack("N2nC/a*n", $data);
+		$session->callback_typing_status($sn, $type2);
 	} elsif($family == 0x1 and $subtype == 0xA) {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Got rate change.");
 
@@ -494,7 +512,7 @@ sub got_buddylist($$) {
 
 	$connection->log_print(OSCAR_DBG_DEBUG, "Adding ICBM parameters.");
 	$connection->snac_put(family => 0x4, subtype => 0x2, data =>
-		pack("n*", 0, 0, 3, 0x1F40, 0x3E7, 0x3E7, 0, 0)
+		pack("n*", 0, 0, 0x3 | 0xB , 0x1F40, 0x3E7, 0x3E7, 0, 0)
 	);
 
 	$connection->log_print(OSCAR_DBG_DEBUG, "Setting idle.");

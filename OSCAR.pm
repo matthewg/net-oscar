@@ -171,6 +171,7 @@ sub new($) {
 	$self->{LOGLEVEL} = 0;
 	$self->{SNDEBUG} = 0;
 	$self->{description} = "OSCAR session";
+	$self->{userinfo} = bltie;
 
 	$self->{timeout} = 0.01;
 
@@ -931,6 +932,7 @@ sub extract_userinfo($$) {
 	$retval->{pay} = $flags & 0x8;
 	$retval->{free} = $flags & 0x10;
 	$retval->{away} = $flags & 0x20;
+	$retval->{mobile} = $flags & 0x80;
 
 	($retval->{membersince}) = unpack("N", $tlv->{2}) if exists($tlv->{2});
 	($retval->{onsince}) = unpack("N", $tlv->{3}) if exists($tlv->{3});
@@ -1016,9 +1018,50 @@ sub send_im($$$;$) {
 		$packet .= tlv(3 => ""); #request server confirmation
 	}
 
-	$self->{bos}->snac_put(reqid => $reqid, reqdata => $to, family => 0x4, subtype => 0x6, data => $packet);
+	$self->{bos}->snac_put(reqid => $reqid, reqdata => $to, family => 0x4, subtype => 0x6, data => $packet, flags2 => 0xB);
 	return $reqid;
 }
+
+=pod
+
+=item send_typing_status (RECIPIENT, STATUS)
+
+Send a typing status change to another user.  Send these messages
+to implement typing status notification.  Valid values for C<STATUS> are:
+
+=over 4
+
+=item *
+
+TYPINGSTATUS_STARTED: The user has started typing to the recipient.
+
+=item *
+
+TYPINGSTATUS_TYPING: The user is typing to the recipient.
+
+=item *
+
+TYPINGSTATUS_FINISHED: The user has finished typing to the recipient.
+
+=back
+
+I B<believe> that the difference between C<TYPINGSTATUS_STARTED> and
+C<TYPINGSTATUS_TYPING> is that the latter indicates that text is
+actively being typed, while the former indicates that the user is
+composing a message (but isn't actively typing at the moment.)
+
+=cut
+
+sub send_typing_status($$$) {
+	my($self, $recipient, $status) = @_;
+
+	return unless exists $self->{userinfo}->{$recipient} and $self->{userinfo}->{$recipient}->{typingstatus};
+
+	$self->{bos}->snac_put(family => 0x4, subtype => 0x14, data =>
+		pack("NNnCa*", 0, 0, 1, length($recipient), $recipient) . pack("n", $status)
+	);
+}
+
 
 =pod
 
@@ -1057,6 +1100,8 @@ sub im_parse($$) {
 
 	# Copying gAIM/libfaim is *so* much easier than understanding stuff.
 	if($channel == 1) {
+		my $typingstatus = 0;
+
 		substr($data, 0, $tlvlen) = "";
 		$self->log_print(OSCAR_DBG_DEBUG, "Decoding ICBM secondary TLV.");
 
@@ -1071,6 +1116,15 @@ sub im_parse($$) {
 		$msglen -= 4;
 
 		$away = 1 if exists $tlv->{4};
+
+		# Sender supports typing status notification
+		$self->{userinfo}->{$from} ||= {};
+		if(exists($tlv->{0xB})) {
+			$self->{userinfo}->{$from}->{typingstatus} = 1;
+		} else {
+			delete $self->{userinfo}->{$from}->{typingstatus};
+		}
+
 		if($tlv->{3}) { # server ack requested
 			#$self->log_print(OSCAR_DBG_DEBUG, "Sending message ack.");
 			#$self->{bos}->snac_put(family => 0x4, subtype => 0xC, data =>
@@ -1535,6 +1589,14 @@ The user is away.
 
 The user is an administrator.
 
+=item mobile
+
+The user is using a mobile device.
+
+=item typingstatus
+
+The user is known to support typing status notification.  We only find this out if they send us an IM.
+
 =item membersince
 
 Time that the user's account was created, in the same format as the C<time> function.
@@ -1730,6 +1792,11 @@ Called when a buddy has signed off (or added us to their deny list.)
 
 Called when someone leaves a chatroom.
 
+=item typing_status (OSCAR, WHO, STATUS)
+
+Called when someone has sent us a typing status notification message.
+See L<send_typing_status> for a description of the different statuses.
+
 =item im_ok (OSCAR, TO, REQID)
 
 Called when an IM to C<TO> is successfully sent.
@@ -1888,6 +1955,7 @@ sub callback_admin_ok(@) { do_callback("admin_ok", @_); }
 sub callback_rate_alert(@) { do_callback("rate_alert", @_); }
 sub callback_signon_done(@) { do_callback("signon_done", @_); }
 sub callback_log(@) { do_callback("log", @_); }
+sub callback_typing_status(@) { do_callback("typing_status", @_); }
 sub callback_im_ok(@) { do_callback("im_ok", @_); }
 sub callback_connection_changed(@) { do_callback("connection_changed", @_); }
 sub callback_auth_challenge(@) { do_callback("auth_challenge", @_); }
@@ -1911,6 +1979,7 @@ sub set_callback_admin_ok($\&) { set_callback("admin_ok", @_); }
 sub set_callback_rate_alert($\&) { set_callback("rate_alert", @_); }
 sub set_callback_signon_done($\&) { set_callback("signon_done", @_); }
 sub set_callback_log($\&) { set_callback("log", @_); }
+sub set_callback_typing_status($\&) { set_callback("typing_status", @_); }
 sub set_callback_im_ok($\&) { set_callback("im_ok", @_); }
 sub set_callback_connection_changed($\&) { set_callback("connection_changed", @_); }
 sub set_callback_auth_challenge($\&) { set_callback("auth_challenge", @_); }
@@ -2649,6 +2718,10 @@ was used to help figure out a lot of the protocol details.  E<lt>http://www.ziga
 Mark Doliner for help with remote buddylists.  E<lt>http://kingant.net/libfaim/ReadThis.htmlE<gt>
 
 Sam Wong E<lt>sam@uhome.netE<gt> for a patch implementing ICQ2000 support.
+
+Bill Atkins for typing status notification and mobile user support.  E<lt>http://www.milkbone.org/E<gt>
+
+Jonathon Wodnicki for additional help with typing status notification.
 
 The gaim team - the source to their libfaim client was also very helpful.  E<lt>http://gaim.sourceforge.net/E<gt>
 

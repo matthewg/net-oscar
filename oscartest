@@ -25,6 +25,11 @@ sub signon_done($) {
 	print "You are now signed on to AOL Instant Messenger.\n";
 }
 
+sub typing_status($$$) {
+	my($oscar, $who, $status) = @_;
+	print STDERR "We received typing status $status from $who.\n";
+}
+
 sub rate_alert($$$) {
 	my($oscar, $level, $clear, $window) = @_;
 
@@ -181,10 +186,10 @@ sub auth_challenge($$$) {
 	$oscar->auth_response($md5->digest);
 }
 
-#sub im_ok($$$) {
-#	my($oscar, $to, $reqid) = @_;
-#	print "Your message, $reqid, was sent to $to.\n";
-#}
+sub im_ok($$$) {
+	my($oscar, $to, $reqid) = @_;
+	print "Your message, $reqid, was sent to $to.\n";
+}
 
 $loglevel = $ARGV[0] || 0;
 $domd5 = $ARGV[1] || 0;
@@ -230,6 +235,7 @@ $oscar->set_callback_buddylist_ok(\&buddylist_ok);
 $oscar->set_callback_admin_error(\&admin_error);
 $oscar->set_callback_admin_ok(\&admin_ok);
 $oscar->set_callback_rate_alert(\&rate_alert);
+$oscar->set_callback_typing_status(\&typing_status);
 $oscar->set_callback_signon_done(\&signon_done);
 $oscar->set_callback_auth_challenge(\&auth_challenge);
 $oscar->set_callback_im_ok(\&im_ok);
@@ -363,6 +369,8 @@ EOF
 
 					my $extra = "";
 					if($buddat) {
+						$extra .= " [MOBILE]" if $buddat->{mobile};
+						$extra .= " [TYPINGSTATUS]" if $buddat->{typingstatus};
 						$extra .= " [ONLINE]" if $buddat->{online};
 						$extra .= " [TRIAL]" if $buddat->{trial};
 						$extra .= " [AOL]" if $buddat->{aol};
