@@ -12,9 +12,15 @@ use Net::OSCAR::Screenname;
 
 sub new {
 	my $pkg = shift;
+	$pkg->{nonorm} = 0;
+	$pkg->{nonorm} = shift if @_;
 	$pkg->TIEHASH(@_);
 }
 
+sub setorder {
+	my $self = shift;
+	@{$self->{ORDERFORM}} = @_;
+}
 
 sub TIEHASH {
 	my $class = shift;
@@ -24,28 +30,28 @@ sub TIEHASH {
 
 sub FETCH {
 	my($self, $key) = @_;
-	$self->{DATA}->{normalize($key)};
+	$self->{DATA}->{$self->{nonorm} ? $key : normalize($key)};
 }
 
 sub STORE {
 	my($self, $key, $value) = @_;
-	if(exists $self->{DATA}->{normalize($key)}) {
+	if(exists $self->{DATA}->{$self->{nonorm} ? $key : normalize($key)}) {
 		my $foo = 0;
 		for(my $i = 0; $i < scalar @{$self->{ORDERFORM}}; $i++) {
 			next unless $key eq $self->{ORDERFORM}->[$i];
 			$foo = 1;
-			$self->{ORDERFORM}->[$i] = new Net::OSCAR::Screenname $key;
+			$self->{ORDERFORM}->[$i] = $self->{nonorm} ? $key : Net::OSCAR::Screenname->new($key);
 			last;
 		}
 	} else {
-		push @{$self->{ORDERFORM}}, new Net::OSCAR::Screenname $key;
+		push @{$self->{ORDERFORM}}, $self->{nonorm} ? $key : Net::OSCAR::Screenname->new($key);
 	}
-	$self->{DATA}->{normalize($key)} = $value;
+	$self->{DATA}->{$self->{nonorm} ? $key : normalize($key)} = $value;
 }
 
 sub DELETE {
 	my($self, $key) = @_;
-	my $retval = delete $self->{DATA}->{normalize($key)};
+	my $retval = delete $self->{DATA}->{$self->{nonorm} ? $key : normalize($key)};
 	my $foo = 0;
 	for(my $i = 0; $i < scalar @{$self->{ORDERFORM}}; $i++) {
 		next unless $key eq $self->{ORDERFORM}->[$i];
@@ -66,7 +72,7 @@ sub CLEAR {
 
 sub EXISTS {
 	my($self, $key) = @_;
-	return exists $self->{DATA}->{normalize($key)};
+	return exists $self->{DATA}->{$self->{nonorm} ? $key : normalize($key)};
 }
 
 sub FIRSTKEY {
@@ -82,7 +88,7 @@ sub NEXTKEY {
 		return wantarray ? () : undef;
 	} else {
 		my $key = $self->{ORDERFORM}->[$currkey];
-		my $normalkey = normalize($key);
+		my $normalkey = $self->{nonorm} ? $key : normalize($key);
 		return wantarray ? ($key, $self->{DATA}->{$normalkey}) : $key;
 	}
 }
