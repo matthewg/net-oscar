@@ -230,22 +230,23 @@ sub process_snac($$) {
 
 		my($group, $window, $clear, $alert, $limit, $disconnect, $current, $max) = unpack("xx n N*", $data);
 		my($rate, $worrisome);
-		if($current >= $clear) {
-			$rate = RATE_CLEAR;
-			$worrisome = 0;
-		} elsif($current >= $alert) {
+
+		if($current <= $disconnect) {
+			$rate = RATE_DISCONNECT;
+			$worrisome = 1;
+		} elsif($current <= $limit) {
+			$rate = RATE_LIMIT;
+			$worrisome = 1;
+		} elsif($current <= $alert) {
 			$rate = RATE_ALERT;
-			if($current - $limit < 250) {
+			if($current - $limit < 500) {
 				$worrisome = 1;
 			} else {
 				$worrisome = 0;
 			}
-		} elsif($current >= $limit) {
-			$rate = RATE_LIMIT;
-			$worrisome = 1;
-		} else {
-			$rate = RATE_DISCONNECT;
-			$worrisome = 1;
+		} else { # We're clear
+			$rate = RATE_CLEAR;
+			$worrisome = 0;
 		}
 
 		$session->callback_rate_alert($rate, $clear, $window, $worrisome);
