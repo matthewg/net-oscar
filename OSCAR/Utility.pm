@@ -75,8 +75,13 @@ while(@tags) {
 	(undef, undef, $name, $value) = splice(@tags, 0, 4);
 	next unless $name eq "define";
 	
-	$xmlmap{$value->[0]->{name}} = $value;
-	$xml_revmap{$value->[0]->{family}}->{$value->[0]->{subtype}} = $value->[0]->{name} if $value->[0]->{family};
+	$xmlmap{$value->[0]->{name}} = {xml => $value};
+	if($value->[0]->{family}) {
+		$xmlmap{$value->[0]->{name}}->{family} = $value->{0]->{family};
+		$xmlmap{$value->[0]->{name}}->{subtype} = $value->{0]->{subtype};
+		$xmlmap{$value->[0]->{name}}->{channel} = $value->{0]->{channel};
+		$xml_revmap{$value->[0]->{family}}->{$value->[0]->{subtype}} = $value->[0]->{name};
+	}
 }
 
 sub _xmldump {
@@ -267,6 +272,9 @@ sub _xmlnode_to_template($$) {
 	my $datum = {};
 	$datum->{name} = $attrs->{name} if $attrs->{name};
 	$datum->{value} = $value->[1] if @$value;
+	$datum->{type} = $attrs->{type} if exists($attrs->{type});
+	$datum->{shortno} = $attrs->{shortno} if exists($attrs->{shortno});
+
 	if($tag eq "ref") {
 		unshift @$xml, @{$xmlmap{$value->[0]->{name}}};
 		next;

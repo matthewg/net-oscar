@@ -1041,83 +1041,42 @@ sub mod_buddylist($$$$;@) {
 	}
 }
 
-sub extract_userinfo($$) {
-	my($self, $data) = @_;
+sub postprocess_userinfo($$) {
+	my($self, $userinfo) = @_;
 	my $retval = {};
-	my $tlvcnt;
 
-	($retval->{screenname}, $retval->{evil}, $tlvcnt) = unpack("C/a* n n", $data);
-	$retval->{screenname} = new Net::OSCAR::Screenname $retval->{screenname};
-	$retval->{evil} /= 10;
-	substr($data, 0, 5+length($retval->{screenname})) = "";
-	$self->log_print(OSCAR_DBG_DEBUG, "Decoding userinfo TLV with tlvcnt $tlvcnt.");
+	$userinfo->{evil} /= 10;
+	my $flags = $userinfo->{flags};
+	$userinfo->{trial} = $flags & 0x1;
+	$userinfo->{admin} = $flags & 0x2;
+	$userinfo->{aol} = $flags & 0x4;
+	$userinfo->{pay} = $flags & 0x8;
+	$userinfo->{free} = $flags & 0x10;
+	$userinfo->{away} = $flags & 0x20;
+	$userinfo->{mobile} = $flags & 0x80;
 
-	my($tlv, $chainlen) = tlv_decode($data, $tlvcnt);
-	#$chainlen--;
-
-	$self->log_print(OSCAR_DBG_DEBUG, "Done decoding userinfo TLV - chainlen $chainlen.");
-	my($flags) = unpack("n", $tlv->{1});
-	$retval->{trial} = $flags & 0x1;
-	$retval->{admin} = $flags & 0x2;
-	$retval->{aol} = $flags & 0x4;
-	$retval->{pay} = $flags & 0x8;
-	$retval->{free} = $flags & 0x10;
-	$retval->{away} = $flags & 0x20;
-	$retval->{mobile} = $flags & 0x80;
-
-	($retval->{membersince}) = unpack("N", $tlv->{2}) if exists($tlv->{2});
-	($retval->{onsince}) = unpack("N", $tlv->{3}) if exists($tlv->{3});
-	($retval->{idle}) = unpack("n", $tlv->{4})*60 if exists($tlv->{4});
-	if(exists($tlv->{0xD})) {
-		$self->log_print(OSCAR_DBG_DEBUG, "Got capabilities block.");
-		$retval->{capabilities} = {};
-		while($tlv->{0xD}) {
+	if(exists($userinfo->{capabilities})) {
+		my $capabilities = delete $userinfo->{capabilities};
+		while($capabilities) {
 			$self->log_print(OSCAR_DBG_DEBUG, "Got a capability.");
-			my $capability = substr($tlv->{0xD}, 0, 16, "");
+			my $capability = substr($capabilities, 0, 16, "");
 			if(OSCAR_CAPS_INVERSE()->{$capability}) {
 				my $capname = OSCAR_CAPS_INVERSE()->{$capability};
 				$self->log_print(OSCAR_DBG_DEBUG, "Got capability $capname.");
-				$retval->{capabilities}->{$capname} = OSCAR_CAPS()->{$capname}->{description};
+				$userinfo->{capabilities}->{$capname} = OSCAR_CAPS()->{$capname}->{description};
 			} else {
 				$self->log_print(OSCAR_DBG_INFO, "Unknown capability: ", hexdump($capability));
 			}
 		}
 	}
 		
-
-	# Extended status information (iChat)
-	if(exists($tlv->{0x1D})) {
-		my $statinfo = $tlv->{0x1D};
-		while($statinfo) {
-			my($subtype, $number, $length) = unpack("nCC", substr($statinfo, 0, 4, ""));
-			my($subdata) = substr($statinfo, 0, $length, "");
-
-			if($subtype == 0x02) {
-				my($msglen) = unpack("n", substr($subdata, 0, 2, ""));
-				$retval->{extended_status} = substr($subdata, 0, $msglen, "");
-			} elsif($subtype == 0x01 and $number == 1) {
-				my($icon_md5sum) = $subdata;
-				if(!exists($self->{userinfo}->{$retval->{screenname}})
-				   or !exists($self->{userinfo}->{$retval->{screenname}}->{icon_md5sum})
-				   or $self->{userinfo}->{$retval->{screenname}}->{icon_md5sum} ne $icon_md5sum) {
-					$retval->{icon_md5sum} = $icon_md5sum;
-					$self->callback_new_buddy_icon($retval->{screenname}, $retval);
-				}
-			}
+	if($userinfo->{icon_md5sum}) {
+		if(!exists($self->{userinfo}->{$userinfo->{screenname}})
+		   or !exists($self->{userinfo}->{$userinfo->{screenname}}->{icon_md5sum})
+		   or $self->{userinfo}->{$userinfo->{screenname}}->{icon_md5sum} ne $icon_md5sum) {
+			$self->callback_new_buddy_icon($retval->{screenname}, $retval);
 		}
 	}
-
-	substr($data, 0, $chainlen) = "";
-
-	if($data) {
-		$tlv = tlv_decode($data);
-		$retval->{profile} = $tlv->{0x2} if $tlv->{0x2};
-		$retval->{awaymsg} = $tlv->{0x4} if $tlv->{0x4};
-		$retval->{chatdata} = $tlv->{0x5} if $tlv->{0x5};
-	}
-
-	$chainlen += 5+length($retval->{screenname});
-	return wantarray ? ($retval, $chainlen) : $retval;
 }
 
 =pod

@@ -3,8 +3,8 @@
 
 <oscar>
 	<define name="flap">
-		<byte>0x2A</byte> <!-- FLAP packet start indicator -->
-		<byte name="channel">FLAP_CHAN_SNAC</byte>
+		<byte>42</byte> <!-- FLAP packet start indicator -->
+		<byte name="channel">2</byte>
 		<word name="seqno" />
 		<data length_prefix="word" name="msg" />
 	</define>
