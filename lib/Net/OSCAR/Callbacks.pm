@@ -506,6 +506,11 @@ sub got_buddylist($$) {
 	$session->callback_signon_done() unless $session->{sent_done}++;
 
 	$connection->snac_put(family => 0x2, subtype => 0xB, data => pack("Ca*", length(normalize($session->screenname)), normalize($session->screenname)));
+
+	$connection->log_print(OSCAR_DBG_DEBUG, "Setting directory info.");
+	$connection->snac_put(family => 0x02, subtype => 0x09);
+
+	$connection->snac_put(family => 0x02, subtype => 0x0F);
 }
 
 1;

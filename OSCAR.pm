@@ -89,7 +89,7 @@ demonstrates how to use this method with multiple C<Net::OSCAR> objects:
 
 =head1 FUNCTIONALITY
 
-C<Net::OSCAR> pretends to be WinAIM 4.3.2229.  It supports remote buddylists
+C<Net::OSCAR> pretends to be WinAIM 4.7.2480.  It supports remote buddylists
 including permit and deny settings.  It also supports chat.  At the present
 time, setting and retrieving of directory information is not supported; nor
 are email privacy settings, buddy icons, voice chat, stock ticker, and
