@@ -289,7 +289,7 @@ sub signon($@) {
 	($self->{screenname}, $password, $host, $self->{port},
 		$self->{proxy_type}, $self->{proxy_host}, $self->{proxy_port},
 		$self->{proxy_username}, $self->{proxy_password}) =
-			delete @args{qw(screenname password host port)};
+			delete @args{qw(screenname password host port proxy_type proxy_host proxy_port proxy_username proxy_password)};
 
 	$self->{svcdata} = \%args;
 
