@@ -317,6 +317,7 @@ sub process_snac($$) {
 				($session->{visibility}) = unpack("C", $tlv->{0xCA});
 				$haspd = $tlv->{0xCB};
 
+				$session->{haspd} = $haspd;
 				if(substr($data, 0, 4) eq chr(0)x4 and $haspd and $haspd eq chr(0xFF)x4) {
 					substr($data, 0, 8) = "";
 					($tlvlen) = unpack("n", substr($data, 0, 2, ""));

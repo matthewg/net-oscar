@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = 0.06;
+$VERSION = 0.07;
 
 =head1 NAME
 
@@ -535,11 +535,15 @@ sub set_visibility($$) {
 	my($self, $vismode) = @_;
 
 	$self->{vismode} = $vismode;
+	if(!$self->{haspd}) { # Contents of subTLV 0xCB in TLV 0x02 in SNAC 0x0013/0x0006
+		$self->{bos}->snac_put(family => 0x13, subtype => 0x08, data => chr(0xFF)x4);
+		$self->{haspd} = chr(0xFF) x 4;
+	}
 	$self->{bos}->snac_put(family => 0x13, subtype => 0x9, data =>
-		pack("nnnn nnn Cnn nn", 0, 0, 2, 4, 
+		pack("nnnn nnn Cnn a*", 0, 0, 2, 4, 
 					0xD, 0xCA, 1,
-					$vismode, 0xCB, 0x04,
-					0xFFFF, 0xFFFF)
+					$vismode, 0xCB, length($self->{haspd}),
+					$self->{haspd})
 	);
 }
 
