@@ -512,6 +512,10 @@ sub get_denylist(@) { return keys %{shift->{deny}}; }
 
 =pod
 
+=item rename_group (OLDNAME, NEWNAME)
+
+Renames a group.  Call L<"commit_buddylist"> for the change to take effect.
+
 =item add_buddy (GROUP, BUDDIES)
 
 Adds buddies to the given group on your buddylist.  Call L<"commit_buddylist">
@@ -522,6 +526,12 @@ for the change to take effect.
 See L<add_buddy>.
 
 =cut
+
+sub rename_group($$$) {
+	my($self, $oldgroup, $newgroup) = @_;
+	return send_error($self, $self->{bos}, 0, "That group does not exist") unless exists $self->{buddies}->{$oldgroup};
+	($self->{buddies}->{$newgroup}) = delete $self->{buddies}->{$oldgroup};
+}
 
 sub add_buddy($$@) {
 	my($self, $group, @buddies) = @_;

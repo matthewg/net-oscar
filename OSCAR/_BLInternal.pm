@@ -184,8 +184,8 @@ sub BLI_to_NO($;$$$) {
 		my $group = $bli->{1}->{$gid}->{0}->{name};
 
 		if(!$group) {
-			$session->crapout($session->{bos}, "Couldn't get group name");
-			return 0;
+			$bli->{1}->{$gid}->{0}->{name} = $group = sprintf "Group 0x%04X", $gid;
+			$session->log_printf(OSCAR_DBG_WARN, "Couldn't get group name for group 0x%04X", $gid);
 		}
 		$session->{buddies}->{$group} ||= {};
 		my $entry = $session->{buddies}->{$group};
