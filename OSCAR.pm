@@ -447,9 +447,11 @@ sub findbuddy_byid($$$) {
 sub newid($;$) {
 	my($self, $group) = @_;
 	my $id = 0;
+	my %ids = ();
 
 	if($group) {
-		do { ++$id; } while(grep { $_->{buddyid} == $id } values %$group);
+		%ids = map { $_->{buddyid} => 1 } values %$group;
+		do { ++$id; } while($ids{$id});
 	} else {
 		do { $id = ++$self->{nextid}->{__GROUPID__}; } while($self->findgroup($id));
 	}
