@@ -17,6 +17,7 @@ use Symbol;
 use Digest::MD5;
 use Fcntl;
 use POSIX qw(:errno_h);
+use Scalar::Util qw(weaken);
 
 use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::Constants;
@@ -35,6 +36,10 @@ sub new($@) {
 	my($class, %data) = @_;
 	$class = ref($class) || $class || "Net::OSCAR::Connection";
 	my $self = { %data };
+
+	# Avoid circular references
+	weaken($self->{session});
+
 	bless $self, $class;
 	$self->{seqno} = 0;
 	$self->{icq_seqno} = 0;
