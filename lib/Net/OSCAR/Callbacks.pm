@@ -134,6 +134,19 @@ sub process_snac($$) {
 		$error .= " (".$data{error_details}.")." if $data{error_details};
 		send_error($session, $connection, $data{errno}, $error, 0, $reqdata);
 	} elsif($protobit eq "self information") {
+		$session->{stealth} ||= 0;
+		my $stealth_state = 0;
+		if(exists($data{stealth_status})) {
+			$stealth_state = 1 if $data{stealth_status} & 0x100;
+		}
+
+		if($stealth_state xor $session->{stealth}) {
+			$connection->log_print(OSCAR_DBG_DEBUG, "Stealth state changed: ", $stealth_state);
+			$session->{stealth} = $stealth_state;
+			$session->callback_stealth_changed($stealth_state);
+		}
+
+
 		if($data{session_length}) {
 			$connection->log_print(OSCAR_DBG_DEBUG, "Someone else signed on with this screenname?  Session length == $data{session_length}");
 		}

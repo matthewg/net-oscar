@@ -233,6 +233,7 @@ sub new($) {
 	$self->{listener} = undef;
 	$self->{rv_proposals} = {};
 	$self->{pass_is_hashed} = 0;
+	$self->{stealth} = 0;
 
 	$self->{timeout} = 0.01;
 	$self->{capabilities} = {};
@@ -818,7 +819,11 @@ sub remove_buddy($$@) {
 =item set_visibility (MODE)
 
 Sets the visibility mode, which determines how the permit and deny lists
-are interpreted.  The visibility mode may be:
+are interpreted.  Note that if you're looking for the feature which will prevent
+a user from showing up as online on any buddy list while not affecting anything else,
+the droids you're looking for are L<"is_stealth">/L<"set_stealth">.
+
+The visibility mode may be:
 
 =over 4
 
@@ -868,6 +873,33 @@ sub set_visibility($$) {
 
 	return must_be_on($self) unless $self->{is_on};
 	$self->{visibility} = $vismode;
+}
+
+=pod
+
+=item is_stealth
+
+=item set_stealth STEALTH_STATUS
+
+These methods deal with "stealth mode".  When the user is in stealth mode, she won't
+show up as online on anyone's buddylist.  However, for all other purposes, she will be online
+as usual.  Any restrictions, imposed by the visibility mode (see L<"set_visibility">), 
+on who can communicate with her will remain in effect.
+
+Stealth state can be changed by another signon of the user's
+screenname.  So, if you want your application to be aware of the stealth state,
+C<is_stealth> won't cut it; there's a L<"stealth_changed"> callback which will serve
+nicely.
+
+=cut
+
+sub is_stealth($) { return shift->{stealth}; }
+sub set_stealth($$) {
+	my($self, $new_state) = @_;
+	return unless $new_state xor $self->{stealth}; #Short-circuit the NOP
+	$self->svcdo(CONNTYPE_BOS, protobit => "set extended status", protodata => {
+		stealth => {state => $new_state ? 0x100 : 0}
+	});
 }
 
 =pod
@@ -1297,7 +1329,9 @@ sub set_extended_status($$) {
 	$status ||= "";
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Setting extended status.");
-	$self->svcdo(CONNTYPE_BOS, protobit => "set extended status", protodata => {message => $status});
+	$self->svcdo(CONNTYPE_BOS, protobit => "set extended status", protodata => {
+		status_message => {message => $status}
+	});
 }
 
 =pod
@@ -2028,6 +2062,11 @@ This is called when the user's buddy icon is successfully uploaded to the server
 
 This is called when a user's buddy icon is successfully downloaded from the server.
 
+=item stealth_changed (OSCAR, NEW_STEALTH_STATE)
+
+This is called when the user's stealth state changes.  See L<"is_stealth"> and L<"set_stealth">
+for information on stealth.
+
 =item chat_closed (OSCAR, CHAT, ERROR)
 
 Your connection to CHAT (a C<Net::OSCAR::Connection::Chat> object) was severed due to ERROR.
@@ -2233,6 +2272,7 @@ sub callback_extended_status(@) { do_callback("extended_status", @_); }
 sub callback_im_ok(@) { do_callback("im_ok", @_); }
 sub callback_connection_changed(@) { do_callback("connection_changed", @_); }
 sub callback_auth_challenge(@) { do_callback("auth_challenge", @_); }
+sub callback_stealth_changed(@) { do_callback("stealth_changed", @_); }
 
 sub set_callback_error($\&) { set_callback("error", @_); }
 sub set_callback_buddy_in($\&) { set_callback("buddy_in", @_); }
@@ -2276,6 +2316,7 @@ sub set_callback_extended_status($\&) {
 sub set_callback_im_ok($\&) { set_callback("im_ok", @_); }
 sub set_callback_connection_changed($\&) { set_callback("connection_changed", @_); }
 sub set_callback_auth_challenge($\&) { set_callback("auth_challenge", @_); }
+sub set_callback_stealth_changed($\&) { set_callback("stealth_changed", @_); }
 
 =pod
 

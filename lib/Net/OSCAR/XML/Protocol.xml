@@ -179,6 +179,7 @@
 			<tlv type="3"><dword name="online_since" /></tlv>
 			<tlv type="10"><dword name="ip" /></tlv>
 			<tlv type="5"><dword name="member_since" /></tlv>
+			<tlv type="6"><dword name="stealth_status" /></tlv>
 		</tlvchain>
 	</define>
 	<define name="minimum report interval" family="11" subtype="2" />
@@ -329,13 +330,22 @@
 
 	<define name="set extended status" family="1" subtype="30">
 		<tlvchain>
-			<tlv type="29">
+			<tlv type="29" name="status_message">
 				<word>2</word>
 				<byte>4</byte>
 				<data length_prefix="byte">
 					<data length_prefix="word" name="message" />
 					<word>0</word>
 				</data>
+			</tlv>
+			<tlv type="6" name="stealth">
+				<!--
+				   0x100 is the 'stealth' flag
+				   Presumably there are other things that can go here...
+				   Do they all get mysteriously preserved across signon
+				    without going in the buddylist?  Fah.
+				-->
+				<dword name="state" />
 			</tlv>
 		</tlvchain>
 	</define>

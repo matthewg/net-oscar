@@ -76,6 +76,9 @@
 				<dword>1793</dword>
 				<byte name="baz" />
 			</tlv>
+			<tlv type="2">
+				<data name="buzz" />
+			</tlv>
 		</tlvchain>
 	</define>
 	<define name="subtyped_tlv">
