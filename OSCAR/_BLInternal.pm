@@ -253,7 +253,7 @@ sub BLI_to_OSCAR($$) {
 					$session->log_print(OSCAR_DBG_DEBUG, "Deleting.");
 					$modcount++;
 
-					$oscar->snac_put(family => 0x13, subtype => 0xA, reqdata => {desc => "deleting ".(BUDTYPES)[$type]." $newentry->{name}", type => $type, gid => $gid, bid => $bid}, data => 
+					$oscar->snac_put(family => 0x13, subtype => 0xA, reqdata => {desc => "deleting ".(BUDTYPES)[$type]." $oldentry->{name}", type => $type, gid => $gid, bid => $bid}, data => 
 						pack("nnnnn", 0, $gid, $bid, $type, 0)
 					);
 				}
