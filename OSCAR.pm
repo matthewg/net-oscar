@@ -2239,9 +2239,9 @@ developers of third-party clients.
 
 Copyright (c) 2001 Matthew Sachs.  All rights reserved.
 This program is free software; you can redistribute it and/or modify it under the
-same terms as Perl itself.  AOL Instant Messenger and AIM are registered service marks
-of AOL/Time Warner.  America OnLine is a registered trademark of AOL/Time Warner.
-C<Net::OSCAR> is not affiliated with, endorsed by, or supported by AOL.
+same terms as Perl itself.  B<AOL> and B<AMERICA ONLINE> are registered trademarks
+owned by America Online, Inc.  The B<INSTANT MESSENGER> mark is owned by America
+Online, Inc.  C<Net::OSCAR> is not endorsed by, or affiliated with, America Online, Inc.
 
 =cut
 
