@@ -455,12 +455,20 @@ Renames a group.  Call L<"commit_buddylist"> for the change to take effect.
 
 =item add_buddy (GROUP, BUDDIES)
 
-Adds buddies to the given group on your buddylist.  Call L<"commit_buddylist">
-for the change to take effect.
+Adds buddies to the given group on your buddylist.  If the group does not exist,
+it will be created.  Call L<"commit_buddylist"> for the change to take effect.
 
 =item remove_buddy (GROUP, BUDDIES)
 
 See L<add_buddy>.
+
+=item add_group (GROUP)
+
+Creates a new, empty group.  Call L<"commit_buddylist"> for the change to take effect.
+
+=item remove_group (GROUP)
+
+See L<add_group>.  Any buddies in the group will be removed from the group first.
 
 =cut
 
@@ -480,6 +488,18 @@ sub add_buddy($$@) {
 sub remove_buddy($$@) {
 	my($self, $group, @buddies) = @_;
 	$self->mod_buddylist(MODBL_ACTION_DEL, MODBL_WHAT_BUDDY, $group, @buddies);
+}
+
+sub add_group($$) {
+	my($self, $group) = @_;
+	$self->mod_buddylist(MODBL_ACTION_ADD, MODBL_WHAT_GROUP, $group);
+}
+
+sub remove_group($$) {
+	my($self, $group) = @_;
+	return send_error($self, $self->{services}->{0+CONNTYPE_BOS}, 0, "That group does not exist", 0) unless exists $self->{buddies}->{$group};
+	$self->remove_buddy($group, $self->buddies($group)) if $self->buddies($group);
+	$self->mod_buddylist(MODBL_ACTION_DEL, MODBL_WHAT_GROUP, $group);
 }
 
 
@@ -3516,8 +3536,8 @@ sub mod_buddylist($$$$;@) {
 		return if exists $self->{buddies}->{$group};
 		$self->{buddies}->{$group} = {
 			groupid => $self->newid(),
-			members => bltie,
-			data => tlv
+			members => bltie(),
+			data => tlv()
 		};
 	} elsif($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_DEL) {
 		return unless exists $self->{buddies}->{$group};
@@ -3529,7 +3549,7 @@ sub mod_buddylist($$$$;@) {
 		foreach my $buddy(@buddies) {
 			$self->{buddies}->{$group}->{members}->{$buddy} = {
 				buddyid => $self->newid($self->{buddies}->{$group}->{members}),
-				data => tlv,
+				data => tlv(),
 				online => 0,
 				comment => undef,
 				alias => undef

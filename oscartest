@@ -398,6 +398,8 @@ icq_info screenname
 awaymsg screenname
 add_buddy group screennames
 remove_buddy group screennames
+add_group group
+remove_group group
 evil screenname [anon]
 buddylist
 set_buddy_comment group buddy [comment]
@@ -440,6 +442,12 @@ EOF
 			$oscar->commit_buddylist;
 		} elsif($cmd eq "remove_buddy") {
 			$oscar->remove_buddy(@params);
+			$oscar->commit_buddylist;
+		} elsif($cmd eq "add_group") {
+			$oscar->add_group(@params);
+			$oscar->commit_buddylist;
+		} elsif($cmd eq "remove_group") {
+			$oscar->remove_group(@params);
 			$oscar->commit_buddylist;
 		} elsif($cmd eq "add_permit") {
 			$oscar->add_permit(@params);

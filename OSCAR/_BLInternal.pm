@@ -251,14 +251,16 @@ sub NO_to_BLI($) {
 		$bli->{1}->{$gid}->{0}->{name} = $group;
 
 		# It seems that WinAIM can now have groups without 0xC8 data, and gets pissed if we create such data where it doesn't exist.
-		if(!exists($oldbli->{1}->{$gid}) or exists($oldbli->{1}->{$gid}->{0}->{data}->{0xC8})) {
+		if(!exists($oldbli->{1}->{$gid}) or chain_exists($oldbli, 1, $gid, 0, "data", 0xC8)) {
 			$bli->{1}->{$gid}->{0}->{data}->{0xC8} = pack("n*",
 				map { $_->{buddyid} }
 				values %{$session->{buddies}->{$group}->{members}});
 		}
 
-		$bli->{1}->{$gid}->{0}->{data}->{$_} = $oldbli->{1}->{$gid}->{0}->{data}->{$_}
-		   foreach grep { $_ != 0xC8 } keys %{$oldbli->{1}->{$gid}->{0}->{data}};
+		if(chain_exists($oldbli, 1, $gid, 0)) {
+			$bli->{1}->{$gid}->{0}->{data}->{$_} = $oldbli->{1}->{$gid}->{0}->{data}->{$_}
+			   foreach grep { $_ != 0xC8 } keys %{$oldbli->{1}->{$gid}->{0}->{data}};
+		}
 
 		foreach my $buddy(keys %{$session->{buddies}->{$group}->{members}}) {
 			my $bid = $session->{buddies}->{$group}->{members}->{$buddy}->{buddyid};
