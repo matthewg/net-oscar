@@ -5,6 +5,7 @@ $VERSION = 0.05;
 use strict;
 use vars qw($VERSION);
 use warnings;
+use Carp;
 use Net::OSCAR::Common qw(:all);
 
 sub new {
@@ -26,24 +27,29 @@ sub FETCH {
 
 sub STORE {
 	my($self, $key, $value) = @_;
-	if(exists $self->{DATA}->{normalize($key)}) {
-		foreach my $buddy(@{$self->{ORDERFORM}}) {
-			next if normalize($buddy) ne normalize($value);
-			$buddy = $key;
+	my($normalkey) = normalize($key);
+	if(exists $self->{DATA}->{$normalkey}) {
+		my $foo = 0;
+		for(my $i = 0; $i < scalar @{$self->{ORDERFORM}}; $i++) {
+			next unless $normalkey eq normalize($self->{ORDERFORM}->[$i]);
+			$foo = 1;
+			$self->{ORDERFORM}->[$i] = $key;
 			last;
 		}
 	} else {
 		push @{$self->{ORDERFORM}}, $key;
 	}
-	$self->{DATA}->{normalize($key)} = $value;
+	$self->{DATA}->{$normalkey} = $value;
 }
 
 sub DELETE {
 	my($self, $key) = @_;
 	my($normalkey) = normalize($key);
 	my $retval = delete $self->{DATA}->{$normalkey};
+	my $foo = 0;
 	for(my $i = 0; $i < scalar @{$self->{ORDERFORM}}; $i++) {
 		next unless $normalkey eq normalize($self->{ORDERFORM}->[$i]);
+		$foo = 1;
 		splice(@{$self->{ORDERFORM}}, $i, 1);
 		last;
 	}
@@ -60,8 +66,7 @@ sub CLEAR {
 
 sub EXISTS {
 	my($self, $key) = @_;
-	my($normalkey) = normalize($key);
-	return exists $self->{DATA}->{$normalkey};
+	return exists $self->{DATA}->{normalize($key)};
 }
 
 sub FIRSTKEY {
