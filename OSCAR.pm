@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = 0.57;
+$VERSION = 0.58;
 
 =head1 NAME
 
@@ -2035,6 +2035,23 @@ of C<Net::OSCAR::Connection>, not C<Net::OSCAR>.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+0.58, 2002-01-20
+
+=over 4
+
+=item *
+
+Send buddylist deletions before adds - needed for complex BL mods (loadbuddies)
+
+=item *
+
+Added hooks to allow client do MD5 digestion for authentication (auth_challenge
+callback, Net::OSCAR::auth_response method)
+
+=back
 
 =item *
 
