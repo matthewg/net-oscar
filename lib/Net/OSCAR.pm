@@ -1128,6 +1128,8 @@ the new profile stored on the OSCAR server.
 sub set_info($$;$) {
 	my($self, $profile, $awaymsg) = @_;
 
+	return must_be_on($self) unless $self->{bos};
+
 	my %tlv;
 	tie %tlv, "Net::OSCAR::TLV";
 
