@@ -313,9 +313,6 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got blmod ack (", scalar(@{$session->{budmods}}), " left).");
 		my(@errors) = unpack("n*", $data);
 
-		# If this is the last packet and there are/were no problems, send bl_ok
-		$session->callback_buddylist_ok() unless @{$session->{budmods}} == 0 or $session->{buderrors} or grep { $_ } @errors;
-
 		my @reqdata = @$reqdata;
 		foreach my $error(reverse @errors) {
 			my($errdata) = shift @reqdata;
@@ -337,11 +334,12 @@ sub process_snac($$) {
 			}
 		}
 
-		$connection->snac_put(%{shift @{$session->{budmods}}}) unless $session->{buderrors};
-
-		if(@{$session->{budmods}} <= 1 or $session->{buderrors}) {
+		if($session->{buderrors}) {
 			Net::OSCAR::_BLInternal::BLI_to_NO($session) if $session->{buderrors};
 			delete $session->{qw(blold buderrors budmods)};
+		} else {
+			$connection->snac_put(%{shift @{$session->{budmods}}});
+			$session->callback_buddylist_ok if !@{$session->{budmods}};
 		}
 	} elsif($family == 0x13 and $subtype == 0x0F) {
 		if($session->{gotbl}) {
