@@ -244,7 +244,6 @@ sub connect($$) {
 			} else {
 				$socksver = 5;
 			}
-			$self->{session}->{proxy_type} = "SOCKS"; # We no longer care about 4/5
 
 			my %socksargs = (
 				socks_addr => $self->{session}->{proxy_host},
@@ -255,14 +254,14 @@ sub connect($$) {
 			$socksargs{user_password} = $self->{session}->{proxy_password} if exists($self->{session}->{proxy_password});
 		        $self->{socks} = new Net::SOCKS(%socksargs) or return $self->{session}->crapout($self, "Couldn't connect to SOCKS proxy: $@");
 
-			$self->{socket} = $self->{socks}->connect($host, $port);
+			$self->{socket} = $self->{socks}->connect(peer_addr => $host, peer_port => $port) or return $self->{session}->crapout({}, "Couldn't establish connection via SOCKS: $@\n");
 
 			$self->{ready} = 0;
 			$self->{connected} = 1;
 			$self->set_blocking(0);
 		} elsif($self->{session}->{proxy_type} eq "HTTP") {
 		} else {
-			die "Unknown proxy_type - valid types are SOCKS4, SOCKS5, and HTTP\n";
+			die "Unknown proxy_type $self->{session}->{proxy_type} - valid types are SOCKS4, SOCKS5, and HTTP\n";
 		}
 	} else {
 		$self->{socket} = gensym;

@@ -232,7 +232,7 @@ if($domd5) {
 	$oscar->signon(screenname => $username, password => undef);
 } else {
 	$oscar->signon(screenname => $username, password => $password,
-			proxy_type => "SOCKS5", proxy_host => "192.168.7.3",
+			proxy_type => "SOCKS5", proxy_host => "192.168.7.1",
 		);
 }
 
