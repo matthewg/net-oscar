@@ -21,22 +21,22 @@
 		<data name="screenname" length_prefix="byte" />
 		<word name="evil" />
 		<tlvchain count_prefix="word">
-			<tlv name="flags" num="1"><word /></tlv>
-			<tlv name="membersince" num="2"><dword /></tlv>
-			<tlv name="onsince" num="3"><dword /></tlv>
-			<tlv name="idle" num="4"><word /></tlv>
-			<tlv name="capabilities" num="13"><data length="16" count="-1" /></tlv>
-			<tlv num="29">
+			<tlv name="flags" type="1"><word /></tlv>
+			<tlv name="membersince" type="2"><dword /></tlv>
+			<tlv name="onsince" type="3"><dword /></tlv>
+			<tlv name="idle" type="4"><word /></tlv>
+			<tlv name="capabilities" type="13"><data length="16" count="-1" /></tlv>
+			<tlv type="29">
 				<tlvchain short="yes">
-					<tlv name="icon_md5sum" num="1" num2="1"><data /></tlv>
-					<tlv name="extended_status" num="2"><data length_prefix="word" /></tlv>
+					<tlv name="icon_md5sum" type="1" shortno="1"><data /></tlv>
+					<tlv name="extended_status" type="2"><data length_prefix="word" /></tlv>
 				</tlvchain>
 			</tlv>
 		</tlvchain>
 		<tlvchain>
-			<tlv name="profile" num="2"><data /></tlv>
-			<tlv name="awaymsg" num="4"><data /></tlv>
-			<tlv name="chatdata" num="5"><data /></tlv>
+			<tlv name="profile" type="2"><data /></tlv>
+			<tlv name="awaymsg" type="4"><data /></tlv>
+			<tlv name="chatdata" type="5"><data /></tlv>
 		</tlvchain>
 	</define>
 </oscar>

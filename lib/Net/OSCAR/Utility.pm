@@ -2,6 +2,30 @@
 
 Net::OSCAR::Utility -- internal utility functions for Net::OSCAR
 
+We're doing the fancy-schmancy Protocol.xml stuff here, so I'll explain it here.
+
+Protocol.xml contains a number of "OSCAR protocol elements".  One E<lt>defineE<gt> block
+is one OSCAR protocol element.
+
+When the module is first loaded, Protocol.xml is parsed and two hashes are created,
+one whose keys are the names the the elements and whose values are the contents
+of the XML::Parser tree which represents the contents of those elements; the other
+hash has a family/subtype tuple as a key and element names as a value.
+
+To do something with an element, given its name, Net::OSCAR calls C<protoparse("element name")>.
+This returns a reference to a function which will either take a hash of parameters and
+transform that into a scalar which can be used as the body of the desired packet, or vice versa.
+This function is memoized, so once it is called on a particular protocol element, it never has 
+to do any work to return an answer for that protocol element again.
+
+This is accomplished via the _protopack function, which takes a listref containing an interpretation
+of the desired OSCAR protocol element as its first parameter.  So, what protoparse does is transforms the
+array that XML::Parser into a friendlier format.
+
+Think of _protopack as a magic function that is either C<pack> or C<unpack>, and automatically knows which
+one you want it to be.  What C<protoparse> returns is a wrapper function that will call C<_protopack> with
+correct the "pack template" for you.
+
 =cut
 
 package Net::OSCAR::Utility;
@@ -26,15 +50,6 @@ require Exporter;
 use Memoize;
 memoize('protoparse');
 
-# This function takes a Net::OSCAR protocol specification template as an argument.
-# (Net::OSCAR protocol specification templates are documented in Net::OSCAR::Protocol)
-# It returns a reference to a subroutine.  This subroutine takes, as arguments, either
-# a single scalar, which is data to unpack according to the template, or data which
-# should be packed into the format specified by the template.  The unpacked data takes
-# the form of a hash with keys whose names are given in the templates.
-#
-# This will make more sense if you look at Net::OSCAR::Protocol .
-#
 $xmlparser = new XML::Parser(Style => "Tree");
 my $xmlfile = "";
 foreach (@INC) {
@@ -69,38 +84,129 @@ sub _xmldump {
 	exit;
 }
 
-sub _num_to_code($$$$;$) {
-	my($tag, $order, $name, $data, $prefix) = @_;
+# Specification for _protopack "pack template":
+#	-Listref whose elements are hashrefs.
+#	-Hashrefs have following keys:
+#		type: "num", "data", or "tlvchain"
+#		If type = "num":
+#			packlet: Pack template letter (C, n, N, v, V)
+#			len: Length of datum, in bytes
+#		If type = "data":
+#			Same as type="num", except they represent something about a numeric length prefix.
+#			If packlet/len aren't present, all available data will be gobbled.
+#		If type = "tlvchain":
+#			short: If true, this is a 'short' TLV, as per Protocol.dtd.
+#			prefix: If present, "count" or "length", and "packlet" and "len" will also be present.
+#			items: Listref containing TLVs, hashrefs in format identical to these, with extra key 'num'.
+#		value: If present, default value of this datum.
+#		name: If present, name in parameter list that this datum gets.
 
-	my($len, $packlet);
-	if($tag eq "byte") {
-		$len = 1;
-		$packlet = "C";
-	} elsif($tag eq "word") {
-		$len = 2;
-		if($attrs->{order} eq "vax") {
-			$packlet = "v";
-		} else {
-			$packlet = "n";
+sub _protopack($@) {
+	my $template = shift;
+
+	if(wantarray) { # Unpack
+		my $packet = shift;
+		my %data = ();
+
+		foreach my $datum (@$packet) {
+			if($datum->{type} eq "num") {
+				if($datum->{name}) {
+					($data->{$datum->{name}}) = unpack($datum->{packlet}, substr($packet, 0, $datum->{len}, ""));
+				} else {
+					substr($packet, 0, $datum->{len}) = "";
+				}
+			} elsif($datum->{type} eq "data") {
+				if($datum->{packlet}) {
+					my(%tmp) = _protopack([{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, name => "len"}], substr($packet, 0, $datum->{len}, ""));
+					if($datum->{name}) {
+						$data->{$datum->{name}} = substr($packet, 0, $tmp{len}, "");
+					} else {
+						substr($packet, 0, $tmp{len}) = "";
+					}
+				} elsif($datum->{name}) {
+					$data->{$datum->{name}} = $packet;
+				}
+			} elsif($datum->{type} eq "tlvchain") {
+				my($tlvpacket, $tlvmax, $tlvcount) = ($packet, 0, 0);
+
+				if($datum->{prefix}) {
+					my(%tmp) = _protopack([{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, name => "len"}], substr($packet, 0, $datum->{len}, ""));
+					if($datum->{prefix} eq "count") {
+						$tlvmax = $tmp{len};
+					} else {
+						$tlvpacket = substr($packet, 0, $tmp{len}, "");
+					}
+				}
+
+				my $tlvmap = tlv;
+				if($datum->{short}) {
+					$tlvmap->{$_->{num}} = tlv foreach (@{$datum->{items}});
+					$tlvmap->{$_->{num}}->{$_->{shortno}} = $_ foreach (@{$datum->{utems}});
+				} else {
+					$tlvmap->{$_->{num}} = $_ foreach (@{$datum->{items}};
+				}
+				while($tlvpacket and ($tlvmax and $tlvcount < $tlvmax)) {
+					my($type, $length, $shortno, $value);
+					if($datum->{short}) {
+						($type, $length, $shortno) = unpack("nCC", substr($tlvpacket, 0, 4, ""));
+					} else {
+						($type, $length) = unpack("nn", substr($tlvpacket, 0, 4, ""));
+					}
+					$value = substr($tlvpacket, 0, $length, "");
+
+					if($datum->{short}) {
+						$tlvmap->{$type}->{$shortno}->{data} = $value;
+					} else {
+						$tlvmap->{$type}->{data} = $value;
+					}
+				} continue {
+					$tlvcount++;
+				}
+
+				while(my($num, $val) = each %$tlvmap) {
+					next unless $val->{type};
+
+					if($datum->{short}) {
+						while(my($shortnum, $shortval) = each %$val) {
+							my(%tmp) = _protopack([$shortval], $shortval->{data});
+							$data{$_} = $tmp{$_} foreach keys %tmp;
+						}
+					} else {
+						my(%tmp) = _protopack([$val], $val->{data});
+						$data{$_} = $tmp{$_} foreach keys %tmp;
+					}
+				}
+			}
 		}
-	} elsif($tag eq "dword") {
-		$len = 4;
-		if($attrs->{order} eq "vax") {
-			$packlet = "V";
-		} else {
-			$packlet = "N";
+
+		return %data;
+	} else { # Pack
+		my %data = @_;
+		my $packet = "";
+
+		foreach my $datum (@$packet) {
+			my $value = $data{$datum->{name}} || $datum->{value};
+			next unless defined($value);
+
+			if($datum->{type} eq "num") {
+				$packet .= pack($datum->{packlet}, $value);
+			} elsif($datum->{type} eq "data") {
+				if($datum->{packlet}) {
+					my $prefix = _protopack([{type => "num", packlet => $datum->{packlet}, len => $datum->{len}}], $value);
+					$packet .= $prefix.
+				}
+				$packet .= $value;
+			} elsif($datum->{type} eq "tlvchain") {
+				my($tlvpacket, $tlvcount) = ($packet, 0);
+
+				foreach (@{$datum->{items}}) {
+					
+				}
+			}
 		}
-	}
 
-	my $packcode = '$packet .= pack("'.$packlet.'", ' . $data . ');' . "\n";
-	my $unpackcode = "";
-	if($name) {
-		$unpackcode .= '$data{'.$name.'} = unpack("'.$packlet.'", substr($packet, 0, '.$len.', ""));' . "\n";
-	} else {
-		$unpackcode .= 'substr($packet, 0, '.$len.') = "";' . "\n";
+		return $packet;
 	}
-
-	return($packcode, $unpackcode);
 }
 
 sub protoparse($) {
@@ -171,6 +277,9 @@ sub protoparse($) {
 			}
 		}
 	}
+
+=cut
+
 =pod
 
 <!ELEMENT tlvchain (tlv*)>
@@ -194,9 +303,10 @@ sub protoparse($) {
 	test CDATA #REQUIRED
 >
 
+}
+
 =cut
 	
-}
 
 sub tlv(;@) {
 	my %tlv = ();

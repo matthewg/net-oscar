@@ -16,6 +16,7 @@ use strict;
 use vars qw($VERSION);
 
 use Carp;
+use Net::OSCAR::Utility;
 use Net::OSCAR::Screenname;
 use Net::OSCAR::OldPerl;
 use Net::OSCAR::Utility;
