@@ -29,11 +29,12 @@ sub STORE {
 	if(exists $self->{DATA}->{normalize($key)}) {
 		foreach my $buddy(@{$self->{ORDERFORM}}) {
 			next if normalize($buddy) ne normalize($value);
-			$buddy = $value;
-			return $value;
+			$buddy = $key;
+			last;
 		}
+	} else {
+		push @{$self->{ORDERFORM}}, $key;
 	}
-	push @{$self->{ORDERFORM}}, $key;
 	$self->{DATA}->{normalize($key)} = $value;
 }
 
