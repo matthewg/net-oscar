@@ -201,13 +201,13 @@ sub connect($$) {
 
 	tie %tlv, "Net::OSCAR::TLV";
 
-	croak "Empty host!" unless $host;
+	return $self->{session}->crapout($self, "Empty host!") unless $host;
 	$host =~ s/:(.+)//;
 	if(!$1) {
 		if(exists($self->{session})) {
 			$port = $self->{session}->{port};
 		} else {
-			croak "No port!";
+			return $self->{session}->crapout($self, "No port!");
 		}
 	} else {
 		$port = $1;
@@ -229,7 +229,7 @@ sub connect($$) {
 	my $addr = inet_aton($host) or return $self->{session}->crapout($self, "Couldn't resolve $host.");
 	if(!connect($self->{socket}, sockaddr_in($port, $addr))) {
 		return 1 if $! == EINPROGRESS;
-		croak "Couldn't connect to $host:$port: $!";
+		return $self->{session}->crapout($self, "Couldn't connect to $host:$port: $!");
 	}
 
 	return 1;
