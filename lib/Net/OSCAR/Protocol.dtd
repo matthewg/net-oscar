@@ -30,7 +30,7 @@
 <!ELEMENT data (#PCDATA)>
 <!ATTLIST data
 	name CDATA #IMPLIED
-	order (network|vax) #DEFAULT network
+	prefix_order (network|vax) #DEFAULT network
 	length_prefix (byte|word|dword) #IMPLIED
 >
 

@@ -36,9 +36,165 @@ memoize('protoparse');
 # This will make more sense if you look at Net::OSCAR::Protocol .
 #
 $xmlparser = new XML::Parser(Style => "Tree");
+my $xmlfile = "";
+foreach (@INC) {
+	next unless -f "$_/Net/OSCAR/Protocol.xml";
+	$xmlfile = "$_/Net/OSCAR/Protocol.xml";
+	last;
+}
+croak "Couldn't find Net/OSCAR/Protocol.xml in search path: " . join(" ", @INC) unless $xmlfile;
+open(XMLFILE, $xmlfile) or croak "Couldn't open $xmlfile: $!";
+my $xml = join("", <XMLFILE>);
+close XMLFILE;
+my $xmlparse = $xmlparser->parse($xml) or croak "Couldn't parse XML from $xmlfile: $@";
+my %xmlmap = ();
+my %xml_revmap;
+# We set the autovivification so that keys of xml_revmap are Net::OSCAR::TLV hashrefs.
+tie %xml_revmap, "Net::OSCAR::TLV", 'tie %$value, ref($self)';
+
+my @tags = @{$xmlparse->[1]}; # Get contents of <oscar>
+shift @tags;
+while(@tags) {
+	my($name, $value);
+	(undef, undef, $name, $value) = splice(@tags, 0, 4);
+	next unless $name eq "define";
+	
+	$xmlmap{$value->[0]->{name}} = $value;
+	$xml_revmap{$value->[0]->{family}}->{$value->[0]->{subtype}} = $value->[0]->{name} if $value->[0]->{family};
+}
+
+sub _xmldump {
+	require Data::Dumper;
+	print Data::Dumper::Dumper(\%xml_revmap);
+	exit;
+}
+
+sub _num_to_code($$$$;$) {
+	my($tag, $order, $name, $data, $prefix) = @_;
+
+	my($len, $packlet);
+	if($tag eq "byte") {
+		$len = 1;
+		$packlet = "C";
+	} elsif($tag eq "word") {
+		$len = 2;
+		if($attrs->{order} eq "vax") {
+			$packlet = "v";
+		} else {
+			$packlet = "n";
+		}
+	} elsif($tag eq "dword") {
+		$len = 4;
+		if($attrs->{order} eq "vax") {
+			$packlet = "V";
+		} else {
+			$packlet = "N";
+		}
+	}
+
+	my $packcode = '$packet .= pack("'.$packlet.'", ' . $data . ');' . "\n";
+	my $unpackcode = "";
+	if($name) {
+		$unpackcode .= '$data{'.$name.'} = unpack("'.$packlet.'", substr($packet, 0, '.$len.', ""));' . "\n";
+	} else {
+		$unpackcode .= 'substr($packet, 0, '.$len.') = "";' . "\n";
+	}
+
+	return($packcode, $unpackcode);
+}
+
 sub protoparse($) {
-	my $template = shift;
-	my $tree = $xmlparser->parse($template);
+	my $wanted = shift;
+	my $xml = $xmlmap{shift} or croak "Couldn't find requested protocol element '$wanted'.";
+
+	my $attrs = shift @$xml;
+	my $channel = $attrs->{channel};
+	my $family = $attrs->{family};
+	my $subtype = $attrs->{subtype};
+
+	my $packcode = 'my $packet = ""; my %data = @_; my $num = 0;' . "\n";
+	my $unpackcode = 'my $packet = shift; my %data = (); my $num = 0;' . "\n";
+
+	while(@$xml) {
+		my $tag = shift @$xml;
+		my $value = shift @$xml;
+		$attrs = shift @$value;
+		next if $tag eq "0";
+
+		my $name = $attrs->{name};
+		if($tag eq "ref") {
+			unshift @$xml, @{$xmlmap{$value->[0]->{name}}};
+			next;
+		} elsif($tag eq "byte" or $tag eq "word" or $tag eq "dword") {
+			my $data = "";
+			$data = $value->[1] if @$value;
+			$data ||= '$data{'.$name.'}';
+
+			my($p, $u) = _num_to_code($tag, $attrs->{order}, $name, $data);
+			$packcode .= $p;
+			$unpackcode .= $u;
+		} elsif($tag eq "data") {
+			my $data = "";
+			$data = $value->[1] if @$value;
+			$data ||= '$data{'.$name.'}';
+
+			croak "data outside of tlv must have length prefix!" unless $attrs->{length_prefix};
+			$packcode .= '$data{_data_len} = length('.$data.'); ';
+			my($p, $u) = _num_to_code($attrs->{length_prefix}, $attrs->{prefix_order}, '_data_len', $data);
+			$packcode .= $p;
+			$unpackcode .= $u;
+
+			$packcode .= '$packet .= '.$data.";\n";
+			if($name) {
+				$unpackcode .= '$data{'.$name.'} = substr($packet, 0, $data{_data_len}, "");' . "\n";
+			} else {
+				$unpackcode .= 'substr($packet, 0, $data{_data_len}) = "";' . "\n";
+			}
+		} elsif($tag eq "tlvchain") {
+			if($attrs->{count_prefix}) {
+				$packcode .= 'my $tlv = tlv();'
+				my $u;
+				(undef, $u) = _num_to_code($attrs->{count_prefix}, "network", '_tlv_len', "");
+				$unpackcode .= $u;
+				$unpackcode .= 'my $tlv_count = $data{_tlv_len};';
+				$unpackcode .= 'while($packet) {' . "\n";
+			} elsif($attrs->{length_prefix}) {
+				
+			} else {
+			}
+
+			while(@$data) {
+				my($tlvtag, $tlvval) = splice(@$data, 0, 2);
+				next if $tlvtag eq "0";
+
+				
+			}
+		}
+	}
+=pod
+
+<!ELEMENT tlvchain (tlv*)>
+<!ATTLIST tlvchain
+	name CDATA #IMPLIED
+	short (yes|no) #DEFAULT no <!-- A 'short' TLV is type/num/length/value, where num and length are both bytes.  It's used in extended status. -->
+	count_prefix (byte|word|dword) #IMPLIED
+	length_prefix (byte|word|dword) #IMPLIED
+>
+
+<!ELEMENT tlv (ref|byte|word|dword|data|tlvchain|if)+>
+<!ATTLIST tlv
+	name CDATA #IMPLIED
+	num CDATA #REQUIRED
+	num2 CDATA #IMPLIED
+>
+
+<!ELEMENT if (condition+)>
+<!ELEMENT condition (ref|byte|word|dword|data|tlvchain|if)+>
+<!ATTLIST condition
+	test CDATA #REQUIRED
+>
+
+=cut
 	
 }
 

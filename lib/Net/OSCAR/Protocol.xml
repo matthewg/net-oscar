@@ -1,10 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE greeter SYSTEM "Protocol.dtd">
+
 <oscar>
-        <define name="flap">
-                <byte>0x2A</byte> <!-- FLAP packet start indicator -->
-                <byte name="channel">FLAP_CHAN_SNAC</byte>
-                <word name="seqno" />
-                <data length_prefix="word" name="msg" />
-        </define>
+	<define name="flap">
+		<byte>0x2A</byte> <!-- FLAP packet start indicator -->
+		<byte name="channel">FLAP_CHAN_SNAC</byte>
+		<word name="seqno" />
+		<data length_prefix="word" name="msg" />
+	</define>
 
 	<define name="snac">
 		<word name="family" />
@@ -22,7 +25,7 @@
 			<tlv name="membersince" num="2"><dword /></tlv>
 			<tlv name="onsince" num="3"><dword /></tlv>
 			<tlv name="idle" num="4"><word /></tlv>
-			<tlv name="capabilities" num="13"><data length="16" count="-1"></tlv>
+			<tlv name="capabilities" num="13"><data length="16" count="-1" /></tlv>
 			<tlv num="29">
 				<tlvchain short="yes">
 					<tlv name="icon_md5sum" num="1" num2="1"><data /></tlv>
