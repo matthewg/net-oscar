@@ -41,12 +41,13 @@ sub STORE {
 sub DELETE {
 	my($self, $key) = @_;
 	my($normalkey) = normalize($key);
-	delete $self->{DATA}->{$normalkey};
+	my $retval = delete $self->{DATA}->{$normalkey};
 	for(my $i = 0; $i < scalar @{$self->{ORDERFORM}}; $i++) {
 		next unless $normalkey eq normalize($self->{ORDERFORM}->[$i]);
 		splice(@{$self->{ORDERFORM}}, $i, 1);
 		last;
 	}
+	return $retval;
 }
 
 sub CLEAR {
