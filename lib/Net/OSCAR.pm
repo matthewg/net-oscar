@@ -224,9 +224,10 @@ auth_challenge callback will be used - see L<"auth_challenge"> for details.
 
 =item proxy_type
 
-Either "SOCKS4", "SOCKS5", or "HTTP".  This and C<proxy_host> must be specified if you wish to use a proxy.
+Either "SOCKS4", "SOCKS5", "HTTP", or HTTPS.  This and C<proxy_host> must be specified if you wish to use a proxy.
 C<proxy_port>, C<proxy_username>, C<proxy_password> are optional.  Note that proxy support
-is considered experimental.
+is considered experimental.  You will need to have the C<Net::SOCKS> module installed for
+SOCKS proxying or the C<LWP::UserAgent> module installed for HTTP proxying.
 
 =item proxy_host
 
@@ -292,6 +293,24 @@ sub signon($@) {
 			delete @args{qw(screenname password host port proxy_type proxy_host proxy_port proxy_username proxy_password)};
 
 	$self->{svcdata} = \%args;
+
+	if(defined($self->{proxy_type})) {
+		$self->{proxy_type} = uc($self->{proxy_type});
+		die "You must specify proxy_host if proxy_type is specified!\n" unless $self->{proxy_host};
+		if($self->{proxy_type} eq "HTTP" or $self->{proxy_type} eq "HTTPS") {
+			$self->{http_proxy} = LWP::UserAgent->new(
+				agent => "Mozilla/4.08 [en] (WinNT; U ;Nav)",
+				keep_alive => 1,
+				timeout => 30,
+			);
+			die "HTTPS not supported by your LWP::UserAgent\n" if $self->{proxy_type} eq "HTTPS" and !$self->{http_proxy}->is_protocol_supported("https");
+
+			my $proxyurl = lc($self->{proxy_type}) . "://$self->{proxy_host}";
+			$proxyurl .= ":$self->{proxy_port}" if $self->{proxy_port};
+			$proxyurl .= "/";
+			$self->{http_proxy}->proxy('http', $proxyurl);
+		}
+	}
 
 	$self->{bos} = $self->addconn($password, CONNTYPE_LOGIN, "login", $host);
 }

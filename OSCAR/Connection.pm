@@ -232,9 +232,6 @@ sub connect($$) {
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Connecting to $host:$port.");
 	if(defined($self->{session}->{proxy_type})) {
-		die "You must specify proxy_host if proxy_type is given!\n" unless $self->{session}->{proxy_host};
-		$self->{session}->{proxy_type} = uc($self->{session}->{proxy_type});
-
 		if($self->{session}->{proxy_type} eq "SOCKS4" or $self->{session}->{proxy_type} eq "SOCKS5") {
 			require Net::SOCKS or die "SOCKS proxying not available - couldn't load Net::SOCKS: $!\n";
 
@@ -259,9 +256,11 @@ sub connect($$) {
 			$self->{ready} = 0;
 			$self->{connected} = 1;
 			$self->set_blocking(0);
-		} elsif($self->{session}->{proxy_type} eq "HTTP") {
+		} elsif($self->{session}->{proxy_type} eq "HTTP" or $self->{session}->{proxy_type} eq "HTTPS") {
+			$self->{ready} = 0;
+			$self->{connected} = 1;
 		} else {
-			die "Unknown proxy_type $self->{session}->{proxy_type} - valid types are SOCKS4, SOCKS5, and HTTP\n";
+			die "Unknown proxy_type $self->{session}->{proxy_type} - valid types are SOCKS4, SOCKS5, HTTP, and HTTPS\n";
 		}
 	} else {
 		$self->{socket} = gensym;

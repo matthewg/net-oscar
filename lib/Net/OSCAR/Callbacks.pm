@@ -134,8 +134,7 @@ sub process_snac($$) {
 		$subtype = $reqid >> 16;
 		my $error = "";
 		if($family == 0x4) {
-			$error = "Your message to could not be sent for the following reason: ";
-			delete $session->{cookies}->{$reqid};
+			$error = "Your message could not be sent for the following reason: ";
 		} else {
 			$error = "Error in ".$connection->{description}.": ";
 		}
@@ -273,8 +272,6 @@ sub process_snac($$) {
 		$session->callback_evil($newevil, $enemy->{screenname});
 	} elsif($family == 0x4 and $subtype == 0xC) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got IM ack $reqid.");
-		my($reqid) = unpack("xxxx N", $data);
-		delete $session->{cookies}->{$reqid};
 		$session->callback_im_ok($reqdata, $reqid);
 	} elsif($family == 0x1 and $subtype == 0x1F) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got memory request.");
