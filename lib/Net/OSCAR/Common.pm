@@ -125,9 +125,9 @@ use constant OSCAR_SVC_AIM => (
 	port => 5190,
 	major => 4,
 	minor => 7,
-	subminor => pack("n", 0),
+	subminor => 0,
 	build => 2480,
-	subbuild => pack("N", 0x9F),
+	subbuild => 0x9F,
 	clistr => "AOL Instant Messenger (SM), version 4.7.2480/WIN32",
 	hashlogin => 0,
 );
@@ -136,11 +136,11 @@ use constant OSCAR_SVC_ICQ => ( # Courtesy of SDiZ Cheng
 	port => 5190,
 	major => '2000b',
 	minor => 4,
-	subminor => pack("n", 1),
+	subminor => 1,
 	build => 3279,
-	subbuild => pack("N", 85),
+	subbuild => 85,
 	clistr => "ICQ Inc. - Product of ICQ (TM).200b.4.63.1.3279.85",
-	hashlogin => 0,
+	hashlogin => 1,
 );
 
 use constant BUDTYPES => ("buddy", "group", "permit entry", "deny entry", "visibility/misc. data", "presence");

@@ -162,32 +162,6 @@ sub snac_dump($$) {
 	return "family=".$snac->{family}." subtype=".$snac->{subtype};
 }
 
-sub encode_password($$;$) {
-	my($self, $password, $key) = @_;
-
-	if(!$self->{session}->{svcdata}->{hashlogin}) { # Use new SNAC-based method
-		my $md5 = Digest::MD5->new;
-
-		$md5->add($key);
-		$md5->add($password);
-		$md5->add("AOL Instant Messenger (SM)");
-		return $md5->digest();
-	} else { # Use old roasting method.  Courtesy of SDiZ Cheng.
-		my $ret = "";
-		my @pass = map {ord($_)} split(//, $password);
-
-		my @encoding_table = map {hex($_)} qw(
-			F3 26 81 C4 39 86 DB 92 71 A3 B9 E6 53 7A 95 7C
-		);
-
-		for(my $i = 0; $i < length($password); $i++) {
-			$ret .= chr($pass[$i] ^ $encoding_table[$i]);
-		}
-
-		return $ret;
-	}
-}
-
 sub disconnect($) {
 	my($self) = @_;
 

@@ -216,7 +216,7 @@ $oscar->set_callback_admin_ok(\&admin_ok);
 $oscar->set_callback_rate_alert(\&rate_alert);
 $oscar->set_callback_signon_done(\&signon_done);
 $oscar->loglevel($loglevel);
-$oscar->signon($username, $password);
+$oscar->signon(screenname => $username, password => $password);
 
 my $inline = "";
 my $inchar = "";

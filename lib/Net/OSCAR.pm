@@ -232,14 +232,14 @@ sub signon($@) {
 	# Determine whether caller is using hash-method or old method of passing parms.
 	# Note that this breaks if caller passes in both a host and a port using the old way.
 	# But hey, that's why it's deprecated!
-	if(@_ < 4) {
+	if(@_ < 3) {
 		$args{screenname} = shift @_ or return $self->crapout($self->{bos}, "You must specify a username to sign on with!");
 		$args{password} = shift @_ or return $self->crapout($self->{bos}, "You must specify a password to sign on with!");;
 		$args{host} = shift @_ if @_;
 		$args{port} = shift @_ if @_;
 	} else {
 		%args = @_;
-		return $self->crapout($self->{bos}, "You must specify a username and password to sign on with!") unless $args{username} and $args{password};
+		return $self->crapout($self->{bos}, "You must specify a username and password to sign on with!") unless $args{screenname} and $args{password};
 	}
 
 	my %defaults = OSCAR_SVC_AIM;
@@ -254,7 +254,7 @@ sub signon($@) {
 
 
 	($self->{screenname}, $password, $host, $self->{port}) =
-		delete $args{screenname, password, host, port};
+		delete @args{qw(screenname password host port)};
 
 	$self->{svcdata} = \%args;
 	$self->{bos} = $self->addconn($password, CONNTYPE_LOGIN, "login", $host);
