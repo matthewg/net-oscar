@@ -39,6 +39,9 @@ require Exporter;
 		GROUPPERM_AOL
 		OSCAR_SVC_AIM
 		OSCAR_SVC_ICQ
+		OSCAR_DIRECT_IM
+		OSCAR_DIRECT_FILESHARE
+		OSCAR_DIRECT_FILEXFER
 	)],
 	loglevels => [qw(
 		OSCAR_DBG_NONE
@@ -60,6 +63,7 @@ require Exporter;
 		MODBL_ACTION_ADD MODBL_ACTION_DEL MODBL_WHAT_BUDDY MODBL_WHAT_GROUP MODBL_WHAT_PERMIT MODBL_WHAT_DENY
 		GROUPPERM_OSCAR GROUPPERM_AOL OSCAR_SVC_AIM OSCAR_SVC_ICQ
 		OSCAR_CAPS OSCAR_CAPS_INVERSE OSCAR_TOOLDATA
+		OSCAR_DIRECT_IM OSCAR_DIRECT_FILESHARE OSCAR_DIRECT_FILEXFER
 		BUDTYPES
 		ENCODING
 		ERRORS
@@ -115,6 +119,10 @@ use constant CONNTYPE_CHATNAV => dualvar(0xD, "chat navigator");
 use constant CONNTYPE_ICON => dualvar(0x10, "icon service");
 use constant CONNTYPE_DIRECT_IN => dualvar(0xfe, "direct connect listener");
 use constant CONNTYPE_DIRECT_OUT => dualvar(0xff, "direct connect connection");
+
+use constant OSCAR_DIRECT_IM => dualvar(1, "direct IM");
+use constant OSCAR_DIRECT_FILESHARE => dualvar(2, "file sharing");
+use constant OSCAR_DIRECT_FILEXFER => dualvar(3, "file transfer");
 
 use constant MODBL_ACTION_ADD => 0x1;
 use constant MODBL_ACTION_DEL => 0x2;

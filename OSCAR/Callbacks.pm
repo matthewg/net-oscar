@@ -234,17 +234,20 @@ sub process_snac($$) {
 		$connection->snac_put(family => 0x01, subtype => 0x06);
 	} elsif($family == 0x4 and $subtype == 0x7) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got incoming IM.");
-		my($from, $msg, $away, $chat, $chaturl) = $session->im_parse($data);
-		if($from) {
+		my(%im_data) = $session->im_parse($data);
+		if($im_data{from}) {
 			# Ignore invites for chats that we're already in
-			if($chat and not
-				grep { $_->{url} eq $chaturl }
+			if($im_data{chat} and not
+				grep { $_->{url} eq $im_data{chaturl} }
 					 grep { $_->{conntype} == CONNTYPE_CHAT }
 						@{$session->{connections}}
 			) {
-				$session->callback_chat_invite($from, $msg, $chat, $chaturl);
-			} elsif(!$chat) {
-				$session->callback_im_in($from, $msg, $away);
+				$session->callback_chat_invite($im_data{from}, $im_data{msg}, $im_data{chat}, $im_data{chaturl});
+			} elsif($im_data{direct_request}) {
+				$session->{direct_request_in}->{$im_data{cookie}} = {%im_data};
+				$session->callback_direct_connect_request($im_data{from}, $im_data{type}, $im_data{ip}, $im_data{port}, $im_data{cookie});
+			} elsif(!$im_data{chat}) {
+				$session->callback_im_in($im_data{from}, $im_data{msg}, $im_data{away});
 			}
 		}
 	} elsif($family == 0x4 and $subtype == 0x14) {

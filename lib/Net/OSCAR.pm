@@ -214,8 +214,8 @@ sub new($) {
 	my $self = {
 		options => {
 			direct_connect_port => 0
-		}
-		_parameters => [@_];
+		},
+		_parameters => [@_]
 	};
 	bless $self, $class;
 
@@ -243,7 +243,8 @@ sub new($) {
 	$self->{timeout} = 0.01;
 	$self->{capabilities} = {};
 
-	$self->{direct_requests} = {};
+	$self->{direct_requests_in} = {};
+	$self->{direct_requests_out} = {};
 
 	if($parameters{capabilities}) {
 		$self->{capabilities}->{$_} = 1 foreach @{$parameters{capabilities}};
@@ -1273,6 +1274,7 @@ sub direct_im_connect($$) {
 	my $listener = $self->direct_listener();
 
 	my $cookie = randchars(8);
+	$self->{direct_requests_out}->{$cookie} = {who => $to, what => OSCAR_DIRECT_IM};
 	$self->send_im(
 		$to,
 		encode_tlv(tlv(
@@ -1305,13 +1307,11 @@ sub buddyhash($) { bltie; }
 
 sub im_parse($$) {
 	my($self, $data) = @_;
-	my($from, $msg, $away) = ("", "", 0);
-	my $chat = undef;
-	my $chaturl = undef;
+	my(%im_data) = (from => "", msg => "", away => 0);
 
 	my $cookie = substr($data, 0, 8, ""); #OSCAR is so nice, it feeds us BLTs and cookies as SNACs.
 	my($channel) = unpack("n", substr($data, 0, 2, ""));
-	if($channel != 1 and $channel != 2) {
+	if($channel != 1 and $channel != 2 and $channel != 3) {
 		carp "Got ICBM on unsupported channel $channel - ignoring.";
 		return;
 	} else {
@@ -1320,7 +1320,7 @@ sub im_parse($$) {
 
 	$self->log_print(OSCAR_DBG_DEBUG, "Extracting user info.");
 	my ($senderinfo, $tlvlen) = $self->extract_userinfo($data);
-	$from = $senderinfo->{screenname};
+	$im_data{from} = $senderinfo->{screenname};
 
 	# Copying gAIM/libfaim is *so* much easier than understanding stuff.
 	if($channel == 1) {
@@ -1330,69 +1330,65 @@ sub im_parse($$) {
 		$self->log_print(OSCAR_DBG_DEBUG, "Decoding ICBM secondary TLV.");
 
 		my $tlv = tlv_decode($data);
-		$msg = $tlv->{2};
+		$im_data{msg} = $tlv->{2};
 
-		substr($msg, 0, 2) = "";
-		my($y) = unpack("n", substr($msg, 0, 2, ""));
-		substr($msg, 0, $y+2) = "";
+		substr($im_data{msg}, 0, 2) = "";
+		my($y) = unpack("n", substr($im_data{msg}, 0, 2, ""));
+		substr($im_data{msg}, 0, $y+2) = "";
 
-		my($msglen, $flags1, $flags2) = unpack("nnn", substr($msg, 0, 6, ""));
+		my($msglen, $flags1, $flags2) = unpack("nnn", substr($im_data{msg}, 0, 6, ""));
 		$msglen -= 4;
 
-		$away = 1 if exists $tlv->{4};
+		$im_data{away} = 1 if exists $tlv->{4};
 
 		# Sender supports typing status notification
-		$self->{userinfo}->{$from} ||= {};
+		$self->{userinfo}->{$im_data{from}} ||= {};
 		if(exists($tlv->{0xB})) {
-			$self->{userinfo}->{$from}->{typing_status} = 1;
+			$self->{userinfo}->{$im_data{from}}->{typing_status} = 1;
 		} else {
-			delete $self->{userinfo}->{$from}->{typing_status};
-		}
-
-		if($tlv->{3}) { # server ack requested
-			#$self->log_print(OSCAR_DBG_DEBUG, "Sending message ack.");
-			#$self->{services}->{CONNTYPE_BOS}->snac_put(family => 0x4, subtype => 0xC, data =>
-			#	$cookie . pack("nCa*", 1, length($from), $from)
-			#);
+			delete $self->{userinfo}->{$im_data{from}}->{typing_status};
 		}
 
 		if($tlv->{8} and $self->{capabilities}->{buddy_icons}) { # user has buddy icon
 			my($icon_length, $icon_checksum, $icon_timestamp) = unpack("NxxnN", $tlv->{8});
 			my $new_icon = 0;
 
-			if(!exists($self->{userinfo}->{$from}->{icon_timestamp})
-			   or $icon_timestamp > $self->{userinfo}->{$from}->{icon_timestamp}
-			   or $icon_checksum != $self->{userinfo}->{$from}->{icon_checksum}) {
+			if(!exists($self->{userinfo}->{$im_data{from}}->{icon_timestamp})
+			   or $icon_timestamp > $self->{userinfo}->{$im_data{from}}->{icon_timestamp}
+			   or $icon_checksum != $self->{userinfo}->{$im_data{from}}->{icon_checksum}) {
 				$new_icon = 1;
 			}
 
-			($self->{userinfo}->{$from}->{icon_length}, $self->{userinfo}->{$from}->{icon_checksum}, $self->{userinfo}->{$from}->{icon_timestamp}) =
+			($self->{userinfo}->{$im_data{from}}->{icon_length}, $self->{userinfo}->{$im_data{from}}->{icon_checksum}, $self->{userinfo}->{$im_data{from}}->{icon_timestamp}) =
 				($icon_length, $icon_checksum, $icon_timestamp);
 
-			$self->callback_new_buddy_icon($from, $self->{userinfo}->{$from});
+			$self->callback_new_buddy_icon($im_data{from}, $self->{userinfo}->{$im_data{from}});
 		}
-	} else {
+	} elsif($channel == 2) {
+		substr($data, 0, $tlvlen) = "";
+		my $tlv = tlv_decode($data);
+		
+	} elsif($channel == 3) {
 		$data = $senderinfo->{chatdata};
-		$away = 0;
 
 		substr($data, 0, 26) = "";
 		my $tlv = tlv_decode($data);
-		$msg = $tlv->{0xC};
+		$im_data{msg} = $tlv->{0xC};
 		if($tlv->{0x2711}) {
-			($chaturl) = unpack("xx C/a*", $tlv->{0x2711});
+			($im_data{chaturl}) = unpack("xx C/a*", $tlv->{0x2711});
 
-			$chaturl =~ /-.*?-(.*)/;
-			$chat = $1;
-			$chat =~ s/%([0-9A-Z]{1,2})/chr(hex($1))/eig;
+			$im_data{chaturl} =~ /-.*?-(.*)/;
+			$im_data{chat} = $1;
+			$im_data{chat} =~ s/%([0-9A-Z]{1,2})/chr(hex($1))/eig;
 		}
 
-		$self->{chatinvites}->{$chaturl} = {
+		$self->{chatinvites}->{$im_data{chaturl}} = {
 			cookie => $cookie,
-			sender => $from
+			sender => $im_data{from}
 		};
 	}
 
-	return ($from, $msg, $away, $chat, $chaturl);
+	return %im_data;
 }
 
 =pod
@@ -2230,6 +2226,29 @@ Called when someone sends you an instant message.  If the AWAY parameter
 is non-zero, the message was generated as an automatic reply, perhaps because
 you sent that person a message and they had an away message set.
 
+=item direct_connect_request (OSCAR, FROM, TYPE, IP, PORT, COOKIE)
+
+Called when someone requests a direct connection to the user.
+C<IP> and C<PORT> are the address of the remote user.  C<COOKIE>
+is a random string used to identify this particular request.
+C<TYPE> will be one of:
+
+=over 4
+
+=item OSCAR_DIRECT_IM
+
+Someone wants to establish a direct IM connection with the user.
+
+=item OSCAR_DIRECT_FILESHARE
+
+Someone wants to establish a filesharing connection with the user.
+
+=item OSCAR_DIRECT_FILEXFER
+
+Someone wants to establish a file transfer connection with the user.
+
+=back
+
 =item chat_im_in (OSCAR, FROM, CHAT, MESSAGE)
 
 Called when someone says something in a chatroom.  Note that you
@@ -2372,6 +2391,7 @@ sub callback_error(@) { do_callback("error", @_); }
 sub callback_buddy_in(@) { do_callback("buddy_in", @_); }
 sub callback_buddy_out(@) { do_callback("buddy_out", @_); }
 sub callback_im_in(@) { do_callback("im_in", @_); }
+sub callback_direct_connect_request(@) { do_callback("direct_connect_request", @_); }
 sub callback_chat_joined(@) { do_callback("chat_joined", @_); }
 sub callback_chat_buddy_in(@) { do_callback("chat_buddy_in", @_); }
 sub callback_chat_buddy_out(@) { do_callback("chat_buddy_out", @_); }
@@ -2401,6 +2421,7 @@ sub set_callback_error($\&) { set_callback("error", @_); }
 sub set_callback_buddy_in($\&) { set_callback("buddy_in", @_); }
 sub set_callback_buddy_out($\&) { set_callback("buddy_out", @_); }
 sub set_callback_im_in($\&) { set_callback("im_in", @_); }
+sub set_callback_direct_connect_request($\&) { set_callback("direct_connect_request", @_); }
 sub set_callback_chat_joined($\&) { set_callback("chat_joined", @_); }
 sub set_callback_chat_buddy_in($\&) { set_callback("chat_buddy_in", @_); }
 sub set_callback_chat_buddy_out($\&) { set_callback("chat_buddy_out", @_); }
