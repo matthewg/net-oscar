@@ -125,6 +125,7 @@ sub BLI_to_NO($) {
 	} keys %{exists($bli->{1}) ? $bli->{1} : {}}; # That we have a type 1 entry for
 
 	foreach my $gid(@gids) {
+		next unless exists($bli->{1}->{$gid});
 		my $group = $bli->{1}->{$gid}->{0}->{name};
 
 		if(!$group) {
