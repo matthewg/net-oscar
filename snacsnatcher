@@ -17,7 +17,7 @@ my $file = shift or die "Usage: snacsnatcher pcapfile [verbose]\n";
 
 # Quick and dirty protocol analyzer
 
-use vars qw($packet $verbose $buffer $bufflen $datalink);
+use vars qw($packet $verbose $buffer $bufflen $datalink @blarray);
 $packet = 0;
 $verbose = shift;
 $buffer = "";
@@ -64,23 +64,34 @@ sub got_packet($$$) {
 
 	PACKET: while($pkt) {
 		if($buffer) {
-			if(length($pkt) < ($bufflen - length($buffer))) {
-				$buffer .= $pkt;
-				return;
-			} else {
-				$buffer .= substr($pkt, 0, $bufflen - length($buffer), "");
-				$pkt = $buffer;
+			if($bufflen == -1) {
+				$pkt = $buffer . $pkt;
 				$buffer = "";
 				$bufflen = 0;
+			} else {
+				if(length($pkt) < ($bufflen - length($buffer))) {
+					$buffer .= $pkt;
+					return;
+				} else {
+					$buffer .= substr($pkt, 0, $bufflen - length($buffer), "");
+					$pkt = $buffer;
+					$buffer = "";
+					$bufflen = 0;
+				}
 			}
 		}
 
 		my($flap, $channel, $seqno, $len) = unpack("CCnn", $pkt);
 		$len ||= 0;
-		if($flap == 0x2A and (length($pkt) - 6) < $len) {
-			$buffer = $pkt;
-			$bufflen = $len + 6;
-			return;
+		if($flap == 0x2A) {
+			if((length($pkt) - 6) < $len) {
+				$buffer = $pkt;
+				$bufflen = $len + 6;
+				return;
+			} elsif((length($pkt) - 6) > $len) {
+				$buffer = substr($pkt, $len + 6, length($pkt) - $len - 6, "");
+				$bufflen = -1;
+			}
 		}
 
 		printf "%04d ($src, $dst)\n", $packet;
@@ -103,6 +114,28 @@ sub got_packet($$$) {
 			$len -= 10;
 			printf "\tSNAC 0x%04X/0x%04X (flags 0x%02X, 0x%02X) [reqid 0x%08X]\n", $family, $subtype, $flags1, $flags2, $reqid;
 			if($len and $verbose) {
+				if($family == 0x13 and $subtype == 0x6) {
+					substr($pkt, 0, 3) = "";
+					$len -= 3;
+					substr($pkt, -4, 4) = "" if $flags2;
+					$len -= 4 if $flags2;
+					$blarray[$flags2] = $pkt;
+					substr($pkt, 0, $len) = "" if $len;
+					if($flags2) {
+						print "\tGot buddylist part $flags2\n";
+					} else {
+						my $buddylist = join("", reverse @blarray);
+						while(length($buddylist) > 4) {
+							my($name) = unpack("n/a*", $buddylist);
+							substr($buddylist, 0, 2+length($name)) = "";
+							my($gid, $bid, $type, $sublen) = unpack("n4", substr($buddylist, 0, 8, ""));
+							printf("\tGot BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s\n", $name, $type, $gid, $bid, $sublen, hexdump(substr($buddylist, 0, $sublen, "")));
+						}
+					}
+					print "\n";
+					next PACKET;
+				}
+
 				# TLV check
 				my $tlv = 1;
 				for(my $pos = 0; $pos < $len;) {
