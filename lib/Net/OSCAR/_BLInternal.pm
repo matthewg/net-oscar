@@ -145,6 +145,9 @@ sub BLI_to_NO($) {
 		} keys %{exists($bli->{0}->{$gid}) ? $bli->{0}->{$gid} : {}}; # That we have a type 0 entry for in this GID
 
 		foreach my $bid(@bids) {
+			# Yeah, this next condition seems impossible, but I've seen it happen
+			next unless exists($bli->{0}->{$gid}) and exists($bli->{0}->{$gid}->{$bid});
+
 			my $buddy = $bli->{0}->{$gid}->{$bid};
 
 			my $comment = undef;
@@ -194,7 +197,9 @@ sub NO_to_BLI($) {
 	foreach my $group(keys %{$session->{buddies}}) {
 		my $gid = $session->{buddies}->{$group}->{groupid};
 		$bli->{1}->{$gid}->{0}->{name} = $group;
-		$bli->{1}->{$gid}->{0}->{data}->{0xC8} = pack("n*", map { $_->{buddyid} } values %{$session->{buddies}->{$group}->{members}});
+		$bli->{1}->{$gid}->{0}->{data}->{0xC8} = pack("n*",
+			map { $_->{buddyid} }
+			values %{$session->{buddies}->{$group}->{members}});
 
 		foreach my $buddy(keys %{$session->{buddies}->{$group}->{members}}) {
 			my $bid = $session->{buddies}->{$group}->{members}->{$buddy}->{buddyid};

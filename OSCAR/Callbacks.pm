@@ -168,6 +168,7 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Incoming bogey - er, I mean buddy - $screenname");
 
 		my $group = $session->findbuddy($screenname);
+		return unless $group; # Without this, remove_buddy screws things up until signoff/signon
 		$buddy->{buddyid} = $session->{buddies}->{$group}->{members}->{$screenname}->{buddyid};
 		$buddy->{online} = 1;
 		foreach my $key(keys %$buddy) {
