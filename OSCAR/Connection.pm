@@ -290,6 +290,9 @@ sub connect($$) {
 	} else {
 		$self->{socket} = gensym;
 		socket($self->{socket}, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
+		if($self->{session}->{local_ip}) {
+			bind($self->{socket}, sockaddr_in(0, inet_aton($self->{session}->{local_ip}))) or croak "Couldn't bind to desired IP: $!\n";
+		}
 		$self->set_blocking(0);
 
 		my $addr = inet_aton($host) or return $self->{session}->crapout($self, "Couldn't resolve $host.");

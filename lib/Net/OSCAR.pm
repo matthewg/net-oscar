@@ -324,6 +324,12 @@ Screenname and password are mandatory.  The other keys are optional.
 In the special case of password being present but undefined, the
 auth_challenge callback will be used - see L<"auth_challenge"> for details.
 
+=item local_ip
+
+If you have more than one IP address with a route to the internet, this
+parameter can be used to specify which to use as the source IP for outgoing
+connections.
+
 =item host
 
 =item port
@@ -382,8 +388,8 @@ sub signon($@) {
 
 	($self->{screenname}, $password, $host, $self->{port},
 		$self->{proxy_type}, $self->{proxy_host}, $self->{proxy_port},
-		$self->{proxy_username}, $self->{proxy_password}) =
-			delete @args{qw(screenname password host port proxy_type proxy_host proxy_port proxy_username proxy_password)};
+		$self->{proxy_username}, $self->{proxy_password}, $self->{local_ip}) =
+			delete @args{qw(screenname password host port proxy_type proxy_host proxy_port proxy_username proxy_password local_ip)};
 
 	$self->{svcdata} = \%args;
 
