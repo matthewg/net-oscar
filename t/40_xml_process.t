@@ -43,6 +43,11 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		data => {x => "Cthulhu"},
 		template => "length_prefix"
 	},{
+		binary => pack("n", 0),
+		data => {x => ""},
+		template => "length_prefix",
+		name => "empty prefix data"
+	},{
 		binary => pack("va*", length("Kessel run"), "Kessel run"),
 		data => {x => "Kessel run"},
 		template => "vax_prefix"
@@ -63,10 +68,21 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		data => {x => 3, y => 20},
 		template => "basic_tlv"
 	},{
-		binary => pack("nnn nnn", 1, 2, 0, 2, 2, 0),
-		data => {x => 0, y => 0},
-		template => "basic_tlv",
-		name => "zero TLV"
+		binary => pack("nn", 1, 0),
+		data => {x => ""},
+		template => "data_tlv"
+	},{
+		binary => pack("nnn", 1, 2, 0),
+		data => {x => ""},
+		template => "data_prefix_tlv"
+	},{
+		binary => pack("nCC", 1, 1, 0),
+		data => {x => ""},
+		template => "subdata_tlv",
+	},{
+		binary => pack("nCCn", 1, 1, 2, 0),
+		data => {x => ""},
+		template => "subdata_prefix_tlv",
 	},{
 		binary => pack("nna* nna*", 1, length("Baby"), "Baby", 2, length("Surge"), "Surge"),
 		data => {foo => {x => "Baby"}, bar => {y => "Surge"}},

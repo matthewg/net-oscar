@@ -1002,7 +1002,6 @@ sub mod_buddylist($$$$;@) {
 
 sub postprocess_userinfo($$) {
 	my($self, $userinfo) = @_;
-	my $retval = {};
 
 	$userinfo->{evil} /= 10 if exists($userinfo->{evil});
 	if(exists($userinfo->{flags})) {
@@ -1034,7 +1033,7 @@ sub postprocess_userinfo($$) {
 		if(!exists($self->{userinfo}->{$userinfo->{screenname}})
 		   or !exists($self->{userinfo}->{$userinfo->{screenname}}->{icon_md5sum})
 		   or $self->{userinfo}->{$userinfo->{screenname}}->{icon_md5sum} ne $userinfo->{icon_md5sum}) {
-			$self->callback_new_buddy_icon($retval->{screenname}, $retval);
+			$self->callback_new_buddy_icon($userinfo->{screenname}, $userinfo);
 		}
 	}
 }

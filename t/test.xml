@@ -40,6 +40,18 @@
 			<tlv type="2"><word name="y" /></tlv>
 		</tlvchain>
 	</define>
+	<define name="data_tlv">
+		<tlvchain><tlv type="1"><data name="x" /></tlv></tlvchain>
+	</define>
+	<define name="data_prefix_tlv">
+		<tlvchain><tlv type="1"><data length_prefix="word" name="x" /></tlv></tlvchain>
+	</define>
+	<define name="subdata_tlv">
+		<tlvchain subtyped="yes"><tlv type="1" subtype="1"><data name="x" /></tlv></tlvchain>
+	</define>
+	<define name="subdata_prefix_tlv">
+		<tlvchain subtyped="yes"><tlv type="1" subtype="1"><data length_prefix="word" name="x" /></tlv></tlvchain>
+	</define>
 	<define name="named_tlv">
 		<tlvchain>
 			<tlv type="1" name="foo"><data name="x" /></tlv>

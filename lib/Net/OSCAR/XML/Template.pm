@@ -96,6 +96,13 @@ sub unpack($$) {
 			# If we just have simple, no preset length, no subitems, raw data, it can't have a repeat count, since the first repetition will gobble up everything
 			assert($datum->{type} ne "data" or @{$datum->{items}} or defined($size) or $count == 1);
 
+			# We want:
+			#	<data length_prefix="num" />
+			# to be empty string, not undefined, when length==0.
+			if(!$input and $count == 1 and defined($size)) {
+				push @results, "";
+			}
+
 			for(my $i = 0; $input and ($count == -1 or $i < $count); $i++) {
 				# So, consider the structure:
 				#	<data name="foo">
@@ -155,9 +162,9 @@ sub unpack($$) {
 					if(!exists($tlvmap->{$tlv{type}}->{$tlv{subtype}}) and exists($tlvmap->{$tlv{type}}->{-1})) {
 						$tlv{subtype} = -1;
 					}
-					$tlvmap->{$tlv{type}}->{$tlv{subtype}}->{data} = $tlv{data};
+					$tlvmap->{$tlv{type}}->{$tlv{subtype}}->{data} = $tlv{data} || "";
 				} else {
-					$tlvmap->{$tlv{type}}->{data} = $tlv{data};
+					$tlvmap->{$tlv{type}}->{data} = $tlv{data} || "";
 				}
 			}
 
@@ -168,11 +175,16 @@ sub unpack($$) {
 				if($datum->{subtyped}) {
 					while(my($subtype, $subval) = each %$val) {
 						if(exists($subval->{data})) {
-							if(ref($subval->{items}) and @{$subval->{items}} and $subval->{data}) {
+							if(ref($subval->{items}) and @{$subval->{items}} and exists($subval->{data})) {
 								my(%tmp) = $self->new($subval->{items})->unpack($subval->{data});
 								if($subval->{name}) {
 									push @results, {$subval->{name} => \%tmp};
 								} else {
+									# (See comment under corresponding non-subtyped case)
+									if(@{$subval->{items}} == 1 and $subval->{items}->[0]->{name}) {
+										$tmp{$subval->{items}->[0]->{name}} ||= "";
+									}
+
 									push @results, \%tmp;
 								}
 							}
@@ -180,11 +192,18 @@ sub unpack($$) {
 					}
 				} else {
 					if(exists($val->{data})) {
-						if(ref($val->{items}) and @{$val->{items}} and $val->{data}) {
+						if(ref($val->{items}) and @{$val->{items}} and exists($val->{data})) {
 							my(%tmp) = $self->new($val->{items})->unpack($val->{data});
 							if($val->{name}) {
 								push @results, {$val->{name} => \%tmp};
 							} else {
+								# We want:
+								#   <tlv type="1"><data name="x" /></tlv>
+								# to give x => "" when TLV 1 is present but empty,
+								# not x => undef.
+								if(@{$val->{items}} == 1 and $val->{items}->[0]->{name}) {
+									$tmp{$val->{items}->[0]->{name}} ||= "";
+								}
 								push @results, \%tmp;
 							}
 						}
@@ -220,7 +239,7 @@ sub unpack($$) {
 		}
 	}
 
-	$oscar->log_print(OSCAR_DBG_XML, "Decoded:\n", join("\n", map { "\t$_ => ".hexdump($data{$_}) } keys %data));
+	$oscar->log_print(OSCAR_DBG_XML, "Decoded:\n", join("\n", map { "\t$_ => ".(defined($data{$_}) ? hexdump($data{$_}) : 'undef') } keys %data));
 
 	# Remember, passing in a ref to packet in place of actual packet data == in-place editing...
 	$$x_packet = $packet if ref($x_packet);
@@ -235,7 +254,7 @@ sub pack($%) {
 	my $oscar = $self->{oscar};
 	my $template = $self->{template};
 
-	$oscar->log_print(OSCAR_DBG_XML, "Encoding:\n", join("\n", map { "\t$_ => ".hexdump($data{$_}) } keys %data));
+	$oscar->log_print(OSCAR_DBG_XML, "Encoding:\n", join("\n", map { "\t$_ => ".(defined($data{$_}) ? hexdump($data{$_}) : 'undef') } keys %data), "\n according to: ", Data::Dumper::Dumper($template));
 
 	assert(ref($template) eq "ARRAY");
 	foreach my $datum (@$template) {
@@ -284,7 +303,13 @@ sub pack($%) {
 					}
 				} else {
 					my $tmp = $self->new($tlv->{items})->pack(%data);
-					$tlvdata = $tmp if $tmp;
+
+					# If TLV has no name and only one element, do special handling for "present but empty" value.
+					if($tmp) {
+						$tlvdata = $tmp;
+					} elsif(@{$tlv->{items}} == 1 and $tlv->{items}->[0]->{name} and exists($data{$tlv->{items}->[0]->{name}})) {
+						$tlvdata = "";
+					}
 				}
 	
 				assert($tlv->{num});
