@@ -34,7 +34,7 @@ sub invite($$;$) {
 		)
 	));
 
-	$self->{session}->{bos}->snac_put(family => 0x04, subtype => 0x06, data => $packet);
+	$self->{session}->svcdo(CONNTYPE_BOS, family => 0x04, subtype => 0x06, data => $packet);
 }
 
 sub chat_send($$;$$) {
@@ -44,7 +44,7 @@ sub chat_send($$;$$) {
 	$packet .= randchars(8);
 	$packet .= pack("n", 3); # channel
 
-	my $tlv = tlvtie;
+	my $tlv = tlv;
 	$tlv->{1} = "";
 	$tlv->{6} = "" unless $noreflect;
 	$tlv->{7} = "" if $away;

@@ -3,7 +3,7 @@ Random notes for working on the Net::OSCAR source:
 (This stuff is subject to change without notice.)
 
 -We work with TLVs as hashes which treat their keys as numbers.
-To get one of these magic hashrefs, call tlvtie to get a blank one
+To get one of these magic hashrefs, call tlv to get a blank one
 or: tlv(1 => "data", 2 => "other data").  encode_tlv($tlv) before sending
 it out over the wire.
 
@@ -21,7 +21,8 @@ things in OSCAR/Common.pm are dualvars.
 		use Net::OSCAR.
 	CONNTYPE_FOO
 		Add one of these if you add something that requires a
-		new connection type.
+		new connection type.  Also add it to svcmap in
+		OSCAR/Callbacks.pm.
 	OSCAR_TOOLDATA
 		This probably also needs to get updated if you
 		add a new connection type, or maybe even a new family.

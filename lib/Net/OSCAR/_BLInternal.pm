@@ -24,7 +24,7 @@ use constant BLI_AUTOVIV =>
 	q!
 		tie %$value, ref($self), q#
 			tie %$value, ref($self), q^
-				$value->{name} = ""; $value->{data} = Net::OSCAR::Common::tlvtie;
+				$value->{name} = ""; $value->{data} = Net::OSCAR::Common::tlv;
 			^
 		#
 	!;
@@ -38,7 +38,8 @@ sub blparse($$) {
 	$session->{visibility} = VISMODE_PERMITALL; # If we don't have p/d data, this is default.
 
 	delete $session->{blinternal};
-	$session->{blinternal} = tlvtie BLI_AUTOVIV;
+	$session->{blinternal} = {};
+	tie %{$session->{blinternal}}, "Net::OSCAR::TLV",  BLI_AUTOVIV;
 
 	while(length($data) > 4) {
 		my($name) = unpack("n/a*", $data);
@@ -179,7 +180,8 @@ sub BLI_to_NO($) {
 sub NO_to_BLI($) {
 	my $session = shift;
 
-	my $bli = tlvtie BLI_AUTOVIV;
+	my $bli = {};
+	tie %$bli, "Net::OSCAR::TLV",  BLI_AUTOVIV;
 
 	foreach my $permit (keys %{$session->{permit}}) {
 		$bli->{2}->{0}->{$session->{permit}->{$permit}->{buddyid}}->{name} = $permit;
@@ -234,7 +236,6 @@ sub NO_to_BLI($) {
 sub BLI_to_OSCAR($$) {
 	my($session, $newbli) = @_;
 	my $oldbli = $session->{blinternal};
-	my $oscar = $session->{bos};
 	my (@adds, @modifies, @deletes);
 	$session->{budmods} = [];
 
@@ -372,8 +373,7 @@ sub BLI_to_OSCAR($$) {
 		delete $session->{budmods};
 		$session->callback_buddylist_ok();
 	} else {
-		#$oscar->snac_put(family => 0x13, subtype => 0x11); # Begin BL mods -- OSCAR 5 no longer uses this
-		$oscar->snac_put(%{shift @{$session->{budmods}}}); # Send the first modification
+		$session->svcdo(CONNTYPE_BOS, %{shift @{$session->{budmods}}}); # Send the first modification
 	}
 }
 

@@ -214,6 +214,8 @@ sub new($) {
 	$self->{SNDEBUG} = 0;
 	$self->{description} = "OSCAR session";
 	$self->{userinfo} = bltie;
+	$self->{services} = tlv;
+	$self->{svcqueues} = tlv;
 
 	$self->{timeout} = 0.01;
 	$self->{capabilities} = {};
@@ -300,13 +302,13 @@ sub signon($@) {
 	# Note that this breaks if caller passes in both a host and a port using the old way.
 	# But hey, that's why it's deprecated!
 	if(@_ < 3) {
-		$args{screenname} = shift @_ or return $self->crapout($self->{bos}, "You must specify a username to sign on with!");
-		$args{password} = shift @_ or return $self->crapout($self->{bos}, "You must specify a password to sign on with!");;
+		$args{screenname} = shift @_ or return $self->crapout($self->{services}->{CONNTYPE_BOS()}, "You must specify a username to sign on with!");
+		$args{password} = shift @_ or return $self->crapout($self->{services}->{CONNTYPE_BOS()}, "You must specify a password to sign on with!");;
 		$args{host} = shift @_ if @_;
 		$args{port} = shift @_ if @_;
 	} else {
 		%args = @_;
-		return $self->crapout($self->{bos}, "You must specify a username and password to sign on with!") unless $args{screenname} and exists($args{password});
+		return $self->crapout($self->{services}->{CONNTYPE_BOS()}, "You must specify a username and password to sign on with!") unless $args{screenname} and exists($args{password});
 	}
 
 	my %defaults = OSCAR_SVC_AIM;
@@ -314,7 +316,7 @@ sub signon($@) {
 	foreach my $key(keys %defaults) {
 		$args{$key} ||= $defaults{$key};
 	}
-	return $self->crapout($self->{bos}, "MD5 authentication not available for this service (you must define a password.)") if !defined($args{password}) and $args{hashlogin};
+	return $self->crapout($self->{services}->{CONNTYPE_BOS()}, "MD5 authentication not available for this service (you must define a password.)") if !defined($args{password}) and $args{hashlogin};
 	$self->{screenname} = new Net::OSCAR::Screenname $args{screenname};
 
 	# We set BOS to the login connection so that our error handlers pick up errors on this connection as fatal.
@@ -347,7 +349,7 @@ sub signon($@) {
 		}
 	}
 
-	$self->{bos} = $self->addconn($password, CONNTYPE_LOGIN, "login", $host);
+	$self->{services}->{CONNTYPE_BOS()} = $self->addconn($password, CONNTYPE_LOGIN, "login", $host);
 }
 
 =pod
@@ -363,7 +365,7 @@ sub auth_response($$) {
 	my($self, $digest) = @_;
 	$self->log_print(OSCAR_DBG_SIGNON, "Got authentication response - proceeding with signon");
 	$self->{auth_response} = $digest;
-	$self->{bos}->snac_put(family => 0x17, subtype => 0x2, data => tlv(signon_tlv($self)));
+	$self->svcdo(CONNTYPE_BOS, family => 0x17, subtype => 0x2, data => tlv(signon_tlv($self)));
 }
 
 =pod
@@ -410,15 +412,11 @@ sub addconn($$$$$) {
 	my $conntype = $_[1];
 
 	my $connection = ($conntype == CONNTYPE_CHAT) ? Net::OSCAR::Chat->new($self, @_) : Net::OSCAR::Connection->new($self, @_);
-	if($_[1] == CONNTYPE_BOS) {
-		$self->{bos} = $connection;
-	} elsif($_[1] == CONNTYPE_ADMIN) {
-		$self->{admin} = 1; # We're not quite ready yet - add to queue but don't send svcreq
-	} elsif($_[1] == CONNTYPE_CHATNAV) {
-		$self->{chatnav} = 1;
-	} elsif($_[1] == CONNTYPE_ICON) {
-		$self->{icon_service} = 1;
-	}
+
+	# We set the connection to 1 to indicate that it is in progress but not ready for SNAC-sending yet.
+	$self->{services}->{$conntype} = 1 unless $conntype == CONNTYPE_CHAT;
+	$self->{services}->{$conntype} = $connection if $conntype == CONNTYPE_BOS;
+
 	push @{$self->{connections}}, $connection;
 	$self->callback_connection_changed($connection, "write");
 	return $connection;
@@ -439,18 +437,15 @@ sub delconn($$) {
 				close $connection->{socket} if $connection->{socket};
 			};
 		} else {
+			delete $self->{services}->{$connection->{conntype}} unless $connection->{conntype} == CONNTYPE_CHAT;
+
 			if($connection->{conntype} == CONNTYPE_BOS or ($connection->{conntype} == CONNTYPE_LOGIN and !$connection->{closing})) {
 				delete $connection->{socket};
 				return $self->crapout($connection, "Lost connection to BOS");
-			} elsif($connection->{conntype} == CONNTYPE_CHATNAV) {
-				delete $self->{chatnav};
 			} elsif($connection->{conntype} == CONNTYPE_ADMIN) {
-				delete $self->{admin};
 				$self->callback_admin_error("all", ADMIN_ERROR_CONNREF, undef) if scalar(keys(%{$self->{adminreq}}));
 			} elsif($connection->{conntype} == CONNTYPE_CHAT) {
 				$self->callback_chat_closed($connection, "Lost connection to chat");
-			} elsif($connection->{conntype} == CONNTYPE_ICON) {
-				delete $self->{icon_service};
 			}
 		}
 		delete $connection->{socket};
@@ -749,7 +744,7 @@ See L<add_buddy>.
 sub rename_group($$$) {
 	my($self, $oldgroup, $newgroup) = @_;
 	return must_be_on($self) unless $self->{is_on};
-	return send_error($self, $self->{bos}, 0, "That group does not exist", 0) unless exists $self->{buddies}->{$oldgroup};
+	return send_error($self, $self->{services}->{CONNTYPE_BOS()}, 0, "That group does not exist", 0) unless exists $self->{buddies}->{$oldgroup};
 	$self->{buddies}->{$newgroup} = $self->{buddies}->{$oldgroup};
 	delete $self->{buddies}->{$oldgroup};
 }
@@ -939,7 +934,7 @@ sub mod_buddylist($$$$;@) {
 		$self->{buddies}->{$group} = {
 			groupid => $self->newid(),
 			members => bltie,
-			data => tlvtie
+			data => tlv
 		};
 	} elsif($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_DEL) {
 		return unless exists $self->{buddies}->{$group};
@@ -951,7 +946,7 @@ sub mod_buddylist($$$$;@) {
 		foreach my $buddy(@buddies) {
 			$self->{buddies}->{$group}->{members}->{$buddy} = {
 				buddyid => $self->newid($self->{buddies}->{$group}->{members}),
-				data => tlvtie,
+				data => tlv,
 				online => 0,
 				comment => undef
 			};
@@ -1041,14 +1036,14 @@ sub get_info($$) {
 	my($self, $screenname) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	$self->{bos}->snac_put(reqdata => $screenname, family => 0x2, subtype => 0x5, data => pack("nCa*", 1, length($screenname), $screenname));
+	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, family => 0x2, subtype => 0x5, data => pack("nCa*", 1, length($screenname), $screenname));
 }
 
 sub get_away($$) {
 	my($self, $screenname) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	$self->{bos}->snac_put(reqdata => $screenname, family => 0x2, subtype => 0x5, data => pack("nCa*", 3, length($screenname), $screenname));
+	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, family => 0x2, subtype => 0x5, data => pack("nCa*", 3, length($screenname), $screenname));
 }
 
 =pod
@@ -1101,7 +1096,7 @@ sub send_im($$$;$) {
 	}
 
 	my $flags2 = $self->{capabilities}->{typing_status} ? 0xB : 0;
-	$self->{bos}->snac_put(reqid => $reqid, reqdata => $to, family => 0x4, subtype => 0x6, data => $packet, flags2 => $flags2);
+	$self->svcdo(CONNTYPE_BOS, reqid => $reqid, reqdata => $to, family => 0x4, subtype => 0x6, data => $packet, flags2 => $flags2);
 	return $reqid;
 }
 
@@ -1141,7 +1136,7 @@ sub send_typing_status($$$) {
 	croak "This client does not support typing status notifications." unless $self->{capabilities}->{typing_status};
 	return unless exists $self->{userinfo}->{$recipient} and $self->{userinfo}->{$recipient}->{typing_status};
 
-	$self->{bos}->snac_put(family => 0x4, subtype => 0x14, data =>
+	$self->svcdo(CONNTYPE_BOS, family => 0x4, subtype => 0x14, data =>
 		pack("NNnCa*", 0, 0, 1, length($recipient), $recipient) . pack("n", $status)
 	);
 }
@@ -1211,7 +1206,7 @@ sub im_parse($$) {
 
 		if($tlv->{3}) { # server ack requested
 			#$self->log_print(OSCAR_DBG_DEBUG, "Sending message ack.");
-			#$self->{bos}->snac_put(family => 0x4, subtype => 0xC, data =>
+			#$self->{services}->{CONNTYPE_BOS}->snac_put(family => 0x4, subtype => 0xC, data =>
 			#	$cookie . pack("nCa*", 1, length($from), $from)
 			#);
 		}
@@ -1258,7 +1253,7 @@ sub evil($$;$) {
 	my($self, $who, $anon) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	$self->{bos}->snac_put(reqdata => $who, family => 0x04, subtype => 0x08, data =>
+	$self->svcdo(CONNTYPE_BOS, reqdata => $who, family => 0x04, subtype => 0x08, data =>
 		pack("n C a*", ($anon ? 1 : 0), length($who), $who)
 	);
 }
@@ -1300,7 +1295,7 @@ sub set_extended_status($$) {
 	my $message = pack("na*n", length($status), $status, 0);
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Setting extended status.");
-	$self->{bos}->snac_put(family => 0x01, subtype => 0x1E, data => tlv_encode(tlv(0x1D => pack("nCCa*", 2, 4, length($status) + 4, $message))));
+	$self->svcdo(CONNTYPE_BOS, family => 0x01, subtype => 0x1E, data => tlv_encode(tlv(0x1D => pack("nCCa*", 2, 4, length($status) + 4, $message))));
 }
 
 =pod
@@ -1315,9 +1310,9 @@ the new profile stored on the OSCAR server.
 sub set_info($$;$) {
 	my($self, $profile, $awaymsg) = @_;
 
-	return must_be_on($self) unless $self->{bos};
+	return must_be_on($self) unless $self->{services}->{CONNTYPE_BOS()};
 
-	my $tlv = tlvtie;
+	my $tlv = tlv;
 
 	if(defined($profile)) {
 		$tlv->{0x1} = ENCODING;
@@ -1333,7 +1328,7 @@ sub set_info($$;$) {
 	$tlv->{0x5} = $self->capabilities();
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Setting user information.");
-	$self->{bos}->snac_put(family => 0x02, subtype => 0x04, data => tlv_encode($tlv));
+	$self->svcdo(CONNTYPE_BOS, family => 0x02, subtype => 0x04, data => tlv_encode($tlv));
 }
 
 =pod
@@ -1393,20 +1388,12 @@ sub icon_checksum($$) {
 
 sub svcdo($$%) {
 	my($self, $service, %snac) = @_;
-	my $svcname = "";
-	if($service == CONNTYPE_ADMIN) {
-		$svcname = "admin";
-	} elsif($service == CONNTYPE_CHATNAV) {
-		$svcname = "chatnav";
-	} elsif($service == CONNTYPE_ICON) {
-		$svcname = "icon_service";
-	}
 
-	if($self->{$svcname} and ref($self->{$svcname})) {
-		$self->{$svcname}->snac_put(%snac);
+	if($self->{services}->{$service} and ref($self->{services}->{$service})) {
+		$self->{services}->{$service}->snac_put(%snac);
 	} else {
-		push @{$self->{"${svcname}_queue"}}, \%snac;
-		$self->svcreq($service) unless $self->{$svcname};
+		push @{$self->{svcqueues}->{$service}}, \%snac;
+		$self->svcreq($service) unless $self->{services}->{$service};
 	}
 }
 
@@ -1414,7 +1401,7 @@ sub svcreq($$) {
         my($self, $svctype) = @_;
 
         $self->log_print(OSCAR_DBG_INFO, "Sending service request for servicetype $svctype.");
-        $self->{bos}->snac_put(family => 0x1, subtype => 0x4, data => pack("n", $svctype));
+        $self->svcdo(CONNTYPE_BOS, family => 0x1, subtype => 0x4, data => pack("n", $svctype));
 }
 
 =pod
@@ -1584,7 +1571,7 @@ sub chat_decline($$) {
 		return;
 	};
 	$self->log_print(OSCAR_DBG_NOTICE, "Declining chat invite for $chat.");
-	$self->{bos}->snac_put(family => 0x04, subtype => 0x0B, data =>
+	$self->svcdo(CONNTYPE_BOS, family => 0x04, subtype => 0x0B, data =>
 		$invite->{cookie} .
 		pack("n", 2) .
 		pack("Ca*", length($invite->{sender}), $invite->{sender}) .
@@ -1600,7 +1587,7 @@ sub crapout($$$;$) {
 
 sub must_be_on($) {
 	my $self = shift;
-	send_error($self, $self->{bos}, 0, "You have not finished signing on.", 0);
+	send_error($self, $self->{services}->{CONNTYPE_BOS()}, 0, "You have not finished signing on.", 0);
 }
 
 =pod
@@ -1617,7 +1604,7 @@ the user as being idle.
 sub set_idle($$) {
 	my($self, $time) = @_;
 	return must_be_on($self) unless $self->{is_on};
-	$self->{bos}->snac_put(family => 0x1, subtype => 0x11, data => pack("N", $time));
+	$self->svcdo(CONNTYPE_BOS, family => 0x1, subtype => 0x11, data => pack("N", $time));
 }
 
 =pod

@@ -63,10 +63,19 @@ require Exporter;
 		BUDTYPES
 		ENCODING
 		ERRORS
-		randchars log_print log_printf hexdump normalize tlv_decode tlv_encode tlv send_error tlvtie bltie signon_tlv encode_password
+		randchars log_print log_printf hexdump normalize tlv_decode tlv_encode tlv send_error bltie signon_tlv encode_password
 	)]
 );
 @EXPORT_OK = map { @$_ } values %EXPORT_TAGS;
+
+
+sub tlv(;@) {
+	my %tlv = ();
+	tie %tlv, "Net::OSCAR::TLV";
+	while(@_) { my($key, $value) = (shift, shift); $tlv{$key} = $value; }
+	return \%tlv;
+}
+
 
 use constant OSCAR_DBG_NONE => 0;
 use constant OSCAR_DBG_WARN => 1;
@@ -201,7 +210,7 @@ use constant OSCAR_TOOLDATA => tlv(
 	0x0017 => {version => 0x0000, toolid => 0x0000, toolversion => 0x0000, nobos => 1},
 	0x0018 => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
 	0xFFFF => {version => 0x0000, toolid => 0x0000, toolversion => 0x0000, nobos => 1},
-};
+);
 
 use constant BUDTYPES => ("buddy", "group", "permit entry", "deny entry", "visibility/misc. data", "presence", "unknown 6", "unknown 7", "unknown 8", "unknown 9", "unknown 10", "unknown 11", "unknown 12", "unknown 13", "unknown 14", "unknown 15", "unknown 16", "unknown 17", "unknown 18", "unknown 19", "buddy icon data");
 
@@ -325,7 +334,7 @@ sub tlv_decode($;$) {
 	my $currtlv = 0;
 	my $strpos = 0;
 
-	tie %retval, "Net::OSCAR::TLV";
+	my $retval = tlv;
 
 	$tlvcnt = 0 unless $tlvcnt;
 	while(length($tlv) >= 4 and (!$tlvcnt or $currtlv < $tlvcnt)) {
@@ -340,17 +349,10 @@ sub tlv_decode($;$) {
 		}
 		$strpos += $len;
 		$currtlv++ unless $type == 0;
-		$retval{$type} = $value;
+		$retval->{$type} = $value;
 	}
 
-	return $tlvcnt ? (\%retval, $strpos) : \%retval;
-}
-
-sub tlv(@) {
-	my %tlv = ();
-	tie %tlv, "Net::OSCAR::TLV";
-	while(@_) { my($key, $value) = (shift, shift); $tlv{$key} = $value; }
-	return \%tlv;
+	return $tlvcnt ? ($retval, $strpos) : $retval;
 }
 
 sub tlv_encode($) {
@@ -375,12 +377,6 @@ sub send_error($$$$$;@) {
 sub bltie(;$) {
 	my $retval = {};
 	tie %$retval, "Net::OSCAR::Buddylist", @_;
-	return $retval;
-}
-
-sub tlvtie(;$) {
-	my $retval = {};
-	tie %$retval, "Net::OSCAR::TLV", shift;
 	return $retval;
 }
 

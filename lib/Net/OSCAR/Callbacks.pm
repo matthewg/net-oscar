@@ -21,6 +21,7 @@ sub process_snac($$) {
 
 	$connection->log_printf(OSCAR_DBG_DEBUG, "Got SNAC 0x%04X/0x%04X", $snac->{family}, $snac->{subtype});
 
+
 	if($conntype == CONNTYPE_LOGIN and $family == 0x17 and $subtype == 0x7) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got authentication key.");
 		my($key) = unpack("n/a*", $data);
@@ -87,43 +88,22 @@ sub process_snac($$) {
 
 			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting BOS rights.");
 			$connection->snac_put(family => 0x9, subtype => 0x2);
-		} elsif($conntype == CONNTYPE_CHATNAV) {
-			$connection->ready();
-			$session->{chatnav} = $connection;
-
-			if($session->{chatnav_queue}) {
-				foreach my $snac(@{$session->{chatnav_queue}}) {
-					$connection->log_print(OSCAR_DBG_DEBUG, "Putting SNAC.");
-					$connection->snac_put(%$snac);
-				}
-			}
-			delete $session->{chatnav_queue};
-
-		} elsif($conntype == CONNTYPE_ADMIN) {
-			$session->{admin} = $connection;
-			if($session->{admin_queue}) {
-				foreach my $snac(@{$session->{admin_queue}}) {
-					$connection->log_print(OSCAR_DBG_DEBUG, "Putting SNAC.");
-					$connection->snac_put(%$snac);
-				}
-			}
-
-			$connection->ready();
-			delete $session->{admin_queue};
 		} elsif($conntype == CONNTYPE_CHAT) {
 			$connection->ready();
 
 			$session->callback_chat_joined($connection->name, $connection) unless $connection->{sent_joined}++;
-		} elsif($conntype == CONNTYPE_ICON) {
-			$session->{icon_service} = $connection;
-			if($session->{icon_service_queue}) {
-				foreach my $snac(@{$session->{icon_service_queue}}) {
+		} else {
+			$session->{services}->{$conntype} = $connection;
+
+			if($session->{svcqueues}->{$conntype}) {
+				foreach my $snac(@{$session->{svcqueues}->{$conntype}}) {
 					$connection->log_print(OSCAR_DBG_DEBUG, "Putting SNAC.");
 					$connection->snac_put(%$snac);
 				}
 			}
+
 			$connection->ready();
-			delete $session->{icon_service_queue};
+			delete $session->{svcqueues}->{$conntype};
 		}
 	} elsif($family == 0x1 and $subtype == 0x21) {
 		my($infotype, $flags, $len) = unpack("nCC", substr($data, 0, 4, ""));
@@ -160,7 +140,7 @@ sub process_snac($$) {
 		my($errno) = unpack("n", substr($data, 0, 2, ""));
 		$session->log_printf(OSCAR_DBG_DEBUG, "Got error %d on req 0x%04X/0x%08X.", $errno, $family, $reqid);
 		return if $errno == 0;
-		$tlv = tlv_decode($data) if $data;
+		my $tlv = tlv_decode($data) if $data;
 		$error .= (ERRORS)[$errno] || "unknown error";
 		$error .= " (".$tlv->{4}.")." if $tlv and $tlv->{4};
 		send_error($session, $connection, $errno, $error, 0, $reqdata);
@@ -209,27 +189,20 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "And so, another former ally has abandoned us.  Curse you, $buddy!");
 		$session->callback_buddy_out($buddy, $group);
 	} elsif($family == 0x1 and $subtype == 0x5) {
-		$tlv = tlv_decode($data);
+		my $tlv = tlv_decode($data);
 		my($svctype) = unpack("n", $tlv->{0xD});
 		my $conntype;
 		my %chatdata;
 
-		if($svctype == CONNTYPE_LOGIN) {
-			$conntype = "authorizer";
-		} elsif($svctype == CONNTYPE_CHATNAV) {
-			$conntype = "chatnav";
-		} elsif($svctype == CONNTYPE_CHAT) {
+
+		my $svcmap = tlv;
+		$svcmap->{$_} = $_ foreach (CONNTYPE_LOGIN, CONNTYPE_CHATNAV, CONNTYPE_CHAT, CONNTYPE_ADMIN, CONNTYPE_BOS, CONNTYPE_ICON);
+		$conntype = $svcmap->{$svctype} || sprintf("unknown (0x%04X)", $svctype);
+		if($svctype == CONNTYPE_CHAT) {
 			%chatdata = %{$session->{chats}->{$reqid}};
 			$conntype = "chat $chatdata{name}";
-		} elsif($svctype == CONNTYPE_ADMIN) {
-			$conntype = "admin";
-		} elsif($svctype == CONNTYPE_BOS) {
-			$conntype = "BOS";
-		} elsif($svctype == CONNTYPE_ICON) {
-			$conntype = "icon";
-		} else {
-			$svctype = sprintf "unknown (0x%04X)", $svctype;
 		}
+
 		$connection->log_print(OSCAR_DBG_NOTICE, "Got redirect for $svctype.");
 
 		my $newconn = $session->addconn($tlv->{0x6}, $svctype, $conntype, $tlv->{0x5});
@@ -421,7 +394,7 @@ sub process_snac($$) {
 		$session->{chats}->{$reqid} = $chat;
 
 		# And now, on a very special Chat Request...
-		$session->{bos}->snac_put(family => 0x01, subtype => 0x04, reqid => $reqid, data =>
+		$session->svcdo(CONNTYPE_BOS, family => 0x01, subtype => 0x04, reqid => $reqid, data =>
 			pack("nnn nCa*n",
 				CONNTYPE_CHAT, 1, 5+length($chat->{url}),
 				$chat->{exchange}, length($chat->{url}), $chat->{url}, 0
@@ -439,7 +412,7 @@ sub process_snac($$) {
 		my($detaillevel) = unpack("C", substr($data, 0, 1, ""));
 
 		my($tlvcount) = unpack("n", substr($data, 0, 2, ""));
-		$tlv = tlv_decode($data);
+		my $tlv = tlv_decode($data);
 
 		$session->callback_chat_joined($connection->{name}, $connection) unless $connection->{sent_joined}++;
 
@@ -464,7 +437,7 @@ sub process_snac($$) {
 		}
 	} elsif($family == 0x0E and $subtype == 0x06) {
 		substr($data, 0, 10) = "";
-		$tlv = tlv_decode($data);
+		my $tlv = tlv_decode($data);
 		my ($sender) = unpack("C/a*", $tlv->{0x03});
 		my $mtlv = tlv_decode($tlv->{0x05});
 		my $message = $mtlv->{0x01};
@@ -473,7 +446,7 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Admin request successful!");
 
 		my($reqtype) = unpack("n", substr($data, 0, 2, ""));
-		$tlv = tlv_decode(substr($data, 0, 6, ""));
+		my $tlv = tlv_decode(substr($data, 0, 6, ""));
 		my $reqdesc = "";
 		my($subreq) = unpack("n", $tlv->{0x3}) if $tlv->{0x3};
 		$subreq ||= 0;
