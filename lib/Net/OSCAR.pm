@@ -190,6 +190,22 @@ sub signon($$$) {
 
 =pod
 
+=item signoff
+
+Sign off from the OSCAR service.
+
+=cut
+
+sub signoff($) {
+	my $self = shift;
+	foreach my $connection(@{$self->{connections}}) {
+		$self->delconn($connection);
+	}
+	%$self = ();
+}
+
+=pod
+
 =item debug (DEBUGLEVEL[, SCREENNAME DEBUG])
 
 Sets the debugging level.  If this is non-zero, lots of information will be printed
