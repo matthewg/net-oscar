@@ -25,6 +25,10 @@ sub new($@) {
 	my $class = shift;
 	my $self = $class->SUPER::new(@_);
 	$self->listen($self->{session}->{port}) unless exists($self->{socket});
+
+	$self->{oscar_state} = "listening";
+	$self->{signon_done} = 0;
+
 	return $self;
 }
 

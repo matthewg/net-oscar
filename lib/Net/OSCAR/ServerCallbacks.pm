@@ -22,12 +22,13 @@ use Net::OSCAR::_BLInternal;
 use Net::OSCAR::XML;
 
 use Digest::MD5 qw(md5);
+use POSIX qw(ctime);
 
 our $SESSIONS = bltie();
 our $SCREENNAMES = bltie();
 our %COOKIES;
-$SCREENNAMES->{somedude} = {sn => "Some Dude", pw => "somepass", email => 'some@dude.com'};
-$SCREENNAMES->{otherdude} = {sn => "Other Dude", pw => "otherpass", email => 'other@dude.com'};
+$SCREENNAMES->{somedude} = {sn => "Some Dude", pw => "somepass", email => 'some@dude.com', blist => [qw(SomeDude OtherDude)]};
+$SCREENNAMES->{otherdude} = {sn => "Other Dude", pw => "otherpass", email => 'other@dude.com', blist => [qw(SomeDude OtherDude)]};
 
 
 sub srv_send_error($$) {
@@ -129,17 +130,17 @@ sub process_snac($$) {
 	} elsif($protobit eq "set service versions") {
 		send_versions($connection, 0, 1);
 	} elsif($protobit eq "rate info request") {
-		$connection->proto_send(protobit => "rate info response");
+		$connection->proto_send(reqid => $reqid, protobit => "rate info response");
 	} elsif($protobit eq "rate acknowledgement") {
 		# Do nothing
 	} elsif($protobit =~ /^(locate rights|buddy rights|IM parameter|BOS rights) request$/) {
-		$connection->proto_send(protobit => "$1 response");
+		$connection->proto_send(protobit => "$1 response", reqid => $reqid);
 	} elsif($protobit eq "buddylist rights request") {
-		$connection->proto_send(protobit => "buddylist 3 response");
+		$connection->proto_send(protobit => "buddylist 3 response", reqid => $reqid);
 	} elsif($protobit eq "personal info request") {
-		$connection->proto_send(protobit => "self information", protodata => {
+		$connection->proto_send(reqid => $reqid, protobit => "self information", protodata => {
 			screenname => $screenname,
-			evil => 0,
+ 			evil => 0,
 			flags => 0x20,
 			onsince => time(),
 			idle => 0,
@@ -156,10 +157,10 @@ sub process_snac($$) {
 		$blist = "xxx";
 		$blist .= pack("n5a*", 0, 0, 0xCB, 4, length($visdata), $visdata);
 		$blist .= pack("na*n4", length("Buddies"), "Buddies", 1, 0, 1, 0);
-		$blist .= pack("na*n4", length("SomeDude"), "SomeDude", 1, 1, 0, 0);
-		$blist .= pack("na*n4", length("OtherDude"), "OtherDude", 1, 2, 0, 0);
+		my $i = 1;
+		$blist .= pack("na*n4", length($_), $_, 1, $i++, 0, 0) foreach @{$SCREENNAMES->{$screenname}->{blist}};
 
-		$connection->proto_send(protobit => "buddylist", protodata => {data => $blist});
+		$connection->proto_send(reqid => $reqid, protobit => "buddylist", protodata => {data => $blist});
 	} elsif($protobit eq "set extended status") {
 		if($data{status_message}) {
 			$SESSIONS->{$screenname}->{status}->{extstatus} = $data{status_message}->{message};
@@ -168,6 +169,18 @@ sub process_snac($$) {
 		}
 	} elsif($protobit eq "set tool versions") {
 		print "$screenname finished signing on.\n";
+		$connection->{signon_done} = 1;
+	} elsif($protobit eq "get away") {
+		$connection->proto_send(reqid => $reqid, protobit => "incoming profile", protodata => {
+			screenname => $data{screenname},
+			awaymsg => "Got away message at " . scalar(ctime(time())),
+			evil => 0,
+			flags => 0x20,
+			onsince => 0,
+			membersince => 0,
+			idle => 0,
+			capabilities => ""
+		});
 	} else {
 		#srv_send_error($connection, $family, 1);
 		print "Unhandled protobit: $protobit\n";
