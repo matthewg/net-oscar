@@ -8,6 +8,7 @@ use warnings;
 
 use Carp;
 use Net::OSCAR::Common qw(:all);
+use Net::OSCAR::Screenname;
 
 sub new {
 	my $pkg = shift;
@@ -28,28 +29,26 @@ sub FETCH {
 
 sub STORE {
 	my($self, $key, $value) = @_;
-	my($normalkey) = normalize($key);
 	if(exists $self->{DATA}->{$normalkey}) {
 		my $foo = 0;
 		for(my $i = 0; $i < scalar @{$self->{ORDERFORM}}; $i++) {
-			next unless $normalkey eq normalize($self->{ORDERFORM}->[$i]);
+			next unless $key eq $self->{ORDERFORM}->[$i];
 			$foo = 1;
-			$self->{ORDERFORM}->[$i] = $key;
+			$self->{ORDERFORM}->[$i] = new Net::OSCAR::Screenname $key;
 			last;
 		}
 	} else {
-		push @{$self->{ORDERFORM}}, $key;
+		push @{$self->{ORDERFORM}}, new Net::OSCAR::Screenname $key;
 	}
-	$self->{DATA}->{$normalkey} = $value;
+	$self->{DATA}->{normalize($key)} = $value;
 }
 
 sub DELETE {
 	my($self, $key) = @_;
-	my($normalkey) = normalize($key);
-	my $retval = delete $self->{DATA}->{$normalkey};
+	my $retval = delete $self->{DATA}->{normalize($key)};
 	my $foo = 0;
 	for(my $i = 0; $i < scalar @{$self->{ORDERFORM}}; $i++) {
-		next unless $normalkey eq normalize($self->{ORDERFORM}->[$i]);
+		next unless $key eq $self->{ORDERFORM}->[$i];
 		$foo = 1;
 		splice(@{$self->{ORDERFORM}}, $i, 1);
 		last;

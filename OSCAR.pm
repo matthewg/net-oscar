@@ -129,6 +129,7 @@ use Net::OSCAR::Connection;
 use Net::OSCAR::Callbacks;
 use Net::OSCAR::TLV;
 use Net::OSCAR::Buddylist;
+use Net::OSCAR::Screenname;
 use Net::OSCAR::Chat;
 
 use warnings;
@@ -193,7 +194,7 @@ The default is login.oscar.aol.com port 5190.
 
 sub signon($$$;$$) {
 	my($self, $screenname, $password, $host, $port) = @_;
-	$self->{screenname} = $screenname;
+	$self->{screenname} = new Net::OSCAR::Screenname $screenname;
 
 	# We set BOS to the login connection so that our error handlers pick up errors on this connection as fatal.
 	$host ||= "login.oscar.aol.com";
@@ -805,6 +806,7 @@ sub extract_userinfo($$) {
 	my $tlvcnt;
 
 	($retval->{screenname}, $retval->{evil}, $tlvcnt) = unpack("C/a* n n", $data);
+	$retval->{screenname} = new Net::OSCAR::Screenname $retval->{screenname};
 	$retval->{evil} /= 10;
 	substr($data, 0, 5+length($retval->{screenname})) = "";
 	$self->debug_print("Decoding userinfo TLV with tlvcnt $tlvcnt.");
@@ -906,6 +908,10 @@ sub send_im($$$;$) {
 Returns a reference to a tied hash which automatically normalizes its keys upon a fetch.
 Use this for hashes whose keys are AIM screennames since AIM screennames with different
 capitalization and spacing are considered equivalent.
+
+The keys of the hash as returned by the C<keys> and C<each> functions will be
+C<Net::OSCAR::Screenname> objects, so you they will automagically be compared
+without regards to case and whitespace.
 
 =cut
 
@@ -1302,7 +1308,8 @@ Returns a list of groups in the user's buddylist.
 
 Returns the names of the buddies in the specified group in the user's buddylist.
 The names may not be formatted - that is, they may have spaces and capitalization
-removed.
+removed.  The names are C<Net::OSCAR::Screenname> objects, so you don't have to
+worry that they're case and whitespace insensitive when using them for comparison.
 
 =item buddy (BUDDY[, GROUP])
 
@@ -1319,7 +1326,8 @@ be present.
 =item screenname
 
 The formatted version of the user's screenname.  This includes all spacing and
-capitalization.
+capitalization.  This is a C<Net::OSCAR::Screenname> object, so you don't have to
+worry about the fact that it's case and whitespace insensitive when comparing it.
 
 =item trial
 
@@ -1740,6 +1748,12 @@ There are two programs included with the C<Net::OSCAR> distribution.
 oscartest is a minimalist implementation of a C<Net::OSCAR> client.
 snacsnatcher is a tool designed for analyzing the OSCAR protocol from
 libpcap-format packet captures.
+
+There is a class C<Net::OSCAR::Screenname>.  OSCAR screennames
+are case and whitespace insensitive, and if you do something like
+C<$buddy = new Net::OSCAR::Screenname "Matt Sachs"> instead of
+C<$buddy = "Matt Sachs">, this will be taken care of for you when
+you use the string comparison operators (eq, ne, cmp, etc.)
 
 =head1 HISTORY
 
