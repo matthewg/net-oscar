@@ -511,7 +511,7 @@ sub got_buddylist($$) {
 	my($session, $connection) = @_;
 
 	my $icbm_parm = 0;
-	$icbm_parm = 0xB if $session->{capabilities}->{typing_status};
+	$icbm_parm = 0xB;
 
 	$connection->log_print(OSCAR_DBG_DEBUG, "Adding ICBM parameters.");
 	$connection->snac_put(family => 0x4, subtype => 0x2, data =>
