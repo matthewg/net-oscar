@@ -139,7 +139,7 @@ use constant OSCAR_SVC_AIM => (
 	subminor => 0,
 	build => 3036,
 	subbuild => 0xD2,
-	clistr => "AOL Instant Messenger (SM), version 5.1.3036/WIN32",
+	clistr => "AOL Instant Messenger, version 5.1.3036/WIN32",
 	hashlogin => 0,
 );
 use constant OSCAR_SVC_ICQ => ( # Courtesy of SDiZ Cheng

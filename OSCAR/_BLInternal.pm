@@ -89,12 +89,6 @@ sub BLI_to_NO($) {
 		}
 	}
 
-#          02 03 00 03  31 2E 35                                   .... 1.5
-#OSCAR session: New BLI entry  0x0004/0x0000/0x0002 with 20 bytes of data:
-#          00 CA 00 01  01 00 CB 00   04 FF FF FF  FF 02 03 00     .... ....  .... ....
-#          03 31 2E 35                                             .1.5
-
-
 	if(exists $bli->{4} and (my($visbid) = keys %{$bli->{4}->{0}})) {
 		my $typedata = $bli->{4}->{0}->{$visbid}->{data};
 		($session->{visibility}) = unpack("C", $typedata->{0xCA}) if $typedata->{0xCA};
@@ -231,9 +225,6 @@ sub NO_to_BLI($) {
 			}
 			$bli->{0}->{$gid}->{$bid}->{data}->{0x13C} = $session->{buddies}->{$group}->{members}->{$buddy}->{comment} if defined $session->{buddies}->{$group}->{members}->{$buddy}->{comment};
 		}
-
-		print Data::Dumper::Dumper($bli->{1}->{$gid});
-
 	}
 
 	BLI_to_OSCAR($session, $bli);
@@ -381,7 +372,7 @@ sub BLI_to_OSCAR($$) {
 		delete $session->{budmods};
 		$session->callback_buddylist_ok();
 	} else {
-		$oscar->snac_put(family => 0x13, subtype => 0x11); # Begin BL mods
+		#$oscar->snac_put(family => 0x13, subtype => 0x11); # Begin BL mods -- OSCAR 5 no longer uses this
 		$oscar->snac_put(%{shift @{$session->{budmods}}}); # Send the first modification
 	}
 }

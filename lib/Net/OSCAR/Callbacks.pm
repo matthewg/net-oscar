@@ -336,8 +336,9 @@ sub process_snac($$) {
 		$session->callback_buddylist_ok() unless @{$session->{budmods}} == 0 or $session->{buderrors} or grep { $_ } @errors;
 
 		my @reqdata = @$reqdata;
-		foreach my $error(@errors) {
+		foreach my $error(reverse @errors) {
 			my($errdata) = shift @reqdata;
+			last unless $errdata;
 			if($error != 0) {
 				$session->{buderrors} = 1;
 				my($type, $gid, $bid) = ($errdata->{type}, $errdata->{gid}, $errdata->{bid});
