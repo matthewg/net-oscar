@@ -338,7 +338,7 @@ sub signon($@) {
 		$args{$key} ||= $defaults{$key};
 	}
 	return $self->crapout($self->{services}->{0+CONNTYPE_BOS}, "MD5 authentication not available for this service (you must define a password.)") if !defined($args{password}) and $args{hashlogin};
-	$self->{screenname} = new Net::OSCAR::Screenname $args{screenname};
+	$self->{screenname} = Net::OSCAR::Screenname->new(\$args{screenname});
 
 	# We set BOS to the login connection so that our error handlers pick up errors on this connection as fatal.
 	$args{host} ||= "login.oscar.aol.com";
@@ -3970,6 +3970,8 @@ sub mod_buddylist($$$$;@) {
 
 sub postprocess_userinfo($$) {
 	my($self, $userinfo) = @_;
+
+	Net::OSCAR::Screenname->new(\$userinfo->{screenname});
 
 	if($userinfo->{idle}) {
 		$userinfo->{idle} *= 60;

@@ -172,9 +172,9 @@ sub process_snac($$) {
 	} elsif($protobit eq "BOS rights response") {
 		$session->set_info("");
 	} elsif($protobit eq "buddy status update") {
-		my $screenname = $data{screenname} = Net::OSCAR::Screenname->new($data{screenname});
-		$connection->log_print(OSCAR_DBG_DEBUG, "Incoming bogey - er, I mean buddy - $screenname");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Incoming bogey - er, I mean buddy - $data{screenname}");
 		$session->postprocess_userinfo(\%data);
+		my $screenname = $data{screenname};
 
 		my($grpname, $group) = $session->findbuddy($screenname);
 		return unless $grpname; # Without this, remove_buddy screws things up until signoff/signon
@@ -216,7 +216,7 @@ sub process_snac($$) {
 		}
 
 		$connection->log_print(OSCAR_DBG_DEBUG, "And so, another former ally has abandoned us.  Curse you, $buddy!");
-		$session->callback_buddy_out(Net::OSCAR::Screenname->new($buddy), $grpname);
+		$session->callback_buddy_out($buddy, $grpname);
 	} elsif($protobit eq "service redirect response") {
 		my $conntype;
 		my %chatdata;
@@ -342,7 +342,7 @@ sub process_snac($$) {
 
 					my $grouplist = $list->{$group->{name}};
 					foreach my $buddy (@{$group->{buddies}}) {
-						push @$grouplist, new Net::OSCAR::Screenname $buddy->{name};
+						push @$grouplist, Net::OSCAR::Screenname->new(\$buddy->{name});
 					}
 				}
 
