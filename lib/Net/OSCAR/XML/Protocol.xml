@@ -110,10 +110,9 @@
 			<tlv type="74"><byte>1</byte></tlv>
 		</tlvchain>
 	</define>
-	<define name="signon_ICQ" family="23" subtype="2">
-		<ref name="signon_TLV" />
-		<tlvchain>
-		</tlvchain>
+	<define name="ICQ signon request" channel="1">
+		<dword>1</dword>
+		<ref name="signon" />
 	</define>
 
 	<define name="initial signon request" family="23" subtype="6">
