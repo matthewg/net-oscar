@@ -152,6 +152,33 @@ sub BLI_to_NO($) {
 
 	my @ret;
 
+	foreach my $gid (keys %{$bli->{1}}) {
+		next unless exists $bli->{1}->{$gid}->{0};
+		my $item = $bli->{1}->{$gid}->{0};
+
+		if($item->{__BLI_DELETED}) {
+			delete $bli->{1}->{$gid}->{0};
+			next if $gid == 0 or !$item->{name};
+
+			delete $session->{buddies}->{$item->{name}};
+			push @ret, {type => MODBL_WHAT_GROUP, action => MODBL_ACTION_DEL, group => $item->{name}};
+		} elsif($item->{__BLI_DIRTY}) {
+			$item->{__BLI_DIRTY} = 0;
+			next if $gid == 0 or !$item->{name};
+
+			$session->{buddies}->{$item->{name}} ||= {};
+			my $entry = $session->{buddies}->{$item->{name}};
+
+			$entry->{__BLI_DIRTY} = 0;
+			$entry->{__BLI_DELETED} = 0;
+			$entry->{groupid} = $gid;
+			$entry->{members} = bltie unless $entry->{members};
+			$entry->{data} = $item->{data};
+
+			push @ret, {type => MODBL_WHAT_GROUP, action => MODBL_ACTION_ADD, group => $item->{name}};
+		}
+	}
+
 	foreach my $gid (keys %{$bli->{0}}) {
 		foreach my $bid (keys %{$bli->{0}->{$gid}}) {
 			my $item = $bli->{0}->{$gid}->{$bid};
@@ -188,35 +215,6 @@ sub BLI_to_NO($) {
 			}
 		}
 	}
-				
-
-	foreach my $gid (keys %{$bli->{1}}) {
-		next unless exists $bli->{1}->{$gid}->{0};
-		my $item = $bli->{1}->{$gid}->{0};
-
-		if($item->{__BLI_DELETED}) {
-			delete $bli->{1}->{$gid}->{0};
-			next if $gid == 0 or !$item->{name};
-
-			delete $session->{buddies}->{$item->{name}};
-			push @ret, {type => MODBL_WHAT_GROUP, action => MODBL_ACTION_DEL, group => $item->{name}};
-		} elsif($item->{__BLI_DIRTY}) {
-			$item->{__BLI_DIRTY} = 0;
-			next if $gid == 0 or !$item->{name};
-
-			$session->{buddies}->{$item->{name}} ||= {};
-			my $entry = $session->{buddies}->{$item->{name}};
-
-			$entry->{__BLI_DIRTY} = 0;
-			$entry->{__BLI_DELETED} = 0;
-			$entry->{groupid} = $gid;
-			$entry->{members} = bltie unless $entry->{members};
-			$entry->{data} = $item->{data};
-
-			push @ret, {type => MODBL_WHAT_GROUP, action => MODBL_ACTION_ADD, group => $item->{name}};
-		}
-	}
-
 
 	return @ret;
 }

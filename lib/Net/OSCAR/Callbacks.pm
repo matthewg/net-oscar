@@ -191,7 +191,6 @@ sub process_snac($$) {
 		} else {
 			$session->{userinfo}->{$screenname} = $session->{buddies}->{$group}->{members}->{$screenname};
 		}
-
 		$session->callback_buddy_in($screenname, $group, $session->{buddies}->{$group}->{members}->{$screenname});
 	} elsif($protobit eq "buddy signoff") {
 		my $buddy = $data{screenname};
