@@ -205,7 +205,7 @@ sub process_snac($$) {
 		}
 		$session->callback_buddy_in($screenname, $grpname, $budinfo);
 	} elsif($protobit eq "buddy signoff") {
-		my $buddy = Net::OSCAR::Screenname->new($data{screenname});
+		my $buddy = $data{screenname};
 		my($grpname, $group) = $session->findbuddy($buddy);
 		return unless $grpname;
 
@@ -216,7 +216,7 @@ sub process_snac($$) {
 		}
 
 		$connection->log_print(OSCAR_DBG_DEBUG, "And so, another former ally has abandoned us.  Curse you, $buddy!");
-		$session->callback_buddy_out($buddy, $grpname);
+		$session->callback_buddy_out(Net::OSCAR::Screenname->new($buddy), $grpname);
 	} elsif($protobit eq "service redirect response") {
 		my $conntype;
 		my %chatdata;
