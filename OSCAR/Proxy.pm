@@ -1,12 +1,11 @@
 package Net::OSCAR::Proxy;
 
 $VERSION = '0.62';
+$REVISION = '$Revision$';
 
 use strict;
-use vars qw($VERSION);
-use Carp;
+use vars qw($VERSION $REVISION);
 
-use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::OldPerl;
 
 sub use_socks {

@@ -1,6 +1,16 @@
+=pod
+
+Net::OSCAR::TLV -- tied hash for OSCAR TLVs
+
+Keys in hashes tied to this class will be treated as numbers.
+This class also preserves the ordering of its keys.
+
+=cut
+
 package Net::OSCAR::TLV;
 
 $VERSION = '0.62';
+$REVISION = '$Revision$';
 
 use strict;
 use vars qw($VERSION);

@@ -145,6 +145,8 @@ use Scalar::Util;
 use Digest::MD5 qw(md5);
 use Socket;
 use Net::OSCAR::Common qw(:all);
+use Net::OSCAR::Constants;
+use Net::OSCAR::Utility;
 use Net::OSCAR::Connection;
 use Net::OSCAR::Connection::Chat;
 use Net::OSCAR::Connection::Direct;

@@ -1,7 +1,13 @@
+=pod
+
+Net::OSCAR::Connection::Direct::Listener -- listen for incoming direct connections
+
+=cut
+
 package Net::OSCAR::Connection::Direct::Listener;
 
-
 $VERSION = '0.62';
+$REVISION = '$Revision$';
 
 use strict;
 use Carp;
@@ -11,8 +17,10 @@ use Symbol;
 use Net::OSCAR::TLV;
 use Net::OSCAR::Callbacks;
 use vars qw(@ISA $VERSION);
-use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::OldPerl;
+use Net::OSCAR::Common qw(:all);
+use Net::OSCAR::Constants;
+use Net::OSCAR::Utility;
 @ISA = qw(Net::OSCAR::Connection::Direct);
 
 sub port($) { return shift->{port}; }

@@ -1,12 +1,21 @@
+=pod
+
+Net::OSCAR::Buddylist -- tied hash class whose keys are Net::OSCAR::Screennames
+
+OSCAR screennames don't compare like normal scalars; they're case and whitespace-insensitive.
+This is a tied hash class that has that behavior for its keys.
+
+=cut
+
 package Net::OSCAR::Buddylist;
 
 $VERSION = '0.62';
+$REVISION = '$Revision$';
 
 use strict;
 use vars qw($VERSION);
 
 use Carp;
-use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::Screenname;
 use Net::OSCAR::OldPerl;
 

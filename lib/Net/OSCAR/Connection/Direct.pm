@@ -1,6 +1,13 @@
+=pod
+
+Net::OSCAR::Connection::Direect -- individual direct connection
+
+=cut
+
 package Net::OSCAR::Connection::Direct;
 
 $VERSION = '0.62';
+$REVISION = '$Revision$';
 
 use strict;
 use vars qw(@ISA $VERSION);
@@ -9,6 +16,8 @@ use Carp;
 
 use Net::OSCAR::TLV;
 use Net::OSCAR::Common qw(:all);
+use Net::OSCAR::Constants;
+use Net::OSCAR::Utility;
 use Net::OSCAR::OldPerl;
 
 @ISA = qw(Net::OSCAR::Connection);

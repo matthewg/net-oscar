@@ -1,6 +1,13 @@
+=pod
+
+Net::OSCAR::Connection -- individual Net::OSCAR service connection
+
+=cut
+
 package Net::OSCAR::Connection;
 
 $VERSION = '0.62';
+$REVISION = '$Revision$';
 
 use strict;
 use vars qw($VERSION);
@@ -12,6 +19,8 @@ use Fcntl;
 use POSIX qw(:errno_h);
 
 use Net::OSCAR::Common qw(:all);
+use Net::OSCAR::Constants;
+use Net::OSCAR::Utility;
 use Net::OSCAR::TLV;
 use Net::OSCAR::Callbacks;
 use Net::OSCAR::OldPerl;

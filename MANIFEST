@@ -10,12 +10,14 @@ test.pl
 OSCAR/_BLInternal.pm
 OSCAR/Buddylist.pm
 OSCAR/Callbacks.pm
-OSCAR/Chat.pm
 OSCAR/Common.pm
 OSCAR/Connection.pm
-OSCAR/Screenname.pm
-OSCAR/TLV.pm
+OSCAR/Constants.pm
 OSCAR/OldPerl.pm
 OSCAR/Proxy.pm
+OSCAR/Screenname.pm
+OSCAR/TLV.pm
+OSCAR/Utility.pm
+OSCAR/Connection/Chat.pm
 OSCAR/Connection/Direct.pm
 OSCAR/Connection/Direct/Listener.pm

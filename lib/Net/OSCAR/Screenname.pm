@@ -1,11 +1,26 @@
+=pod
+
+Net::OSCAR::Screenname -- OSCAR screenname class
+
+This class overrides a few operators to transparently get
+appropriate behavior for OSCAR screennames.  Screennames
+are case-insensitive and whitespace-insensitive.  So, if you
+do
+	$a = Net::OSCAR::Screenname->new("Some Dude");
+	print "Yay!\n" if $a eq "somedude";
+will be true.
+
+=cut
+
 package Net::OSCAR::Screenname;
 
 $VERSION = '0.62';
+$REVISION = '$Revision$';
 
 use strict;
 use vars qw($VERSION);
 
-use Net::OSCAR::Common qw(normalize);
+use Net::OSCAR::Utility qw(normalize);
 use Net::OSCAR::OldPerl;
 
 use overload

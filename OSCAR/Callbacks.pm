@@ -1,12 +1,21 @@
+=pod
+
+Net::OSCAR::Callbacks -- Process responses from OSCAR server
+
+=cut
+
 package Net::OSCAR::Callbacks;
 
 $VERSION = '0.62';
+$REVISION = '$Revision$';
 
 use strict;
 use vars qw($VERSION);
 use Carp;
 
 use Net::OSCAR::Common qw(:all);
+use Net::OSCAR::Constants;
+use Net::OSCAR::Utility;
 use Net::OSCAR::TLV;
 use Net::OSCAR::Buddylist;
 use Net::OSCAR::_BLInternal;

@@ -1,8 +1,23 @@
+=pod
+
+Net::OSCAR::_BLInternal -- internal buddylist stuff
+
+This handles conversion of Net::OSCAR to "OSCAR buddylist format",
+and the sending of buddylist changes to the OSCAR server.
+
+=cut
+
 package Net::OSCAR::_BLInternal;
 
 use strict;
-use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::OldPerl;
+use Net::OSCAR::Common qw(:all);
+use Net::OSCAR::Constants;
+use Net::OSCAR::Utility;
+
+use vars qw($VERSION $REVISION);
+$VERSION = '0.62';
+$REVISION = '$Revision$';
 
 # Heh, this is fun.
 # This is what we use as the first arg to Net::OSCAR::TLV when creating a new BLI.
