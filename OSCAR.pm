@@ -180,18 +180,23 @@ sub timeout($;$) {
 
 =pod
 
-=item signon (SCREENNAME, PASSWORD)
+=item signon (SCREENNAME, PASSWORD[, HOST, PORT])
 
 Sign on to the OSCAR service.
+You can specify an alternate host/port to connect to.
+The default is login.oscar.aol.com port 5190.
 
 =cut
 
-sub signon($$$) {
-	my($self, $screenname, $password) = @_;
+sub signon($$$;$$) {
+	my($self, $screenname, $password, $host, $port) = @_;
 	$self->{screenname} = $screenname;
 
 	# We set BOS to the login connection so that our error handlers pick up errors on this connection as fatal.
-	$self->{bos} = $self->addconn($password, CONNTYPE_LOGIN, "login", "login.oscar.aol.com");
+	$host ||= "login.oscar.aol.com";
+	$port ||= 5190;
+	$self->{port} = $port;
+	$self->{bos} = $self->addconn($password, CONNTYPE_LOGIN, "login", $host);
 	push @{$self->{connections}}, $self->{bos};
 }
 
