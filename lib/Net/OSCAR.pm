@@ -529,7 +529,7 @@ See L<add_buddy>.
 
 sub rename_group($$$) {
 	my($self, $oldgroup, $newgroup) = @_;
-	return send_error($self, $self->{bos}, 0, "That group does not exist") unless exists $self->{buddies}->{$oldgroup};
+	return send_error($self, $self->{bos}, 0, "That group does not exist", 0) unless exists $self->{buddies}->{$oldgroup};
 	($self->{buddies}->{$newgroup}) = delete $self->{buddies}->{$oldgroup};
 }
 
