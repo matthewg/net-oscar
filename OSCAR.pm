@@ -271,7 +271,7 @@ sub delconn($$) {
 				delete $self->{chatnav};
 			} elsif($connection->{conntype} == CONNTYPE_ADMIN) {
 				delete $self->{admin};
-				$self->callback_admin_error("all", ADMIN_ERROR_CONNREF, undef);
+				$self->callback_admin_error("all", ADMIN_ERROR_CONNREF, undef) if scalar(keys(%{$self->{adminreq}}));
 			} elsif($connection->{conntype} == CONNTYPE_CHAT) {
 				$self->callback_chat_closed($connection, "Lost connection to chat");
 			}
@@ -996,6 +996,11 @@ Changes the user's password.
 sub change_password($$$) {
 	my($self, $currpass, $newpass) = @_;
 
+	if($self->{adminreq}->{ADMIN_TYPE_PASSWORD_CHANGE}++) {
+		$self->callback_admin_error(ADMIN_TYPE_PASSWORD_CHANGE, ADMIN_ERROR_REQPENDING);
+		return;
+	}
+
 	my %tlv;
 	tie %tlv, "Net::OSCAR::TLV";
 
@@ -1020,6 +1025,10 @@ information is requested.
 sub confirm_account($) {
 	my($self) = shift;
 
+	if($self->{adminreq}->{ADMIN_TYPE_ACCOUNT_CONFIRM}++) {
+		$self->callback_admin_error(ADMIN_TYPE_ACCOUNT_CONFIRM, ADMIN_ERROR_REQPENDING);
+		return;
+	}
 	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x06);
 }
 
@@ -1041,6 +1050,10 @@ user forgets it.
 sub change_email($$) {
 	my($self, $newmail) = @_;
 
+	if($self->{adminreq}->{ADMIN_TYPE_EMAIL_CHANGE}++) {
+		$self->callback_admin_error(ADMIN_TYPE_EMAIL_CHANGE, ADMIN_ERROR_REQPENDING);
+		return;
+	}
 	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => pack("nna*", 0x11, length($newmail), $newmail));
 }
 
@@ -1057,6 +1070,10 @@ case may be changed and spaces may be inserted or deleted.
 sub format_screenname($$) {
 	my($self, $newname) = @_;
 
+	if($self->{adminreq}->{ADMIN_TYPE_SCREENNAME_FORMAT}++) {
+		$self->callback_admin_error(ADMIN_TYPE_SCREENNAME_FORMAT, ADMIN_ERROR_REQPENDING);
+		return;
+	}
 	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => pack("nn a*", 1, length($newname), $newname));
 }
 

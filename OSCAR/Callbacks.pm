@@ -489,6 +489,7 @@ sub process_snac($$) {
 		} elsif($reqtype == 0x1E) {
 			$reqdesc = ADMIN_TYPE_ACCOUNT_CONFIRM;
 		}
+		delete $session->{adminreq}->{$reqdesc} if $reqdesc;
 		$reqdesc ||= sprintf "unknown admin reply type 0x%04X/0x%04X", $reqtype, $subreq;
 
 		my $errdesc = "";
