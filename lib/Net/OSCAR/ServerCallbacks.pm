@@ -30,7 +30,7 @@ $SCREENNAMES->{somedude} = {sn => "Some Dude", pw => "somepass", email => 'some@
 $SCREENNAMES->{otherdude} = {sn => "Other Dude", pw => "otherpass", email => 'other@dude.com'};
 
 
-sub send_error($$) {
+sub srv_send_error($$) {
 	my($connection, $family, $errno) = @_;
 
 	$connection->proto_send(family => $family, protobit => "error", protodata => {errno => $errno});
@@ -169,7 +169,7 @@ sub process_snac($$) {
 	} elsif($protobit eq "set tool versions") {
 		print "$screenname finished signing on.\n";
 	} else {
-		#send_error($connection, $family, 1);
+		#srv_send_error($connection, $family, 1);
 		print "Unhandled protobit: $protobit\n";
 	}
 }
