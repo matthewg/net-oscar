@@ -260,7 +260,7 @@ sub connect($$) {
 			$self->{socket} = $self->{socks}->connect($host, $port);
 
 			$self->{ready} = 0;
-			$self->{connected} = 1
+			$self->{connected} = 1;
 			$self->set_blocking(0);
 		} elsif($self->{session}->{proxy_type} eq "HTTP") {
 		} else {
@@ -268,7 +268,7 @@ sub connect($$) {
 		}
 	} else {
 		$self->{ready} = 0;
-		$self->{connected} = 0
+		$self->{connected} = 0;
 		$self->set_blocking(0);
 
 		$self->{socket} = gensym;
