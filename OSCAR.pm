@@ -948,7 +948,8 @@ sub mod_buddylist($$$$;@) {
 				buddyid => $self->newid($self->{buddies}->{$group}->{members}),
 				data => tlv,
 				online => 0,
-				comment => undef
+				comment => undef,
+				alias => undef
 			};
 		}
 	} elsif($what == MODBL_WHAT_BUDDY and $action == MODBL_ACTION_DEL) {
@@ -1793,6 +1794,11 @@ worry about the fact that it's case and whitespace insensitive when comparing it
 A user-defined comment associated with the buddy.  See L<"set_buddy_comment">.
 Note that this key will be present but undefined if there is no comment.
 
+=item alias
+
+A user-defined alias for the buddy.  See L<"set_buddy_alias">.
+Note that this key will be present but undefined if there is no alias.
+
 =item extended_status
 
 The user's extended status message, if one is set, will be in this key.
@@ -1904,9 +1910,14 @@ sub is_on($) { return shift->{is_on}; }
 
 =item set_buddy_comment (GROUP, BUDDY[, COMMENT])
 
-Set a brief comment about a buddy.  This can be used for things such
-as the buddy's real name.  You must call L<"commit_buddylist"> to save
+Set a brief comment about a buddy.  You must call L<"commit_buddylist"> to save
 the comment to the server.  If COMMENT is undefined, the comment is
+deleted.
+
+=item set_buddy_alias (GROUP, BUDDY[, ALIAS])
+
+Set an alias for a buddy.  You must call L<"commit_buddylist"> to save
+the comment to the server.  If ALIAS is undefined, the alias is
 deleted.
 
 =cut
@@ -1915,6 +1926,12 @@ sub set_buddy_comment($$$;$) {
 	my($self, $group, $buddy, $comment) = @_;
 	return must_be_on($self) unless $self->{is_on};
 	$self->{buddies}->{$group}->{members}->{$buddy}->{comment} = $comment;
+}
+
+sub set_buddy_alias($$$;$) {
+	my($self, $group, $buddy, $alias) = @_;
+	return must_be_on($self) unless $self->{is_on};
+	$self->{buddies}->{$group}->{members}->{$buddy}->{alias} = $alias;
 }
 
 =pod

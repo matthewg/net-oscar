@@ -169,11 +169,16 @@ sub BLI_to_NO($) {
 			$comment = $buddy->{data}->{0x13C} if exists($buddy->{data}->{0x13C});
 			delete $buddy->{data}->{0x13C};
 
+			my $alias = undef;
+			$alias = $buddy->{data}->{0x131} if exists($buddy->{data}->{0x131});
+			delete $buddy->{data}->{0x131};
+
 			$session->{buddies}->{$group}->{members}->{$buddy->{name}} ||= {};
 			my $entry = $session->{buddies}->{$group}->{members}->{$buddy->{name}};
 			$entry->{buddyid} = $bid;
 			$entry->{online} = 0 unless exists($entry->{online});
 			$entry->{comment} = $comment;
+			$entry->{alias} = $alias;
 			$entry->{data} = $buddy->{data};
 		}
 	}
@@ -237,6 +242,7 @@ sub NO_to_BLI($) {
 				$bli->{0}->{$gid}->{$bid}->{data}->{$key} = $value;
 			}
 			$bli->{0}->{$gid}->{$bid}->{data}->{0x13C} = $session->{buddies}->{$group}->{members}->{$buddy}->{comment} if defined $session->{buddies}->{$group}->{members}->{$buddy}->{comment};
+			$bli->{0}->{$gid}->{$bid}->{data}->{0x131} = $session->{buddies}->{$group}->{members}->{$buddy}->{alias} if defined $session->{buddies}->{$group}->{members}->{$buddy}->{alias};
 		}
 	}
 
