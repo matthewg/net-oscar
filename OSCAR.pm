@@ -131,6 +131,7 @@ use Net::OSCAR::TLV;
 use Net::OSCAR::Buddylist;
 use Net::OSCAR::Screenname;
 use Net::OSCAR::Chat;
+use Net::OSCAR::_BLInternal;
 
 use warnings;
 require Exporter;
@@ -156,12 +157,6 @@ sub new($) {
 	$self->{description} = "OSCAR session";
 
 	$self->{timeout} = 0.01;
-
-	$self->{permit} = $self->bltie();
-	$self->{deny} = $self->bltie();
-
-	$self->{appdata} = {};
-	tie %{$self->{appdata}}, "Net::OSCAR::TLV";
 
 	return $self;
 }
@@ -417,6 +412,15 @@ sub findbuddy($$) {
 	return undef;
 }
 
+sub findbuddy_byid($$$) {
+	my($self, $buddies, $bid) = @_;
+
+	while(my($buddy, $value) = each(%$buddies)) {
+		return $buddy if $value->{buddyid} == $bid;
+	}
+	return undef;
+}
+
 sub newid($;$) {
 	my($self, $group) = @_;
 	my $id = 0;
@@ -431,10 +435,33 @@ sub newid($;$) {
 
 =pod
 
+=item commit_buddylist
+
+Sends your modified buddylist to the OSCAR server.  Changes to the buddylist
+won't actually take effect until this method is called.  Methods that change
+the buddylist have a warning about needing to call this method in their
+documentation.
+
+=item rollback_buddylist
+
+Revert changes you've made to the buddylist, assuming you haven't called
+L<"commit_buddylist"> since making them.
+
+=item reorder_groups GROUPS
+
+Changes the ordering of the groups in your buddylist.  Call L<"commit_buddylist"> to
+save the
+new order on the OSCAR server.
+
+=item reorder_buddies GROUP BUDDIES
+
+Changes the ordering of the buddies in a group on your buddylist.
+Call L<"commit_buddylist"> to save the new order on the OSCAR server.
+
 =item add_permit (BUDDIES)
 
-Add buddies to your permit list.  Note that this is the same as
-calling L<add_buddy> with a group of C<permit>.
+Add buddies to your permit list.  Call L<"commit_buddylist"> for the
+change to take effect.
 
 =item add_deny (BUDDIES)
 
@@ -458,6 +485,21 @@ Returns a list of all members of the deny list.
 
 =cut
 
+sub commit_buddylist($) { Net::OSCAR::_BLInternal::NO_to_BLI(shift); }
+
+sub reorder_groups($@) {
+	my $self = shift;
+	my @groups = @_;
+	tied(%{$self->{buddies}})->setorder(@groups);
+}
+
+sub reorder_buddies($$@) {
+	my $self = shift;
+	my $group = shift;
+	my @buddies = @_;
+	tied(%{$self->{buddies}->{$group}->{members}})->setorder(@buddies);
+}
+
 sub add_permit($@) { shift->mod_permit(MODBL_ACTION_ADD, "permit", @_); }
 sub add_deny($@) { shift->mod_permit(MODBL_ACTION_ADD, "deny", @_); }
 sub remove_permit($@) { shift->mod_permit(MODBL_ACTION_DEL, "permit", @_); }
@@ -469,7 +511,8 @@ sub get_denylist(@) { return keys %{shift->{deny}}; }
 
 =item add_buddy (GROUP, BUDDIES)
 
-Adds buddies to the given group on your buddylist.
+Adds buddies to the given group on your buddylist.  Call L<"commit_buddylist">
+for the change to take effect.
 
 =item remove_buddy (GROUP, BUDDIES)
 
@@ -533,27 +576,14 @@ send them messages.  You can talk to them if you are in the same
 chatroom, although neither of you can invite the other one into
 a chatroom.
 
+Call L<"commit_buddylist"> for the change to take effect.
+
 =cut
 
-sub set_visibility($$;$) {
-	my($self, $vismode, $newgp) = @_;
+sub set_visibility($$) {
+	my($self, $vismode) = @_;
 
-	$self->{vismode} = $vismode if $vismode;
-	$newgp ||= 0xFFFFFFFF;
-	if($self->{vismode} and !$self->{groupperms}) { # Contents of subTLV 0xCB in TLV 0x02 in SNAC 0x0013/0x0006
-		$self->{bos}->snac_put(family => 0x13, subtype => 0x08, data => pack("N", $newgp));
-		$self->{groupperms} = $newgp;
-	}
-	$self->{bos}->snac_put(family => 0x13, subtype => 0x9, data =>
-		pack("nnn a*", 0, 0, 0,
-			tlv(0x04 =>
-				(exists($self->{profile}) ? tlv(0x0100 => $self->{profile}) : "") .
-				(exists($self->{vismode}) ? tlv(0xCA => pack("C", $self->{vismode})) : "") .
-				(exists($self->{groupperms}) ? tlv(0xCB => pack("N", $self->{groupperms})) : "") .
-				tlv(%{$self->{appdata}})
-			)
-		)
-	);
+	$self->{vismode} = $vismode;
 }
 
 =pod
@@ -575,6 +605,8 @@ Permit AOL subscribers to contact you.
 
 =back
 
+Call L<"commit_buddylist"> for the change to take effect.
+
 =cut
 
 sub set_group_permissions($@) {
@@ -582,7 +614,7 @@ sub set_group_permissions($@) {
 	my $perms = 0xFFFFFF00;
 
 	foreach my $perm (@perms) { $perms |= $perm; }
-	$self->set_visibility($self->visibility, $perms);
+	$self->{groupperms} = $perms;
 }
 
 =pod
@@ -626,35 +658,14 @@ byte for your application by emailing C<libfaim-aim-protocol@lists.sourceforge.n
 This data is stored in your server-side buddylist and so will be persistent,
 even across machines.
 
-=item set_app_data
-
-Call this after modifying the hashref returned by C<get_app_data>.
-See L<"get_app_data">.
+Call L<"commit_buddylist"> to have the new data saved on the OSCAR server.
 
 =cut
 
 sub get_app_data($) { return shift->{appdata}; }
-sub set_app_data($) {
-	my($self) = @_;
-	$self->set_visibility($self->visibility);
-}
-
 
 sub mod_permit($$$@) {
 	my($self, $action, $group, @buddies) = @_;
-	my $groupid;
-	my @ids;
-	my $subtype;
-	my $packet = "";
-
-	$subtype = 0x8 if $action == MODBL_ACTION_ADD;
-	$subtype = 0xA if $action == MODBL_ACTION_DEL;
-
-	if($group eq "permit") {
-		$groupid = GROUP_PERMIT;
-	} else {
-		$groupid = GROUP_DENY;
-	}
 
 	if($action == MODBL_ACTION_ADD) {
 		foreach my $buddy(@buddies) {
@@ -662,147 +673,47 @@ sub mod_permit($$$@) {
 		}
 	} else {
 		foreach my $buddy(@buddies) {
-			push @ids, $self->{$group}->{$buddy}->{buddyid};
 			delete $self->{$group}->{$buddy};
 		}
 	}
-
-	foreach my $buddy(@buddies) {
-		my $id;
-		if($action == MODBL_ACTION_DEL) {
-			$id = shift @ids;
-		} else {
-			$id = $self->{$group}->{$buddy}->{buddyid};
-		}
-		$packet = pack("na*", length($buddy), $buddy);
-		$packet .= pack("nnnn", 0, $id, $groupid, 0);
-	}
-	$self->{bos}->snac_put(family => 0x13, subtype => $subtype, data => $packet);
-	return;
 }
 
 sub mod_buddylist($$$$;@) {
 	my($self, $action, $what, $group, @buddies) = @_;
-	my $packet = "";
-	my $buddy;
-	my $groupid = 0;
-	my $subtype;
-	my @ids;
-
-	$subtype = 0x8 if $action == MODBL_ACTION_ADD;
-	$subtype = 0xA if $action == MODBL_ACTION_DEL;
 
 	@buddies = ($group) if $what == MODBL_WHAT_GROUP;
 
 	if($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_ADD) {
 		return if exists $self->{buddies}->{$group};
-		$self->{buddies}->{$group}->{groupid} = $groupid = $self->newid();
-		$self->{buddies}->{$group}->{members} = $self->bltie();
+		$self->{buddies}->{$group} = {
+			groupid => $self->newid(),
+			members => bltie,
+			data => tlvtie
+		};
 	} elsif($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_DEL) {
 		return unless exists $self->{buddies}->{$group};
-		$groupid = $self->{buddies}->{$group}->{groupid};
 		delete $self->{buddies}->{$group};
 	} elsif($what == MODBL_WHAT_BUDDY and $action == MODBL_ACTION_ADD) {
 		$self->mod_buddylist(MODBL_ACTION_ADD, MODBL_WHAT_GROUP, $group) unless exists $self->{buddies}->{$group};
 		@buddies = grep {not exists $self->{buddies}->{$group}->{members}->{$_}} @buddies;
 		return unless @buddies;
-		$groupid = $self->{buddies}->{$group}->{groupid};
 		foreach my $buddy(@buddies) {
-			$self->{buddies}->{$group}->{members}->{$buddy}->{buddyid} = $self->newid($self->{buddies}->{$group}->{members});
+			$self->{buddies}->{$group}->{members}->{$buddy} = {
+				buddyid => $self->newid($self->{buddies}->{$group}->{members}),
+				data => tlvtie,
+				online => 0,
+				comment => undef
+			};
 		}
 	} elsif($what == MODBL_WHAT_BUDDY and $action == MODBL_ACTION_DEL) {
 		return unless exists $self->{buddies}->{$group};
 		@buddies = grep {exists $self->{buddies}->{$group}->{members}->{$_}} @buddies;
 		return unless @buddies;
-		$groupid = $self->{buddies}->{$group}->{groupid};
 		foreach my $buddy(@buddies) {
-			push @ids, $self->{buddies}->{$group}->{members}->{$buddy}->{buddyid};
 			delete $self->{buddies}->{$group}->{members}->{$buddy};
 		}
 		$self->mod_buddylist(MODBL_ACTION_DEL, MODBL_WHAT_GROUP, $group) unless scalar keys %{$self->{buddies}->{$group}->{members}};
 	}
-
-	$self->{bos}->snac_put(family => 0x13, subtype => 0x11) unless $self->{blmod}++;
-
-	foreach $buddy(@buddies) {
-		$packet .= pack("na*", length($buddy), $buddy);
-		$packet .= pack("n", $groupid);
-		if($what == MODBL_WHAT_BUDDY) {
-			if($action == MODBL_ACTION_ADD) {
-				$packet .= pack("n", $self->{buddies}->{$group}->{members}->{$buddy}->{buddyid});
-			} else {
-				$packet .= pack("n", shift @ids);
-			}
-		} else {
-			$packet .= pack("n", 0);
-		}
-		$packet .= pack("n", ($what == MODBL_WHAT_BUDDY) ? 0 : 1);
-		if($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_DEL) {
-			$packet .= 
-				tlv(1 =>
-					tlv(4 =>
-						tlv(0xC8 => "")
-					)
-				)
-			;
-		} else {
-			$packet .= pack("n", 0);
-		}
-	}
-
-	$self->{bos}->snac_put(family => 0x13, subtype => $subtype, data => $packet);
-	push @{$self->{modgroups}}, $group;
-
-	$self->{blmod}--;
-}
-
-sub modgroups($) {
-	my $self = shift;
-
-	return if $self->{blmod}; #{blmod} is a lock on the blist.
-
-	if($self->{bltdone}) {
-		delete $self->{bltdone};
-		$self->{bos}->snac_put(family => 0x13, subtype => 0x12);
-		return;
-	}
-
-	return unless ref($self->{modgroups}) eq "ARRAY";
-
-	my @groups = @{$self->{modgroups}};
-
-	delete $self->{modgroups};
-
-	if(!@groups) {
-		delete $self->{blmod};
-		$self->{bos}->snac_put(family => 0x13, subtype => 0x12);
-		return;
-	}
-	foreach my $group(@groups) {
-		my $packet = "";
-		my @members = ();
-		@members = keys %{$self->{buddies}->{$group}->{members}} if exists $self->{buddies}->{$group};
-		if(@members) {
-			$packet .= pack("na*", length($group), $group);
-			$packet .= pack("nn", $self->{buddies}->{$group}->{groupid}, 0);
-
-			$packet .=
-				tlv(1 =>
-					tlv(0xC8 => pack("n*", map { $self->{buddies}->{$group}->{members}->{$_}->{buddyid} } @members))
-				)
-			;
-		} else {
-			$packet .= pack("nnn", 0, 0, 0);
-			$packet .= 
-				tlv(1 =>
-					tlv(0xC8 => pack("n*", map { $_->{groupid} } values %{$self->{buddies}}))
-				)
-			;
-		}
-
-		$self->{bos}->snac_put(family => 0x13, subtype => 0x09, data => $packet);
-	}
-	$self->{bltdone} = 1;
 }
 
 sub extract_userinfo($$) {
@@ -828,10 +739,10 @@ sub extract_userinfo($$) {
 	$retval->{free} = $flags & 0x10;
 	$retval->{away} = $flags & 0x20;
 
-	($retval->{membersince}) = unpack("N", $tlv->{2});
-	($retval->{onsince}) = unpack("N", $tlv->{3});
+	($retval->{membersince}) = unpack("N", $tlv->{2}) if exists($tlv->{2});
+	($retval->{onsince}) = unpack("N", $tlv->{3}) if exists($tlv->{3});
 	($retval->{idle}) = unpack("n", $tlv->{4}) if exists($tlv->{4});
-	($retval->{capabilities}) = $tlv->{0xD};
+	($retval->{capabilities}) = $tlv->{0xD} if exists($tlv->{0xD});
 
 	substr($data, 0, $chainlen) = "";
 
@@ -920,14 +831,7 @@ without regards to case and whitespace.
 
 =cut
 
-sub buddyhash($) { shift->bltie(); }
-
-sub bltie($) {
-	my $self = shift;
-	my %bl;
-	tie %bl, "Net::OSCAR::Buddylist";
-	return \%bl;
-}
+sub buddyhash($) { bltie; }
 
 sub im_parse($$) {
 	my($self, $data) = @_;
@@ -1032,13 +936,14 @@ marked as no longer being away.
 
 =cut
 
-sub set_away($$) { shift->set_info("", @_); }
+sub set_away($$) { shift->set_info(undef, shift); }
 
 =pod
 
 =item set_info (PROFILE)
 
-Sets the user's profile.
+Sets the user's profile.  Call L<"commit_buddylist"> to have
+the new profile stored on the OSCAR server.
 
 =cut
 
@@ -1048,7 +953,7 @@ sub set_info($$;$) {
 	my %tlv;
 	tie %tlv, "Net::OSCAR::TLV";
 
-	if($profile) {
+	if(defined($profile)) {
 		$tlv{0x1} = ENCODING;
 		$tlv{0x2} = $profile;
 		$self->{profile} = $profile;
@@ -1063,7 +968,6 @@ sub set_info($$;$) {
 
 	$self->debug_print("Setting user information.");
 	$self->{bos}->snac_put(family => 0x02, subtype => 0x04, data => tlv_encode(\%tlv));
-	$self->set_visibility($self->visibility);
 }
 
 sub svcdo($$%) {
@@ -1335,6 +1239,11 @@ The formatted version of the user's screenname.  This includes all spacing and
 capitalization.  This is a C<Net::OSCAR::Screenname> object, so you don't have to
 worry about the fact that it's case and whitespace insensitive when comparing it.
 
+=item comment
+
+A user-defined comment associated with the buddy.  See L<"set_buddy_comment">.
+Note that this key will be present but undefined if there is no comment.
+
 =item trial
 
 The user's account has trial status.
@@ -1384,6 +1293,7 @@ sub visibility($) { return shift->{visibility}; }
 sub groups($) { return keys %{shift->{buddies}}; }
 sub buddies($;$) {
 	my($self, $group) = @_;
+
 	return keys %{$self->{buddies}->{$group}->{members}} if $group;
 	return map { keys %{$_->{members}} } values %{$self->{buddies}};
 }
@@ -1395,6 +1305,24 @@ sub buddy($$;$) {
 }
 sub email($) { return shift->{email}; }
 sub screenname($) { return shift->{screenname}; }
+
+=pod
+
+=item set_buddy_comment(GROUP, BUDDY[, COMMENT])
+
+Set a brief comment about a buddy.  This can be used for things such
+as the buddy's real name.  You must call L<"commit_buddylist"> to save
+the comment to the server.  If COMMENT is undefined, the comment is
+deleted.
+
+=cut
+
+sub set_buddy_comment($$$;$) {
+	my($self, $group, $buddy, $comment) = @_;
+	$self->{buddies}->{$group}->{members}->{$buddy}->{comment} = $comment;
+}
+
+=pod
 
 =item chat_invite(CHAT, MESSAGE, WHO)
 
@@ -1469,6 +1397,20 @@ about to be disconnected.
 CLEAR and WINDOW tell you the maximum speed you can send in order to maintain RATE_CLEAR standing.
 You must send no more than WINDOW commands in CLEAR milliseconds.  If you just want to keep it
 simple, you can just not send any commands for CLEAR milliseconds and you'll be fine.
+
+=item buddylist_error (OSCAR, ERROR, WHAT)
+
+This is called when there is an error commiting changes to the buddylist.
+C<ERROR> is the error number.  C<WHAT> is a string describing which buddylist
+change failed.  C<Net::OSCAR> will revert the failed change to
+its state before C<commit_buddylist> was called.  Note that the
+buddylist contains information other than the user's buddies - see 
+any method which says you need to call C<commit_buddylist> to have its
+changes take effect.
+
+=item buddylist_ok (OSCAR)
+
+This is called when your changes to the buddylist have been successfully commited.
 
 =item admin_error (OSCAR, REQTYPE, ERROR, ERRURL)
 
@@ -1575,6 +1517,8 @@ sub callback_chat_invite(@) { do_callback("chat_invite", @_); }
 sub callback_buddy_info(@) { do_callback("buddy_info", @_); }
 sub callback_evil(@) { do_callback("evil", @_); }
 sub callback_chat_closed(@) { do_callback("chat_closed", @_); }
+sub callback_buddylist_error(@) { do_callback("buddylist_error", @_); }
+sub callback_buddylist_ok(@) { do_callback("buddylist_ok", @_); }
 sub callback_admin_error(@) { do_callback("admin_error", @_); }
 sub callback_admin_ok(@) { do_callback("admin_ok", @_); }
 sub callback_rate_alert(@) { do_callback("rate_alert", @_); }
@@ -1593,6 +1537,8 @@ sub set_callback_chat_invite($\&) { set_callback("chat_invite", @_); }
 sub set_callback_buddy_info($\&) { set_callback("buddy_info", @_); }
 sub set_callback_evil($\&) { set_callback("evil", @_); }
 sub set_callback_chat_closed($\&) { set_callback("chat_closed", @_); }
+sub set_callback_buddylist_error($\&) { set_callback("buddylist_error", @_); }
+sub set_callback_buddylist_ok($\&) { set_callback("buddylist_ok", @_); }
 sub set_callback_admin_error($\&) { set_callback("admin_error", @_); }
 sub set_callback_admin_ok($\&) { set_callback("admin_ok", @_); }
 sub set_callback_rate_alert($\&) { set_callback("rate_alert", @_); }
