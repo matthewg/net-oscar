@@ -106,6 +106,7 @@ use Net::OSCAR::Constants;
 use Net::OSCAR::Utility;
 use Net::OSCAR::Connection;
 use Net::OSCAR::Connection::Chat;
+use Net::OSCAR::Connection::Direct;
 use Net::OSCAR::Callbacks;
 use Net::OSCAR::TLV;
 use Net::OSCAR::Buddylist;
@@ -193,6 +194,7 @@ sub new($) {
 	$self->{pass_is_hashed} = 0;
 	$self->{stealth} = 0;
 	$self->{icq_meta_info_cache} = {};
+	$self->{ip} = 0;
 
 	$self->{timeout} = 0.01;
 	$self->{capabilities} = {};
@@ -1216,6 +1218,62 @@ sub set_idle($$) {
 =pod
 
 =back
+
+=head2 FILE TRANSFER AND DIRECT CONNECTIONS
+
+=over 4
+
+=item file_send SCREENNAME MESSAGE FILENAME FILEDATA
+
+C<FILEDATA> can be undef to have Net::OSCAR read the file,
+a file handle, or the data to send.
+
+=cut
+
+sub file_send($$$)
+	my($self, $screenname, $message, $filename, $data) = @_;
+
+	my $connection = $self->addconn(conntype => CONNTYPE_DIRECT_IN);
+
+	my %svcdata = (
+		file_count_status => 1,
+		file_count => 1,
+		size => length(data),
+		files => [$filename]
+	);
+
+        <define name="file transfer rendezvous data">
+                <!-- 1 if only sending a single file, otherwise 2 -->
+                <word name="file_count_status" />
+                <word name="file_count" />
+                <dword name="size" />
+                <data count="-1" null_terminated="yes" name="files" />
+        </define>
+
+	my %protodata = (
+		capability => OSCAR_CAPS()->{filexfer}->{value},
+		invitation_msg => $message,
+		language => "en",
+		push_pull => 1,
+		status => 0,
+		client_1_ip => $self->{ip},
+		client_2_ip => $self->{ip},
+		svcdata_charset => "us-ascii",
+		svcdata => protoparse($self, "file transfer rendezvous data")->pack(%svcdata)
+	);
+
+	return unless exists($self->{rv_proposals}->{$cookie});
+	my $proposal = delete $self->{rv_proposals}->{$cookie};
+
+	my %protodata;
+	$protodata{status} = 1;
+	$protodata{cookie} = $cookie;
+	$protodata{capability} = OSCAR_CAPS()->{$proposal->{type}} ? OSCAR_CAPS()->{$proposal->{type}}->{value} : $proposal->{type};
+
+	return $self->send_message($proposal->{sender}, 2, protoparse($self, "rendezvous IM")->pack(%protodata));
+}
+
+=pod
 
 =head2 EVENT-PROCESSING METHODS
 
@@ -3235,6 +3293,9 @@ sub addconn($@) {
 
 	if($conntype == CONNTYPE_CHAT) {
 		$connection = Net::OSCAR::Connection::Chat->new(%data);
+	} elsif($conntype == CONNTYPE_DIRECT_IN) {
+		$connection = Net::OSCAR::Connection::Direct->new(%data);
+		$connection->listen();
 	} else {
 		$connection = Net::OSCAR::Connection->new(%data);
 		# We set the connection to 1 to indicate that it is in progress but not ready for SNAC-sending yet.
@@ -3337,15 +3398,15 @@ sub newid($;$) {
 sub capabilities($) {
 	my $self = shift;
 
-	my $caps;
+	my @caps;
 
-	$caps = OSCAR_CAPS()->{chat}->{value} . OSCAR_CAPS()->{interoperate}->{value};
-	$caps .= OSCAR_CAPS()->{extstatus}->{value} if $self->{capabilities}->{extended_status};
-	$caps .= OSCAR_CAPS()->{buddyicon}->{value} if $self->{capabilities}->{buddy_icons};
-	$caps .= OSCAR_CAPS()->{filexfer}->{value} if $self->{capabilities}->{file_transfer};
-	$caps .= OSCAR_CAPS()->{fileshare}->{value} if $self->{capabilities}->{file_sharing};
+	push @caps, OSCAR_CAPS()->{chat}->{value}, OSCAR_CAPS()->{interoperate}->{value};
+	push @caps, OSCAR_CAPS()->{extstatus}->{value} if $self->{capabilities}->{extended_status};
+	push @caps, OSCAR_CAPS()->{buddyicon}->{value} if $self->{capabilities}->{buddy_icons};
+	push @caps, OSCAR_CAPS()->{filexfer}->{value} if $self->{capabilities}->{file_transfer};
+	push @caps, OSCAR_CAPS()->{fileshare}->{value} if $self->{capabilities}->{file_sharing};
 
-	return $caps;
+	return \@caps;
 }
 
 sub mod_permit($$$@) {

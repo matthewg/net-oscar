@@ -173,6 +173,7 @@ sub _xmlnode_to_template($$) {
 	} elsif($tag eq "data") {
 		$datum->{type} = "data";
 		$datum->{len} = $attrs->{length} if $attrs->{length};
+		$datum->{pad} = $attrs->{pad} if exists($attrs->{pad});
 		$datum->{null_terminated} = 1 if $attrs->{null_terminated} and $attrs->{null_terminated} eq "yes";
 
 		while(@$value) {

@@ -25,13 +25,22 @@ sub invite($$;$) {
 	$message ||= "Join me in this Buddy Chat";
 
 	$self->log_print(OSCAR_DBG_DEBUG, "Inviting $who to join us.");
-	$self->{session}->svcdo(CONNTYPE_BOS, protobit => "chat invite", protodata => {
-		cookie => randchars(8),
-		invitee => $who,
-		message => $message,
-		url => $self->{url},
+
+	my $svcdata = protoparse($self, "chat invite rendezvous data")->pack(
 		exchange => $self->{exchange},
-	});
+		url => $self->{url}
+	);
+	my %rvdata = (
+		capability => OSCAR_CAPS()->{chat}->{value},
+		charset => "us-ascii",
+		cookie => randchars(8),
+		invitation_msg => $message,
+		push_pull => 1,
+		status => 0,
+		svcdata => $svcdata
+	);
+
+        return $self->{session}->send_message($who, 2, protoparse($self, "rendezvous IM")->pack(%rvdata));
 }
 
 sub chat_send($$;$$) {

@@ -7,9 +7,11 @@ use lib "./blib/lib";
 use Net::OSCAR qw(:all);
 use Net::OSCAR::XML;
 use Net::OSCAR::Utility qw(hexdump);
+use Net::OSCAR::Constants;
 use Net::Pcap;
 
 our $session = Net::OSCAR->new();
+our $init_time = undef;
 
 sub BEGIN {
 	eval {
@@ -22,11 +24,9 @@ my $file = shift or die "Usage: snacsnatcher pcapfile [verbose]\n";
 
 # Quick and dirty protocol analyzer
 
-use vars qw($packet $verbose %buffer %bufflen  %snacbuff %seqnos $datalink @blarray);
+use vars qw($packet $verbose %buffer %bufflen %snacbuff %ft_states %seqnos $datalink @blarray);
 $packet = 0;
 $verbose = shift;
-
-$| = 1;
 
 sub ssdump_scalar($$);
 sub ssdump_list($$);
@@ -58,13 +58,15 @@ sub ssdump_list($$) {
 		print "[\n";
 
 		if(!ref($_)) {
+			print "\t" x ($depth+1);
 			ssdump_scalar($_, $depth);
 		} elsif(ref($_) eq "HASH") {
 			ssdump_hash($_, $depth+1);
 		} elsif(ref($_) eq "ARRAY") {
 			ssdump_list($_, $depth+1);
 		} elsif(ref($_) eq "SCALAR") {
-			ssdump_scalar($$_, $depth);
+			print "\t" x ($depth+1);
+			ssdump_scalar($$_, $depth+1);
 		} else {
 			die "Unknown reftype: " . ref($_) . "\n";
 		}
@@ -93,6 +95,8 @@ sub ssdump_hash($$) {
 					($val & 0xFF)
 				);
 				$val = "$q1.$q2.$q3.$q4";
+			} elsif($key eq "capability") {
+				$val = OSCAR_CAPS_INVERSE()->{$val} if exists(OSCAR_CAPS_INVERSE()->{$val});
 			}
 
 			ssdump_scalar($val, $depth);
@@ -101,8 +105,24 @@ sub ssdump_hash($$) {
 			ssdump_hash($val, $depth+1);
 		} elsif(ref($val) eq "ARRAY") {
 			print "\n";
+
+			if($key eq "capabilities") {
+				@$val = map {
+					exists(OSCAR_CAPS_INVERSE()->{$_}) ?
+					OSCAR_CAPS_INVERSE()->{$_} :
+					$_
+				} @$val;
+			} elsif($key eq "shortcaps") {
+				@$val = map {
+					exists(OSCAR_CAPS_SHORT_INVERSE()->{$_}) ?
+					OSCAR_CAPS_SHORT_INVERSE()->{$_} :
+					$_
+				} @$val;
+			}
+
 			ssdump_list($val, $depth);
 		} elsif(ref($val) eq "SCALAR") {
+
 			ssdump_scalar($$val, $depth);
 		} else {
 			die "Unknown reftype: " . ref($val) . "\n";
@@ -114,6 +134,11 @@ sub got_packet($$$) {
 	my($user, $hdr, $pkt) = @_;
 	my($inaddr, $outaddr);
 	my $tlv;
+
+	my $time = $hdr->{tv_sec} . "." . $hdr->{tv_usec};
+	$init_time ||= $time;
+	$time -= $init_time;
+	$time = sprintf("%0.3f", $time);
 
 	$packet++;
 	# This removes the datalink-level headers from a packet.
@@ -143,8 +168,10 @@ sub got_packet($$$) {
 	$dst = inet_ntoa($dst);
 
 	my($src_port, $dst_port, $seqno, $ack_seq, $tcplen, $flags) = 
-		unpack("nnNNCC", substr($pkt, 0, 14, ""));
+		unpack("nnNNCC", $pkt);
 	$tcplen = ($tcplen>>4)*4;
+	substr($pkt, 0, $tcplen) = "";
+
 	return if $flags & 0x2; # SYN
 	return unless $flags & 0x8; # PSH
 
@@ -158,7 +185,6 @@ sub got_packet($$$) {
 	return if grep {defined($_) and $_ eq $seqno} @{$seqnos{$conn_key}};
 	shift @{$seqnos{$conn_key}};
 	push @{$seqnos{$conn_key}}, $seqno;	
-
 
 	PACKET: while($pkt) {
 		if($buffer{$conn_key}) {
@@ -181,62 +207,88 @@ sub got_packet($$$) {
 			}
 		}
 
-
 		if($snacbuff{$conn_key}) {
 			$pkt = $snacbuff{$conn_key} . $pkt;
 			$snacbuff{$conn_key} = "";
 		}
 
-		my($firstbyte) = substr($pkt, 0, 1, "");
-		if($firstbyte ne "*") {
-			next;
-			#print "$src => $dst:";
-			#print " Got non-SNAC packet\n";
-			#next;
-		}
-
-		my($chan, $seqno, $len) = unpack("Cnn", substr($pkt, 0, 5, ""));
-		if(length($pkt) < $len) {
-			$snacbuff{$conn_key} = pack("CCnn", 42, $chan, $seqno, $len);
-			$snacbuff{$conn_key} .= $pkt;
-			return;
-		}
-
-		print "$src:$src_port => $dst:$dst_port";
-		printf " ch=%02X", $chan;
-
-		my %snac_data = protoparse($session, "snac")->unpack(substr($pkt, 0, $len, ""));
-		printf " fl=%02X/%02X", $snac_data{flags1} || 0, $snac_data{flags2} || 0;
-		printf " [%04X/%04X]", $snac_data{family} || 0, $snac_data{subtype} || 0;
-
-		my $protobit = snac_to_protobit(%snac_data);
-		if(!$protobit) {
-			print " == UNKNOWN";
-			print hexdump($snac_data{data}, 1);
-			print "\n";
+		if(substr($pkt, 0, 4) eq "OFT2") {
+			process_xfer($time, \$pkt, $conn_key);
+		} elsif(substr($pkt, 0, 1) eq "*") {
+			process_snac($time, \$pkt, $conn_key);
 		} else {
-			print " == $protobit\n";
-			my %data = protoparse($session, $protobit)->unpack($snac_data{data});
-
-			if($protobit =~ /^(incoming|outgoing) IM$/) {
-				my $channel_data;
-
-				if($data{channel} == 1) {
-					$channel_data = {protoparse($session, "standard IM footer")->unpack($data{message_body})};
-				} elsif($data{channel} == 2) {
-					$channel_data = {protoparse($session, "rendezvous IM")->unpack($data{message_body})};
-				} else {
-					$channel_data = $data{message_body};
-				}
-
-				$data{message_body} = $channel_data;
+			if($ft_states{$conn_key}) {
+				print "$time: $conn_key: " . length($pkt) . " bytes of FT data\n";
+				#print hexdump($pkt), "\n";
 			}
 
-			ssdump_hash(\%data, 1);
+			$pkt = "";		
+		}
+	}
+}
+
+sub process_xfer {
+	my($time, $pkt, $conn_key) = @_;
+
+	print "$time: $conn_key\n";
+	$ft_states{$conn_key} = 1;
+
+	my %ft_data = protoparse($session, "file transfer header")->unpack($$pkt);
+	printf "\t[type=%04X] [encrypt=%d] [compress=%d] [files=%d/%d] [parts=%d/%d] [bytes=%d/%d]\n",
+		delete @ft_data{qw(type encrypt compress files_left file_count parts_left part_count bytes_left byte_count)};
+
+	print "\tHEADER IS NOT 256 BYTES!!\n" unless $ft_data{header_length} == 256;
+	substr($$pkt, 0, $ft_data{header_length} + 4) = "";
+
+	ssdump_hash(\%ft_data, 1);
+	print "\n";
+}
+
+sub process_snac {
+	my($time, $pkt, $conn_key) = @_;
+
+	my($chan, $seqno, $len) = unpack("xCnn", substr($$pkt, 0, 6, ""));
+	if(length($$pkt) < $len) {
+		$snacbuff{$conn_key} = pack("CCnn", 42, $chan, $seqno, $len);
+		$snacbuff{$conn_key} .= $$pkt;
+		return;
+	}
+	my $snac = substr($$pkt, 0, $len, "");
+
+	print "$time: $conn_key";
+	printf " ch=%02X", $chan;
+
+	my %snac_data = protoparse($session, "snac")->unpack($snac);
+	printf " fl=%02X/%02X", $snac_data{flags1} || 0, $snac_data{flags2} || 0;
+	printf " [%04X/%04X]", $snac_data{family} || 0, $snac_data{subtype} || 0;
+
+	my $protobit = snac_to_protobit(%snac_data);
+	if(!$protobit) {
+		print " == UNKNOWN";
+		print hexdump($snac_data{data}, 1);
+		print "\n";
+	} else {
+		print " == $protobit\n";
+		my %data = protoparse($session, $protobit)->unpack($snac_data{data});
+
+		if($protobit =~ /^(incoming|outgoing) IM$/) {
+			my $channel_data;
+
+			if($data{channel} == 1) {
+				$channel_data = {protoparse($session, "standard IM footer")->unpack($data{message_body})};
+			} elsif($data{channel} == 2) {
+				$channel_data = {protoparse($session, "rendezvous IM")->unpack($data{message_body})};
+			} else {
+				$channel_data = $data{message_body};
+			}
+
+			$data{message_body} = $channel_data;
 		}
 
-		print "\n";
+		ssdump_hash(\%data, 1);
 	}
+
+	print "\n";
 }
 
 my $pcap = Net::Pcap::open_offline($file, \$!) or die "Couldn't open $file: $!\n";

@@ -55,8 +55,9 @@ sub log_printf($$$@) {
 	$obj->log_print($level, sprintf($fmtstr, @_));
 }
 
-sub hexdump($) {
+sub hexdump($;$) {
 	my $stuff = shift;
+	my $forcehex = shift || 0;
 	my $retbuff = "";
 	my @stuff;
 
@@ -65,7 +66,7 @@ sub hexdump($) {
 		push @stuff, substr($stuff, $i, 1);
 	}
 
-	return $stuff unless grep { $_ lt chr(0x20) or $_ gt chr(0x7E) } @stuff;
+	return $stuff unless $forcehex or grep { $_ lt chr(0x20) or $_ gt chr(0x7E) } @stuff;
 	while(@stuff) {
 		my $i = 0;
 		$retbuff .= "\n\t";

@@ -134,6 +134,8 @@ sub process_snac($$) {
 		$error .= " (".$data{error_details}.")." if $data{error_details};
 		send_error($session, $connection, $data{errno}, $error, 0, $reqdata);
 	} elsif($protobit eq "self information") {
+		$session->{ip} = $data{ip} if $data{ip};
+
 		if(exists($data{stealth_status})) {
 			my $stealth_state;
 			if($data{stealth_status} & 0x100) {
@@ -222,7 +224,7 @@ sub process_snac($$) {
 		my $sender_info = $session->{userinfo}->{$sender} ||= {};
 
 		if($data{channel} == 1) { # Regular IM
-			%data = protoparse($session, "standard IM footer")->unpack($data{IM});
+			%data = protoparse($session, "standard IM footer")->unpack($data{message_body});
 
 			# Typing status
 			my $typing_status = 0;
@@ -253,9 +255,9 @@ sub process_snac($$) {
 			$session->callback_im_in($sender, $data{message}, exists($data{is_automatic}) ? 1 : 0);
 
 		} elsif($data{channel} == 2) {
-			%data = protoparse($session, "rendezvous IM")->unpack($data{IM});
+			%data = protoparse($session, "rendezvous IM")->unpack($data{message_body});
 			my $type = OSCAR_CAPS_INVERSE()->{$data{capability}};
-			$session->{rv_proposals}->{$data{cookie}} = {
+			$session->{rv_proposals}->{$data{cookie}} ||= {
 				sender => $sender,
 				type => $type || $data{capability}
 			};
@@ -264,17 +266,19 @@ sub process_snac($$) {
 				$connection->log_print(OSCAR_DBG_INFO, "Unknown rendezvous type: ", hexdump($data{capability}));
 				$session->rendezvous_reject($data{cookie});
 			} elsif($type eq "chat") {
+				my %svcdata = protoparse($session, "chat invite rendezvous data")->unpack($data{svcdata});
+
 				# Ignore invites for chats that we're already in
-				if(not grep { $_->{url} eq $data{url} }
+				if(not grep { $_->{url} eq $svcdata{url} }
 				   grep { $_->{conntype} == CONNTYPE_CHAT }
 				      @{$session->{connections}}
 				) {
 					# Extract chat ID from char URL
-					$data{url} =~ /-.*?-(.*?)(\0*)$/;
+					$svcdata{url} =~ /-.*?-(.*?)(\0*)$/;
 					my $chat = $1;
 					$chat =~ s/%([0-9A-Z]{1,2})/chr(hex($1))/eig;
 
-					$session->callback_chat_invite($sender, $data{invitation_msg}, $chat, $data{url});
+					$session->callback_chat_invite($sender, $data{invitation_msg}, $chat, $svcdata{url});
 				}
 			} elsif($type eq "filexfer") {
 				

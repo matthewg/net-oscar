@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-use Test::More tests => 26;
+use Test::More tests => 27;
 use File::Basename;
 use strict;
 use lib "./blib/lib";
@@ -21,6 +21,8 @@ is_deeply([sort keys(%Net::OSCAR::XML::xmlmap)], [sort qw(
 		fixed_value
 		fixed_value_data
 		null_terminated_data
+		null_separated_array
+		null_pad_data
 		length_prefix
 		vax_prefix
 		repeated_data
@@ -84,8 +86,18 @@ is_deeply(
 );
 is_deeply(
 	[protoparse($oscar, "null_terminated_data")],
-	[{type => 'data', value => 'foo', null_terminated => 1}],
+	[
+		{type => 'data', name => "foo", null_terminated => 1},
+		{type => 'data', name => "bar"}
+	],
 	"null-terminated data"
+);
+is_deeply(
+	[protoparse($oscar, "null_pad_data")],
+	[
+		{type => 'data', name => "foo", pad => 0, len => 10}
+	],
+	"null-padded data"
 );
 
 is_deeply(

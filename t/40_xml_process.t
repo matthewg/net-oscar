@@ -39,10 +39,6 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		data => {},
 		template => "fixed_value_data"
 	},{
-		binary => "foo" . chr(0),
-		data => {},
-		template => "null_terminated_data"
-	},{
 		binary => pack("na*", length("Cthulhu"), "Cthulhu"),
 		data => {x => "Cthulhu"},
 		template => "length_prefix"
@@ -67,6 +63,18 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		binary => pack("n", 0),
 		data => {},
 		template => "default_generate_data"
+	},{
+		binary => "foo" . chr(0) . "bar",
+		data => {foo => "foo", bar => "bar"},
+		template => "null_terminated_data"
+	},{
+		binary => "foo" . (chr(0) x 7),
+		data => {foo => "foo"},
+		template => "null_pad_data"
+	},{
+		binary => "foo" . chr(0) . "bar" . chr(0),
+		data => {foo => ["foo", "bar"]},
+		template => "null_separated_array"
 	},{
 		binary => "abc",
 		data => {foo => [qw(a b c)]},

@@ -23,7 +23,6 @@
 	<!-- Fixed values -->
 	<define name="fixed_value"><word>123</word></define>
 	<define name="fixed_value_data"><data>foo</data></define>
-	<define name="null_terminated_data"><data null_terminated="yes">foo</data></define>
 
 	<!-- Length prefixes, counts -->
 	<define name="length_prefix"><data length_prefix="word" name="x" /></define>
@@ -31,6 +30,9 @@
 	<define name="repeated_data"><word count="-1" name="x" /></define>
 	<define name="fixed_width_data"><data length="10" name="x" /><data name="y" /></define>
 	<define name="default_generate_data"><data default_generate="yes" length_prefix="word" /></define>
+	<define name="null_terminated_data"><data name="foo" null_terminated="yes" /><data name="bar" /></define>
+	<define name="null_separated_array"><data name="foo" count="-1" null_terminated="yes" /></define>
+	<define name="null_pad_data"><data name="foo" length="10" pad="0" /></define>
 
 	<!-- Count and Length -->
 	<define name="count_len"><data count="-1" length="1" name="foo" /></define>

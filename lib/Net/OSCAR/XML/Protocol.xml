@@ -41,13 +41,14 @@
 			<tlv type="3"><dword name="onsince" /></tlv>
 			<tlv type="4"><word name="idle" /></tlv>
 			<tlv type="13"><data length="16" count="-1" name="capabilities" /></tlv>
+			<tlv type="25"><data length="2" count="-1" name="shortcaps" /></tlv>
 			<tlv type="29">
 				<tlvchain subtyped="yes">
 					<tlv type="1" subtype="1"><data name="icon_md5sum" /></tlv>
 					<tlv type="2" subtype="-1"><data length_prefix="word" name="extended_status" /></tlv>
 				</tlvchain>
 			</tlv>
-
+		
 			<tlv type="5"> <!-- Only found in channel 3 IMs, why is it in this structure??? -->
 				<tlvchain>
 					<tlv type="12"><data name="invitation_message" /></tlv>
@@ -57,6 +58,14 @@
 					</tlv>
 				</tlvchain>
 			</tlv> 
+
+
+			<!-- Self-info only -->
+			<tlv type="15"><dword name="session_length" /></tlv>
+			<tlv type="10"><dword name="ip" /></tlv>
+
+			<!-- This contains a second copy of this structure - why?! -->
+			<tlv type="512" name="sub_info" />
 		</tlvchain>
 	</define>
 
@@ -169,19 +178,7 @@
 	<define name="IM parameter response" family="4" subtype="5" />
 	<define name="BOS rights request" family="9" subtype="2" />
 	<define name="BOS rights response" family="9" subtype="3" />
-	<define name="self information" family="1" subtype="15">
-		<data length_prefix="byte" name="screenname" />
-		<word name="warn_level" />
-		<tlvchain count_prefix="word">
-			<tlv type="1"><word name="class" /></tlv>
-			<tlv type="13"><data name="capabilities" /></tlv>
-			<tlv type="15"><dword name="session_length" /></tlv>
-			<tlv type="3"><dword name="online_since" /></tlv>
-			<tlv type="10"><dword name="ip" /></tlv>
-			<tlv type="5"><dword name="member_since" /></tlv>
-			<tlv type="6"><dword name="stealth_status" /></tlv>
-		</tlvchain>
-	</define>
+	<define name="self information" family="1" subtype="15"><ref name="userinfo" /></define>
 	<define name="minimum report interval" family="11" subtype="2" />
 	<define name="MOTD" family="1" subtype="19" />
 	<define name="server ready" family="1" subtype="3" />
@@ -293,7 +290,7 @@
 			<tlv type="3"><data name="awaymsg_mimetype" /></tlv>
 			<tlv type="4"><data name="awaymsg" /></tlv>
 
-			<tlv type="5"><data name="capabilities" /></tlv>
+			<tlv type="5"><data name="capabilities" length="16" count="-1" /></tlv>
 			<tlv type="6">
 				<tlvchain><tlv type="4"><word>2</word></tlv></tlvchain>
 			</tlv>
@@ -419,17 +416,21 @@
 					<tlv type="15" default_generate="yes" />
 
 					<!-- File transfer stuff -->
-					<tlv type="2"><dword name="proxy_ip" /></tlv>
-					<tlv type="3"><dword name="client_inside_ip" /></tlv>
-					<tlv type="4"><dword name="apparent_outside_ip" /></tlv>
+					<tlv type="2"><dword name="client_1_ip" /></tlv>
+					<tlv type="3"><dword name="client_2_ip" /></tlv>
+					<tlv type="4"><dword name="client_external_ip" /></tlv>
 					<tlv type="5"><word name="port" /></tlv>
+					<tlv type="22"><dword name="proxy_ip" /></tlv>
+
 
 					<!-- Proposal message -->
 					<tlv type="12"><data name="invitation_msg" /></tlv>
 					<tlv type="13"><data name="charset">us-ascii</data></tlv>
 					<tlv type="14"><data name="language">0</data></tlv>
 
-					<tlv type="10001"><data name="url" /></tlv>
+					<!-- See 'rendezvous service-specific data' -->
+					<tlv type="10001"><data name="svcdata" /></tlv>
+					<tlv type="10002"><data name="svcdata_charset" /></tlv>
 				</tlvchain>
 			</tlv>
 		</tlvchain>
@@ -438,7 +439,7 @@
 	<define name="incoming IM" family="4" subtype="7">
 		<ref name="standard IM header" />
 		<ref name="userinfo" />
-		<data name="IM" />
+		<data name="message_body" />
 	</define>
 	<define name="outgoing IM" family="4" subtype="6">
 		<ref name="standard IM header" />
@@ -552,42 +553,6 @@
 		<data name="departures" count="-1" length_prefix="byte" />
 	</define>
 
-
-	<define name="chat invite" family="4" subtype="6">
-		<data length="8" name="cookie" />
-		<word>2</word>
-		<data name="invitee" length_prefix="byte" />
-		<tlvchain>
-			<tlv type="5">
-				<word>0</word>
-				<word>32431</word>
-				<word>14848</word>
-				<word>45626</word>
-				<word>0</word>
-				<word>29839</word>
-				<word>9248</word>
-				<word>25223</word>
-				<word>4561</word>
-				<word>33314</word>
-				<word>17477</word>
-				<word>21332</word>
-				<word>0</word>
-				<tlvchain>
-					<tlv type="10"><word>1</word></tlv>
-					<tlv type="13"><data>us-ascii</data></tlv>
-					<tlv type="12"><data name="message" /></tlv>
-					<tlv type="15" />
-					<tlv type="10001">
-						<word name="exchange" />
-						<data name="url" length_prefix="byte" />
-						<word>0</word>
-						<word>3</word>
-						<word>0</word>
-					</tlv>
-				</tlvchain>
-			</tlv>
-		</tlvchain>
-	</define>
 
 	<define name="chat IM">
 		<data length="8" name="cookie" />
@@ -788,6 +753,58 @@
 		<word name="category" order="vax" />
 		<data name="keywords" length_prefix="word" prefix_order="vax" null_terminated="yes" />
 		<byte />
+	</define>
+
+
+	<!-- Rendezvous service-specific data -->
+	<define name="chat invite rendezvous data">
+		<word name="exchange">4</word>
+		<data name="url" />
+	</define>
+	<define name="file transfer rendezvous data">
+		<!-- 1 if only sending a single file, otherwise 2 -->
+		<word name="file_count_status" />
+		<word name="file_count" />
+		<dword name="size" />
+		<data count="-1" null_terminated="yes" name="files" />
+	</define>
+
+
+	<!-- Direct-connect and file transfer stuff -->
+	<define name="file transfer header">
+		<data length="4">OFT2</data>
+		<word name="header_length">256</word>
+
+		<!-- 0x0101 for syn, 0x0202 for ack, 0x0204 for fin -->
+		<word name="type" />
+
+		<data length="8" name="cookie" />
+
+		<word name="encrypt">0</word>
+		<word name="compress">0</word>
+		<word name="file_count" />
+		<word name="files_left" />
+		<word name="part_count">1</word>
+		<word name="parts_left">1</word>
+		<dword name="byte_count" />
+		<dword name="bytes_left" />
+		<dword name="mtime" />
+		<dword name="checksum" />
+		<dword name="received_initial_checksum">4294901760</dword>
+		<dword name="received_size">0</dword>
+		<dword name="ctime" />
+		<dword name="initial_checksum">4294901760</dword>
+		<dword name="bytes_received" />
+		<dword name="received_checksum" />
+		<data length="32" pad="0" name="client_id">Cool FileXfer</data>
+		<byte name="flags">32</byte>
+		<byte name="name_offset">28</byte>
+		<byte name="size_offset">17</byte>
+		<data length="69" pad="0" />
+		<data length="16" pad="0" name="mac_file_info" />
+		<word name="encoding">0</word>
+		<word name="language">0</word>
+		<data length="64" pad="0" name="filename" />
 	</define>
 </oscar>
 

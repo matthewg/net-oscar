@@ -17,6 +17,8 @@
 # is a series of 16-byte values, so by attaching count=-1 to that data item,
 # you can pass in a listref with the individual capabilities.  There is also
 # fixed-length character data, specified via the length attribute on the data element.
+# Data can be null-terminated and padded.  The value for the pad attribute specifies
+# the octet value to use for padding.
 #
 # Things that have, or can have, length prefixes, take an optional 'default_generate'
 # attribute.  If set to yes, this will give them a default value of "present but empty".
@@ -88,6 +90,7 @@
 	count CDATA #IMPLIED
 	default_generate (yes|no) #DEFAULT no
 	null_terminated (yes|no) #DEFAULT no
+	pad CDATA #IMPLIED
 >
 
 <!ELEMENT tlvchain (tlv*)>

@@ -101,7 +101,7 @@ sub unpack($$) {
 			}
 		} elsif($datum->{type} eq "data" or $datum->{type} eq "ref") {
 			# If we just have simple, no preset length, no subitems, raw data, it can't have a repeat count, since the first repetition will gobble up everything
-			assert($datum->{type} ne "data" or @{$datum->{items}} or defined($size) or $count == 1);
+			assert($datum->{type} ne "data" or @{$datum->{items}} or defined($size) or $count == 1 or $datum->{null_terminated});
 
 			# We want:
 			#	<data length_prefix="num" />
@@ -131,6 +131,11 @@ sub unpack($$) {
 					} else {
 						$subinput = $input;
 						$input = "";
+					}
+
+					if(exists($datum->{pad})) {
+						my $pad = chr($datum->{pad});
+						$subinput =~ s/$pad*$//;
 					}
 
 					if(@{$datum->{items}}) {
@@ -359,7 +364,9 @@ sub pack($%) {
 			next unless defined($value);
 
 			for($count = 0; ($max_count == -1 or $count < $max_count) and @valarray; $count++) {
-				$output .= pack($datum->{packlet}, shift @valarray);
+				my $val = shift @valarray;
+
+				$output .= pack($datum->{packlet}, $val);
 			}
 		} elsif($datum->{type} eq "data" or $datum->{type} eq "ref") {
 			for($count = 0; ($max_count == -1 or $count < $max_count) and @valarray; $count++) {
@@ -375,6 +382,10 @@ sub pack($%) {
 				}
 
 				$output .= chr(0) if $datum->{null_terminated};
+				if(exists($datum->{pad})) {
+					assert(exists($datum->{len}));
+					$output .= chr($datum->{pad}) x ($datum->{len} - length($output));
+				}
 			}
 		} elsif($datum->{type} eq "tlvchain") {
 			foreach my $tlv (@{$datum->{items}}) {

@@ -20,7 +20,7 @@ require Exporter;
 	FLAP_CHAN_NEWCONN FLAP_CHAN_SNAC FLAP_CHAN_ERR FLAP_CHAN_CLOSE
 	CONNTYPE_LOGIN CONNTYPE_BOS CONNTYPE_ADMIN CONNTYPE_CHAT CONNTYPE_CHATNAV CONNTYPE_ICON CONNTYPE_DIRECT_IN CONNTYPE_DIRECT_OUT
 	MODBL_ACTION_ADD MODBL_ACTION_DEL MODBL_WHAT_BUDDY MODBL_WHAT_GROUP MODBL_WHAT_PERMIT MODBL_WHAT_DENY
-	OSCAR_CAPS OSCAR_CAPS_INVERSE OSCAR_TOOLDATA
+	OSCAR_CAPS OSCAR_CAPS_INVERSE OSCAR_CAPS_SHORT_INVERSE OSCAR_TOOLDATA
 	GROUP_PERMIT GROUP_DENY BUDTYPES ERRORS
 
 	ICQ_META_INFO ICQ_META_INFO_INVERSE
@@ -97,8 +97,11 @@ use constant OSCAR_CAPS => {
 		"0xf2, 0xe7, 0xc7, 0xf4, 0xfe, 0xad, 0x4d, 0xfb, 0xb2, 0x35, 0x36, 0x79, 0x8b, 0xdf, 0x00, 0x00"))},
 	secureim => {description => "SecureIM encryption", value => pack("C*", map{hex($_)} split(/[ \t\n,]+/,
 		"0x09 0x46 0x01 0xff 0x4c 0x7f 0x11 0xd1 0x82 0x22 0x44 0x45 0x53 0x54 0x00 0x00"))},
+	video => {description => "A/V chat", value => pack("C*", map{hex($_)} split(/[ \t\n,]+/,
+		"0x09 0x46 0x01 0x05 0x4c 0x7f 0x11 0xd1 0x82 0x22 0x44 0x45 0x53 0x54 0x00 0x00"))},
 };
 use constant OSCAR_CAPS_INVERSE => { map { OSCAR_CAPS()->{$_}->{value} => $_ } keys %{OSCAR_CAPS()} };
+use constant OSCAR_CAPS_SHORT_INVERSE => { map { substr(OSCAR_CAPS()->{$_}->{value}, 2, 2) => $_ } keys %{OSCAR_CAPS()} };
 
 use constant OSCAR_TOOLDATA => tlv(
 	0x0001 => {version => 0x0004, toolid => 0x0110, toolversion => 0x08E5},
