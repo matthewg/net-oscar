@@ -1,6 +1,6 @@
 package Net::OSCAR::Common;
 
-$VERSION = 0.07;
+$VERSION = 0.08;
 
 use strict;
 use warnings;

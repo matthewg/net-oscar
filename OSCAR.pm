@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = 0.07;
+$VERSION = 0.08;
 
 =head1 NAME
 
@@ -1715,6 +1715,32 @@ you use the string comparison operators (eq, ne, cmp, etc.)
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+0.08, 2001-09-07
+
+=over 4
+
+=item *
+
+Totally rewritten buddylist handling.  It is now much cleaner, bug-resistant,
+and featureful.
+
+=item *
+
+Many, many internal changes that I don't feel like enumerating.
+Hey, there's a reason that I haven't declared the interface stable yet! ;)
+
+=item *
+
+New convenience object: Net::OSCAR::Screenname
+
+=item *
+
+Makefile.PL: Fixed perl version test and compatibility with BSD make
+
+=back
 
 =item *
 
