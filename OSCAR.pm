@@ -413,22 +413,26 @@ whether they're on the buddylist or not.
 
 =item findbuddy (BUDDY)
 
-Returns the name of the group that BUDDY is in, or undef if
+In scalar context, returns the name of the group that BUDDY is in, or undef if
 BUDDY could not be found in any group.  If BUDDY is in multiple
 groups, will return the first one we find.
+
+In list context, returns a two-element list consisting of the group
+name followed by the group hashref (or the empty list of the buddy
+is not found.)
 
 =cut
 
 sub findbuddy($$) {
 	my($self, $buddy) = @_;
 
-	foreach my $group(keys %{$self->{buddies}}) {
-		next if $group eq "__BLI_DIRTY" or !$group;
-		return $group if
-			$self->{buddies}->{$group}->{members}->{$buddy} and
-			not $self->{buddies}->{$group}->{members}->{$buddy}->{__BLI_DELETED};
+	foreach my $grpname (keys %{$self->{groups}->{$buddy}}) {
+		my $group = $self->{buddies}->{$grpname};
+		next if
+		  $group->{members}->{$buddy}->{__BLI_DELETED};
+		return wantarray ? ($grpname, $group) : $grpname;
 	}
-	return undef;
+	return;
 }
 
 =pod
@@ -594,17 +598,23 @@ sub buddies($;$) {
 	}
 
 	my @buddies;
-	foreach my $group (keys %{$self->{buddies}}) {
-		next if !$group or $group eq "__BLI_DIRTY";
+	while(my($grpname, $group) = each(%{$self->{buddies}})) {
+		next if !$grpname or $grpname eq "__BLI_DIRTY";
 		push @buddies, grep { not $group->{members}->{$_}->{__BLI_DELETED} } keys %{$group->{members}};
 	}
 	return @buddies;
 }
 sub buddy($$;$) {
-	my($self, $buddy, $group) = @_;
-	$group ||= $self->findbuddy($buddy);
+	my($self, $buddy, $grpname) = @_;
+	my $group;
 
-	my $ret = $self->{buddies}->{$group}->{members}->{$buddy} if $group;
+	if(!$grpname) {
+		($grpname, $group) = $self->findbuddy($buddy) or return;
+	} else {
+		$group = $self->{buddies}->{$grpname} or return;
+	}
+
+	my $ret = $group->{members}->{$buddy};
 	return $ret->{__BLI_DELETED} ? undef : $ret;
 
 	return $self->{userinfo}->{$buddy} || undef;

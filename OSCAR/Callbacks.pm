@@ -167,38 +167,41 @@ sub process_snac($$) {
 		my $screenname = $data{screenname};
 		$connection->log_print(OSCAR_DBG_DEBUG, "Incoming bogey - er, I mean buddy - $screenname");
 
-		my $group = $session->findbuddy($screenname);
-		return unless $group; # Without this, remove_buddy screws things up until signoff/signon
-		$data{buddyid} = $session->{buddies}->{$group}->{members}->{$screenname}->{buddyid};
+		my($grpname, $group) = $session->findbuddy($screenname);
+		return unless $grpname; # Without this, remove_buddy screws things up until signoff/signon
+		$data{buddyid} = $group->{members}->{$screenname}->{buddyid};
 		$data{online} = 1;
 		foreach my $key(keys %data) {
-			$session->{buddies}->{$group}->{members}->{$screenname}->{$key} = $data{$key};
+			$group->{members}->{$screenname}->{$key} = $data{$key};
 		}
-		if(exists($session->{buddies}->{$group}->{members}->{$screenname}->{idle}) and !exists($data{idle})) {
-			delete $session->{buddies}->{$group}->{members}->{$screenname}->{idle};
-			delete $session->{buddies}->{$group}->{members}->{$screenname}->{idle_since};
+		if(exists($group->{members}->{$screenname}->{idle}) and !exists($data{idle})) {
+			delete $group->{members}->{$screenname}->{idle};
+			delete $group->{members}->{$screenname}->{idle_since};
 		}
+
+		my $budinfo = $group->{members}->{$screenname};
 
 		# Sync $session->{userinfo}->{$foo} with buddylist entry
 		if($session->{userinfo}->{$screenname}) {
-			if(!$session->{userinfo}->{$screenname}->{online}) {
-				foreach my $key(keys %{$session->{userinfo}->{$screenname}}) {
-					$session->{buddies}->{$group}->{members}->{$screenname}->{$key} = $session->{userinfo}->{$screenname}->{$key};
+			my $info = $session->{userinfo}->{$screenname};
+			if(!$info->{online}) {
+				foreach my $key(keys %$info) {
+					$budinfo->{$key} = $info->{$key};
 				}
 				delete $session->{userinfo}->{$screenname};
-				$session->{userinfo}->{$screenname} = $session->{buddies}->{$group}->{members}->{$screenname};
+				$session->{userinfo}->{$screenname} = $budinfo;
 			}
 		} else {
-			$session->{userinfo}->{$screenname} = $session->{buddies}->{$group}->{members}->{$screenname};
+			$session->{userinfo}->{$screenname} = $budinfo;
 		}
-		$session->callback_buddy_in($screenname, $group, $session->{buddies}->{$group}->{members}->{$screenname});
+		$session->callback_buddy_in($screenname, $grpname, $budinfo);
 	} elsif($protobit eq "buddy signoff") {
 		my $buddy = $data{screenname};
-		my $group = $session->findbuddy($buddy);
-		return unless $group;
-		$session->{buddies}->{$group}->{members}->{$buddy}->{online} = 0;
+		my($grpname, $group) = $session->findbuddy($buddy);
+		return unless $grpname;
+		$group->{members}->{$buddy}->{online} = 0;
 		$connection->log_print(OSCAR_DBG_DEBUG, "And so, another former ally has abandoned us.  Curse you, $buddy!");
-		$session->callback_buddy_out($buddy, $group);
+		$session->callback_buddy_out($buddy, $grpname);
 	} elsif($protobit eq "service redirect response") {
 		my $conntype;
 		my %chatdata;

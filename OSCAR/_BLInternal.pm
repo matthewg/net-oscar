@@ -90,6 +90,7 @@ sub BLI_to_NO($) {
 
 	$session->{buddies} ||= bltie(1);
 	$session->{buddies}->{__BLI_DIRTY} = 0;
+	$session->{groups} ||= bltie();
 
 	$session->{permit} ||= bltie;
 	$session->{deny} ||= bltie;
@@ -189,7 +190,10 @@ sub BLI_to_NO($) {
 				delete $bli->{0}->{$gid}->{$bid};
 				next if $gid == 0 or !$group;
 
-				delete $session->{buddies}->{$group}->{members}->{$item->{name}} if $group;
+				if($group) {
+					delete $session->{buddies}->{$group}->{members}->{$item->{name}};
+					delete $session->{groups}->{$item->{name}}->{$group};
+				}
 				push @ret, {type => MODBL_WHAT_BUDDY, action => MODBL_ACTION_DEL, group => $group, buddy => $item->{name}};
 			} elsif($item->{__BLI_DIRTY}) {
 				$item->{__BLI_DIRTY} = 0;
@@ -210,6 +214,9 @@ sub BLI_to_NO($) {
 				$entry->{comment} = $comment;
 				$entry->{alias} = $alias;
 				$entry->{data} = $item->{data};
+
+				$session->{groups}->{$item->{name}} ||= {};
+				$session->{groups}->{$item->{name}}->{$group} = 1;
 
 				push @ret, {type => MODBL_WHAT_BUDDY, action => MODBL_ACTION_ADD, group => $group, buddy => $item->{name}};
 			}
@@ -296,14 +303,13 @@ sub NO_to_BLI($) {
 		$oldbli->{1}->{0}->{0}->{__BLI_SKIP} = 1;
 	}
 
-	foreach my $group(keys %{$session->{buddies}}) {
-		next if $group eq "__BLI_DIRTY";
+	while(my($grpname, $grp) = each(%{$session->{buddies}})) {
+		next if $grpname eq "__BLI_DIRTY";
 
-		my $grp = $session->{buddies}->{$group};
 		my $gid = $grp->{groupid};
 
 		if($grp->{__BLI_DELETED}) {
-			delete $session->{buddies}->{$group};
+			delete $session->{buddies}->{$grpname};
 			delete $bli->{1}->{$gid}->{0};
 			next;
 		}
@@ -318,7 +324,7 @@ sub NO_to_BLI($) {
 
 		init_entry($bli, 1, $gid, 0);
 		my $bligrp = $bli->{1}->{$gid}->{0};
-		$bligrp->{name} = $group;
+		$bligrp->{name} = $grpname;
 
 
 		# Clear out data, since the user may have deleted keys.
@@ -338,8 +344,7 @@ sub NO_to_BLI($) {
 		}
 
 
-		foreach my $buddy(keys %{$grp->{members}}) {
-			my $bud = $grp->{members}->{$buddy};
+		while(my($buddy, $bud) = each(%{$grp->{members}})) {
 			my $bid = $bud->{buddyid};
 
 			if($bud->{__BLI_DELETED}) {
