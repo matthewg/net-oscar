@@ -12,19 +12,6 @@ use Net::OSCAR::Buddylist;
 use Net::OSCAR::_BLInternal;
 use Net::OSCAR::OldPerl;
 
-sub capabilities($) {
-	my $session = shift;
-
-	my $caps;
-
-	$caps = OSCAR_CAPS()->{chat}->{value} . OSCAR_CAPS()->{interoperate}->{value};
-	$caps .= OSCAR_CAPS()->{extstatus}->{value} if $session->{capabilities}->{extended_status};
-	$caps .= OSCAR_CAPS()->{buddyicon}->{value} if $session->{capabilities}->{buddy_icons};
-	$caps .= OSCAR_CAPS()->{getfile}->{value} . OSCAR_CAPS()->{sendfile}->{value} if $session->{capabilities}->{file_transfer};
-
-	return $caps;
-}
-
 sub process_snac($$) {
 	my($connection, $snac) = @_;
 	my($conntype, $family, $subtype, $data, $reqid) = ($connection->{conntype}, $snac->{family}, $snac->{subtype}, $snac->{data}, $snac->{reqid});

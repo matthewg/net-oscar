@@ -638,6 +638,19 @@ sub newid($;$) {
 	return $id;
 }
 
+sub _capabilities($) {
+	my $self = shift;
+
+	my $caps;
+
+	$caps = OSCAR_CAPS()->{chat}->{value} . OSCAR_CAPS()->{interoperate}->{value};
+	$caps .= OSCAR_CAPS()->{extstatus}->{value} if $self->{capabilities}->{extended_status};
+	$caps .= OSCAR_CAPS()->{buddyicon}->{value} if $self->{capabilities}->{buddy_icons};
+	$caps .= OSCAR_CAPS()->{getfile}->{value} . OSCAR_CAPS()->{sendfile}->{value} if $self->{capabilities}->{file_transfer};
+
+	return $caps;
+}
+
 =pod
 
 =item commit_buddylist
@@ -1247,17 +1260,6 @@ sub evil($$;$) {
 	);
 }
 
-sub capabilities($) {
-	my $self = shift;
-	my $caps;
-
-	#AIM_CAPS_CHAT
-	$caps .= pack("C*", map{hex($_)} split(/[ \t\n]+/,
-		"74 8F 24 20  62 87 11 D1   82 22 44 45  53 54 00 00"));	
-
-	return $caps;
-}
-
 =pod
 
 =item set_away (MESSAGE)
@@ -1330,7 +1332,7 @@ sub set_info($$;$) {
 		$tlv{0x4} = $awaymsg;
 	}
 
-	$tlv{0x5} = $self->capabilities();
+	$tlv{0x5} = $self->_capabilities();
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Setting user information.");
 	$self->{bos}->snac_put(family => 0x02, subtype => 0x04, data => tlv_encode(\%tlv));
