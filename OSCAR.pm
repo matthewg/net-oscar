@@ -625,7 +625,7 @@ sub set_visibility($$) {
 	my($self, $vismode) = @_;
 
 	return must_be_on($self) unless $self->{is_on};
-	$self->{vismode} = $vismode;
+	$self->{visibility} = $vismode;
 }
 
 =pod
@@ -725,6 +725,7 @@ sub mod_permit($$$@) {
 	return must_be_on($self) unless $self->{is_on};
 	if($action == MODBL_ACTION_ADD) {
 		foreach my $buddy(@buddies) {
+			next if exists($self->{$group}->{$buddy});
 			$self->{$group}->{$buddy}->{buddyid} = $self->newid($self->{group});
 		}
 	} else {

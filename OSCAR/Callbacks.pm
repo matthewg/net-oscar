@@ -270,30 +270,16 @@ sub process_snac($$) {
 	} elsif($family == 0x1 and $subtype == 0x1F) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got memory request.");
 	} elsif($family == 0x13 and $subtype == 0x3) {
-		$connection->log_print(OSCAR_DBG_NOTICE, "Got buddylist 0x0003.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Got buddylist 0x0003.");	
+		$session->{gotbl} = 1;
 		#$connection->snac_put(family => 0x13, subtype => 0x7);
 	} elsif($family == 0x13 and $subtype == 0x6) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got buddylist.");
+		delete $session->{gotbl};
 
 		return unless Net::OSCAR::_BLInternal::blparse($session, $data);
 		$connection->snac_put(family => 0x13, subtype => 0x7);
-
-		$session->set_info("") unless $session->profile;
-
-		$connection->log_print(OSCAR_DBG_DEBUG, "Adding ICBM parameters.");
-		$connection->snac_put(family => 0x4, subtype => 0x2, data =>
-			pack("n*", 0, 0, 3, 0x1F40, 0x3E7, 0x3E7, 0, 0)
-		);
-
-		$connection->log_print(OSCAR_DBG_DEBUG, "Setting idle.");
-		$connection->snac_put(family => 0x1, subtype => 0x11, data => pack("N", 0));
-
-		$connection->ready();
-
-		$session->{is_on} = 1;
-		$session->callback_signon_done() unless $session->{sent_done}++;
-
-		$connection->snac_put(family => 0x2, subtype => 0xB, data => pack("Ca*", length(normalize($session->screenname)), normalize($session->screenname)));
+		got_buddylist($session, $connection);
 	} elsif($family == 0x13 and $subtype == 0x0E) {
 		$session->{budmods}--;
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got blmod ack ($session->{budmods} left).");
@@ -315,6 +301,14 @@ sub process_snac($$) {
 		if($session->{budmods} == 0) {
 			Net::OSCAR::_BLInternal::BLI_to_NO($session) if $session->{buderrors};
 			delete $session->{qw(blold buderrors)};
+		}
+	} elsif($family == 0x13 and $subtype == 0x0F) {
+		if($session->{gotbl}) {
+			delete $session->{gotbl};
+			$connection->log_print(OSCAR_DBG_WARN, "Couldn't get your buddylist - probably because you don't have one.");
+			got_buddylist($session, $connection);			
+		} else {
+			$connection->log_print(OSCAR_DBG_INFO, "Buddylist error:", hexdump($data));
 		}
 	} elsif($family == 0x1 and $subtype == 0x18) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got hostversions.");
@@ -467,4 +461,26 @@ sub process_snac($$) {
 	return 1;
 }
 
+sub got_buddylist($$) {
+	my($session, $connection) = @_;
+
+	$session->set_info("") unless $session->profile;
+
+	$connection->log_print(OSCAR_DBG_DEBUG, "Adding ICBM parameters.");
+	$connection->snac_put(family => 0x4, subtype => 0x2, data =>
+		pack("n*", 0, 0, 3, 0x1F40, 0x3E7, 0x3E7, 0, 0)
+	);
+
+	$connection->log_print(OSCAR_DBG_DEBUG, "Setting idle.");
+	$connection->snac_put(family => 0x1, subtype => 0x11, data => pack("N", 0));
+
+	$connection->ready();
+
+	$session->{is_on} = 1;
+	$session->callback_signon_done() unless $session->{sent_done}++;
+
+	$connection->snac_put(family => 0x2, subtype => 0xB, data => pack("Ca*", length(normalize($session->screenname)), normalize($session->screenname)));
+}
+
 1;
+

@@ -176,7 +176,7 @@ sub NO_to_BLI($) {
 	}
 
 	foreach my $deny (keys %{$session->{deny}}) {
-		$bli->{2}->{0}->{$session->{deny}->{$deny}->{buddyid}}->{name} = $deny;
+		$bli->{3}->{0}->{$session->{deny}->{$deny}->{buddyid}}->{name} = $deny;
 	}
 
 	my $vistype;
