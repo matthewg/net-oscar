@@ -307,7 +307,6 @@ sub process_snac($$) {
 			}
 
 			($type) = unpack("n", substr($data, 0, 2));
-			printf STDERR "Got type 0x%04X\n", $type;
 			if($type == 1) {
 				($tlvlen) = unpack("xx n", substr($data, 0, 4, ""));
 				substr($data, 0, $tlvlen) = "";
@@ -332,7 +331,6 @@ sub process_snac($$) {
 				}
 				my($buddy) = unpack("n/a*", $data);
 				if($buddy =~ /[\x00-\x1F\x7F-\xFF]/) {
-					print STDERR "Not a buddy!\n";
 					substr($data, 0, 2+length($buddy)) = "";
 					substr($data, 0, 1) = "" if $addedbyte;
 					next;
@@ -342,15 +340,11 @@ sub process_snac($$) {
 				next unless $buddy;
 
 				if($buddy->{buddyid}) {
-					$session->{DEBUG} = 1;
 					$session->debug_print("Queueing buddy $buddy->{name}.");
-					$session->{DEBUG} = 0;
 					push @buddyqueue, $buddy;
 				} else {
 					my $group = $buddy->{name};
-					$session->{DEBUG} = 1;
 					$session->debug_printf("Got group $group (0x%04X).", $buddy->{groupid});
-					$session->{DEBUG} = 0;
 					$session->{buddies}->{$group}->{groupid} = $buddy->{groupid};
 					$session->{buddies}->{$group}->{members} = $session->bltie();
 				}
