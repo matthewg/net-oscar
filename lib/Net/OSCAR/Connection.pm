@@ -250,7 +250,7 @@ sub set_blocking($$) {
 		ioctl($self->{socket},
 			0x80000000 | (4 << 16) | (ord('f') << 8) | 126,
 			$blocking
-		) or croak "Couldn't set Win32 blocking: $!";
+		) or warn "Couldn't set Win32 blocking: $!\n";
 	}
 
 	return $self->{socket};
