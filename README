@@ -19,7 +19,7 @@ INSTALLATION
             make test
             make install
 
-    See the perlmodinstall manpage for details.
+    See "perlmodinstall" for details.
 
 DEPENDENCIES
     This modules requies "Digest::MD5" and "Scalar::Util".

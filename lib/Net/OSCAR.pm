@@ -25,7 +25,7 @@ Net::OSCAR - Implementation of AOL's OSCAR protocol for instant messaging
 	make test
 	make install
 
-See L<perlmodinstall> for details.
+See C<perlmodinstall> for details.
 
 =head1 DEPENDENCIES
 
