@@ -115,7 +115,7 @@ sub BLI_to_NO($) {
 	}
 
 	if(exists $bli->{0x14}) {
-		$session->{icon_checksum} = $bli->{0x14}->{0}->{0x51F4}->{data}->{0xD5};
+		$session->{icon_md5sum} = $bli->{0x14}->{0}->{0x51F4}->{data}->{0xD5};
 	}
 
 	my @gids = unpack("n*", (exists($bli->{1}) and exists($bli->{1}->{0}) and exists($bli->{1}->{0}->{0}) and exists($bli->{1}->{0}->{0}->{data}->{0xC8})) ? $bli->{1}->{0}->{0}->{data}->{0xC8} : "");
@@ -203,9 +203,9 @@ sub NO_to_BLI($) {
 		$bli->{5}->{0}->{0x4D07}->{data}->{0xC9} = pack("N", $session->{showidle});
 	}
 
-	if(exists($session->{icon_checksum})) {
+	if(exists($session->{icon_md5sum})) {
 		$bli->{0x14}->{0}->{0x51F4}->{name} = "1";
-		$bli->{0x14}->{0}->{0x51F4}->{data}->{0xD5} = $session->{icon_checksum};
+		$bli->{0x14}->{0}->{0x51F4}->{data}->{0xD5} = $session->{icon_md5sum};
 	}
 
 	$bli->{1}->{0}->{0}->{data}->{0xC8} = pack("n*", map { $_->{groupid} } values %{$session->{buddies}});

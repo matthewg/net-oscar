@@ -54,7 +54,7 @@ sub rate_alert($$$) {
 
 sub buddylist_error($$$) {
 	my($oscar, $error, $what) = @_;
-	print STDERR "Error $error occured while trying to $what on your buddylist\n";
+	print STDERR "Error $error occured while $what on your buddylist\n";
 }
 
 sub buddylist_ok($) {
@@ -73,6 +73,12 @@ sub admin_ok($$) {
 	my($oscar, $reqtype) = @_;
 
 	print "Your $reqtype request was successful.\n";
+}
+
+sub buddy_icon_uploaded($) {
+	my($oscar) = @_;
+
+	print "Your buddy icon was successfully uploaded.\n";
 }
 
 sub chat_closed($$$) {
@@ -235,7 +241,7 @@ if($loglevel > 10) {
 	}
 }
 
-$oscar = Net::OSCAR->new(capabilities => [qw(typing_status extended_status)]);
+$oscar = Net::OSCAR->new(capabilities => [qw(typing_status extended_status buddy_icons)]);
 $oscar->set_callback_error(\&error);
 $oscar->set_callback_buddy_in(\&buddy_in);
 $oscar->set_callback_buddy_out(\&buddy_out);
@@ -252,6 +258,7 @@ $oscar->set_callback_buddylist_error(\&buddylist_error);
 $oscar->set_callback_buddylist_ok(\&buddylist_ok);
 $oscar->set_callback_admin_error(\&admin_error);
 $oscar->set_callback_admin_ok(\&admin_ok);
+$oscar->set_callback_buddy_icon_uploaded(\&buddy_icon_uploaded);
 $oscar->set_callback_rate_alert(\&rate_alert);
 $oscar->set_callback_typing_status(\&typing_status);
 $oscar->set_callback_extended_status(\&extended_status);
@@ -319,6 +326,7 @@ chat_send chat_number message
 set_profile profile
 set_away awaymsg
 set_extended_status statusmsg
+set_icon iconpath
 get_dir screenname
 set_dir [info]
 format_screenname screenname
@@ -437,6 +445,16 @@ EOF
 			$oscar->set_away(join(" ", @params));
 		} elsif($cmd eq "set_extended_status") {
 			$oscar->set_extended_status(join(" ", @params));
+		} elsif($cmd eq "set_icon") {
+			local $/ = undef;
+			open(ICON, join(" ", @params)) or do {
+				print "Couldn't open ", join(" ", @params), ": $!\n";
+				next;
+			};
+			my $icondata = <ICON>;
+			close ICON;
+			$oscar->set_icon($icondata);
+			$oscar->commit_buddylist;
 		} elsif($cmd eq "get_dir") {
 			print "Not implemented.\n";
 		} elsif($cmd eq "set_dir") {

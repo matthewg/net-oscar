@@ -1084,6 +1084,17 @@ sub send_im($$$;$) {
 		$packet .= tlv(3 => ""); #request server confirmation
 	}
 
+	if($self->{capabilities}->{buddy_icons} and $self->{icon} and
+		(!exists($self->{userinfo}->{$to}) or
+		!exists($self->{userinfo}->{to}->{icon_timestamp_received}) or
+		$self->{icon_timestamp} > $self->{userinfo}->{$to}->{icon_timestamp_received})
+	) {
+		$self->log_print(OSCAR_DBG_DEBUG, "Informing $to about our buddy icon.");
+		$self->{userinfo}->{$to} ||= {};
+		$self->{userinfo}->{$to}->{icon_timestamp_received} = $self->{icon_timestamp};
+		$packet .= tlv(8 => pack("NnnN", length($self->{icon}), 1, $self->{icon_checksum}, $self->{icon_timestamp}));
+	}
+
 	my $flags2 = $self->{capabilities}->{typing_status} ? 0xB : 0;
 	$self->{bos}->snac_put(reqid => $reqid, reqdata => $to, family => 0x4, subtype => 0x6, data => $packet, flags2 => $flags2);
 	return $reqid;
@@ -1330,17 +1341,55 @@ sub set_info($$;$) {
 =item set_icon (ICONDATA)
 
 Sets the user's buddy icon.  The C<Net::OSCAR> object must have been created
-with the C<buddy_icons> capability to use this.  C<ICONDATA> should be GIF
-image data.  You must call L<commit_buddylist> for this change to take effect.
+with the C<buddy_icons> capability to use this.  C<ICONDATA> must be less
+than 4kb, should be 48x48 pixels, and should be BMP, GIF, or JPEG image data.
+You must call L<commit_buddylist> for this change to take effect.  If
+C<ICONDATA> is the empty string, the user's buddy icon will be removed.
 
 =cut
 
 sub set_icon($$) {
 	my($self, $icon) = @_;
 
-	$self->{icon} = $icon;
-	$self->{icon_checksum} = md5($icon);
+	if($icon) {
+		$self->{icon} = $icon;
+		$self->{icon_md5sum} = pack("n", 0x10) . md5($icon);
+		$self->{icon_checksum} = $self->icon_checksum($icon);
+		$self->{icon_timestamp} = time;
+	} else {
+		delete $self->{icon};
+		delete $self->{icon_md5sum};
+		delete $self->{icon_checksum};
+		delete $self->{icon_timestamp};
+	}
 }
+
+=pod
+
+=item icon_checksum (ICONDATA)
+
+Returns a checksum of the buddy icon.  Use this in conjunction with the
+C<icon_checksum> buddy info key to cache buddy icons.
+
+=cut
+
+sub icon_checksum($$) {
+	my($self, $icon) = @_;
+
+	my $sum = 0;
+	my $i = 0;
+	for($i = 0; $i+1 < length($icon); $i += 2) {
+		$sum += (ord(substr($icon, $i+1, 1)) << 8) + ord(substr($icon, $i, 1));
+	}
+
+	$sum += ord(substr($icon, $i, 1)) if $i < length($icon);
+
+	$sum = (($sum & 0xFFFF0000) >> 16) + ($sum & 0x0000FFFF);
+
+	return $sum;
+}
+
+
 
 sub svcdo($$%) {
 	my($self, $service, %snac) = @_;
@@ -1349,6 +1398,8 @@ sub svcdo($$%) {
 		$svcname = "admin";
 	} elsif($service == CONNTYPE_CHATNAV) {
 		$svcname = "chatnav";
+	} elsif($service == CONNTYPE_ICON) {
+		$svcname = "icon";
 	}
 
 	if($self->{$svcname} and ref($self->{$svcname})) {
@@ -1705,6 +1756,11 @@ The user is using a mobile device.
 
 The user is known to support typing status notification.  We only find this out if they send us an IM.
 
+=item icon_checksum
+
+The checksum time of the user's buddy icon, if available.  Use this, in conjunction with
+the L<icon_checksum> method, to cache buddy icons.
+
 =item membersince
 
 Time that the user's account was created, in the same format as the C<time> function.
@@ -1719,6 +1775,9 @@ Time that the user has been idle for, in seconds.  If this key is present but ze
 the user is not idle.  If this key is not present, the user is not reporting idle time.
 
 =back
+
+Some keys; namely, C<typing_status> and C<icon_checksum>, may be available for people
+who the user has communicated with but who are not on the user's buddylist.
 
 =item email
 
@@ -1746,8 +1805,8 @@ sub buddies($;$) {
 sub buddy($$;$) {
 	my($self, $buddy, $group) = @_;
 	$group ||= $self->findbuddy($buddy);
-	return undef unless $group;
-	return $self->{buddies}->{$group}->{members}->{$buddy};
+	return $self->{buddies}->{$group}->{members}->{$buddy} if $group;
+	return $self->{userinfo}->{$buddy} || undef;
 }
 sub email($) { return shift->{email}; }
 sub screenname($) { return shift->{screenname}; }
@@ -1877,6 +1936,10 @@ information about the error.
 =item admin_ok (OSCAR, REQTYPE)
 
 This is called when an administrative function succeeds.  See L<admin_error> for more info.
+
+=item buddy_icon_uploaded (OSCAR)
+
+This is called when the user's buddy icon is successfully uploaded to the server.
 
 =item chat_closed (OSCAR, CHAT, ERROR)
 
@@ -2065,6 +2128,7 @@ sub callback_buddylist_error(@) { do_callback("buddylist_error", @_); }
 sub callback_buddylist_ok(@) { do_callback("buddylist_ok", @_); }
 sub callback_admin_error(@) { do_callback("admin_error", @_); }
 sub callback_admin_ok(@) { do_callback("admin_ok", @_); }
+sub callback_buddy_icon_uploaded(@) { do_callback("buddy_icon_uploaded", @_); }
 sub callback_rate_alert(@) { do_callback("rate_alert", @_); }
 sub callback_signon_done(@) { do_callback("signon_done", @_); }
 sub callback_log(@) { do_callback("log", @_); }
@@ -2090,6 +2154,10 @@ sub set_callback_buddylist_error($\&) { set_callback("buddylist_error", @_); }
 sub set_callback_buddylist_ok($\&) { set_callback("buddylist_ok", @_); }
 sub set_callback_admin_error($\&) { set_callback("admin_error", @_); }
 sub set_callback_admin_ok($\&) { set_callback("admin_ok", @_); }
+sub set_callback_buddy_icon_uploaded($\&) {
+	croak "This client does not support buddy icons." unless $_[0]->{capabilities}->{buddy_icons};
+	set_callback("buddy_icon_uploaded", @_);
+}
 sub set_callback_rate_alert($\&) { set_callback("rate_alert", @_); }
 sub set_callback_signon_done($\&) { set_callback("signon_done", @_); }
 sub set_callback_log($\&) { set_callback("log", @_); }

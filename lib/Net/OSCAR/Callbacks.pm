@@ -123,13 +123,32 @@ sub process_snac($$) {
 			$session->callback_chat_joined($connection->name, $connection) unless $connection->{sent_joined}++;
 		}
 	} elsif($family == 0x1 and $subtype == 0x21) {
-		$connection->log_print(OSCAR_DBG_DEBUG, "Got extended information message.");
-
-		$connection->log_print(OSCAR_DBG_DEBUG, hexdump($data));
 		my($infotype, $flags, $len) = unpack("nCC", substr($data, 0, 4, ""));
-		if($infotype == 2) {
+		if($infotype == 6) {
+			substr($data, 0, 4) = "";
+			($infotype, $flags, $len) = unpack("nCC", substr($data, 0, 4, ""));
+		}
+		$connection->log_print(OSCAR_DBG_DEBUG, "Got extended information message $infotype/$flags.");
+
+		if($infotype == 0 or $infotype == 1) { # Buddy icon upload request
+			if($session->{icon} and $session->{is_on}) {
+				my $md5 = substr($data, 0, $len, "");
+				if($flags == 0x41) {
+					$connection->log_print(OSCAR_DBG_INFO, "Uploading buddy icon.");
+					$session->svcdo(CONNTYPE_ICON, family => 0x10, subtype => 0x02, data => pack("nna*", 1, length($session->{icon}), $session->{icon}));
+				} elsif($flags == 0x81) {
+					$connection->log_print(OSCAR_DBG_WARN, "Got icon resend request!");
+					$session->set_icon($session->{icon});
+				} else {
+					$connection->log_print(OSCAR_DBG_WARN, "Unknown extended info request: $infotype/$flags");
+				}
+			}
+		} elsif($infotype == 2) { # Extended status update
 			my($message) = unpack("n/a*", $data);
+			substr($data, 0, length($message) + 2) = "";
 			$session->callback_extended_status($message);
+		} else {
+			$connection->log_print(OSCAR_DBG_WARN, "Unknown extended info request: $infotype/$flags");
 		}
 	} elsif($subtype == 0x1) {
 		$subtype = $reqid >> 16;
@@ -503,6 +522,9 @@ sub process_snac($$) {
 		$session->callback_admin_ok(ADMIN_TYPE_ACCOUNT_CONFIRM);
 	} elsif($family == 0x09 and $subtype == 0x02) {
 		$session->crapout($connection, "A session using this screenname has been opened in another location.");
+	} elsif($family == 0x10 and $subtype == 0x03) {
+		$session->log_print(OSCAR_DBG_INFO, "Buddy icon uploaded.");
+		$session->callback_buddy_icon_uploaded();
 	} else {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Unknown SNAC: ".hexdump($snac->{data}));
 	}

@@ -203,7 +203,7 @@ use constant OSCAR_TOOLDATA => {
 	0xFFFF => {version => 0x0000, toolid => 0x0000, toolversion => 0x0000, nobos => 1},
 };
 
-use constant BUDTYPES => ("buddy", "group", "permit entry", "deny entry", "visibility/misc. data", "presence");
+use constant BUDTYPES => ("buddy", "group", "permit entry", "deny entry", "visibility/misc. data", "presence", "unknown 6", "unknown 7", "unknown 8", "unknown 9", "unknown 10", "unknown 11", "unknown 12", "unknown 13", "unknown 14", "unknown 15", "unknown 16", "unknown 17", "unknown 18", "unknown 19", "buddy icon data");
 
 use constant ENCODING => 'text/aolrtf; charset="us-ascii"';
 
