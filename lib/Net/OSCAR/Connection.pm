@@ -188,7 +188,7 @@ sub read($$;$) {
 		$readlen = $buffsize - length(${$self->{buffer}});
 	}
 
-	if($readlen > 0 and !$no_reread) {
+	if($readlen > 0 and $no_reread != 1) {
 		my $buffer = "";
 		my $nchars = sysread($self->{socket}, $buffer, $buffsize - length(${$self->{buffer}}));
 		if(${$self->{buffer}}) {
