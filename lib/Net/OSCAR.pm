@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = '0.61';
+$VERSION = '0.62';
 
 =head1 NAME
 
@@ -2064,6 +2064,26 @@ Returns the C<Net::OSCAR> object associated with this C<Net::OSCAR::Connection>.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+0.62, 2002-02-25
+
+=over 4
+
+=item *
+
+Error handling slightly improved; error 29 is no longer unknown.
+
+=item *
+
+A minor internal buddylist enhancement
+
+=item *
+
+snacsnatcher fixes
+
+=back
 
 =item *
 

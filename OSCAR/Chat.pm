@@ -1,7 +1,7 @@
 package Net::OSCAR::Chat;
 
 
-$VERSION = '0.61';
+$VERSION = '0.62';
 
 use strict;
 use Carp;

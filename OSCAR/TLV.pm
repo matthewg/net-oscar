@@ -1,6 +1,6 @@
 package Net::OSCAR::TLV;
 
-$VERSION = '0.61';
+$VERSION = '0.62';
 
 use strict;
 use vars qw($VERSION);
