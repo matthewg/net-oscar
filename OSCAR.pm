@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = 0.50;
+$VERSION = 0.55;
 
 =head1 NAME
 
@@ -1989,6 +1989,38 @@ of C<Net::OSCAR::Connection>, not C<Net::OSCAR>.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+0.55, 2001-12-29
+
+=over 4
+
+=item *
+
+Preliminary ICQ support, courtesy of SDiZ Chen.
+
+=item *
+
+Restored support for pre-5.6 perls - reverted from C<IO::Socket> to C<Socket>.
+
+=item *
+
+Corrected removal of buddylist entries and other buddylist-handling improvements
+
+=item *
+
+Improved rate handling - new C<worrisome> parameter to rate_alert callback
+
+=item *
+
+Removed remaining C<croak> from C<OSCAR::Connection>
+
+=item *
+
+Added is_on method
+
+=back
 
 =item *
 
