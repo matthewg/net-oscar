@@ -51,6 +51,9 @@ require Exporter;
 use Memoize;
 memoize('protoparse');
 
+sub _protopack($$;@);
+sub _xmlnode_to_template($$);
+
 $xmlparser = new XML::Parser(Style => "Tree");
 my $xmlfile = "";
 foreach (@INC) {
@@ -73,13 +76,13 @@ shift @tags;
 while(@tags) {
 	my($name, $value);
 	(undef, undef, $name, $value) = splice(@tags, 0, 4);
-	next unless $name eq "define";
+	next unless $name and $name eq "define";
 	
 	$xmlmap{$value->[0]->{name}} = {xml => $value};
 	if($value->[0]->{family}) {
-		$xmlmap{$value->[0]->{name}}->{family} = $value->{0]->{family};
-		$xmlmap{$value->[0]->{name}}->{subtype} = $value->{0]->{subtype};
-		$xmlmap{$value->[0]->{name}}->{channel} = $value->{0]->{channel};
+		$xmlmap{$value->[0]->{name}}->{family} = $value->[0]->{family};
+		$xmlmap{$value->[0]->{name}}->{subtype} = $value->[0]->{subtype};
+		$xmlmap{$value->[0]->{name}}->{channel} = $value->[0]->{channel};
 		$xml_revmap{$value->[0]->{family}}->{$value->[0]->{subtype}} = $value->[0]->{name};
 	}
 }
@@ -107,7 +110,7 @@ sub _xmldump {
 #		value: If present, default value of this datum.
 #		name: If present, name in parameter list that this datum gets.
 
-sub _protopack($$@) {
+sub _protopack($$;@) {
 	my $oscar = shift;
 	my $template = shift;
 
@@ -124,7 +127,7 @@ sub _protopack($$@) {
 				}
 			} elsif($datum->{type} eq "data") {
 				if($datum->{packlet}) {
-					my(%tmp) = _protopack([{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, name => "len"}], substr($packet, 0, $datum->{len}, ""));
+					my(%tmp) = _protopack($oscar, [{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, name => "len"}], substr($packet, 0, $datum->{len}, ""));
 					if($datum->{name}) {
 						$data{$datum->{name}} = substr($packet, 0, $tmp{len}, "");
 					} else {
@@ -137,7 +140,7 @@ sub _protopack($$@) {
 				my($tlvpacket, $tlvmax, $tlvcount) = ($packet, 0, 0);
 
 				if($datum->{prefix}) {
-					my(%tmp) = _protopack([{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, name => "len"}], substr($packet, 0, $datum->{len}, ""));
+					my(%tmp) = _protopack($oscar, [{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, name => "len"}], substr($packet, 0, $datum->{len}, ""));
 					if($datum->{prefix} eq "count") {
 						$tlvmax = $tmp{len};
 					} else {
@@ -175,11 +178,11 @@ sub _protopack($$@) {
 
 					if($datum->{short}) {
 						while(my($shortnum, $shortval) = each %$val) {
-							my(%tmp) = _protopack([$shortval], $shortval->{data});
+							my(%tmp) = _protopack($oscar, [$shortval], $shortval->{data});
 							$data{$_} = $tmp{$_} foreach keys %tmp;
 						}
 					} else {
-						my(%tmp) = _protopack([$val], $val->{data});
+						my(%tmp) = _protopack($oscar, [$val], $val->{data});
 						$data{$_} = $tmp{$_} foreach keys %tmp;
 					}
 				}
@@ -189,20 +192,24 @@ sub _protopack($$@) {
 		$oscar->log_print(OSCAR_DBG_DEBUG, "Decoded:\n", join("\n", map { "\t$_ => $data{$_}" } keys %data));
 		return %data;
 	} else { # Pack
+		confess "WAHH!", Data::Dumper::Dumper($template) if @_ == 1;
 		my %data = @_;
 		my $packet = "";
 
 		$oscar->log_print(OSCAR_DBG_DEBUG, "Encoding:\n", join("\n", map { "\t$_ => $data{$_}" } keys %data));
 
 		foreach my $datum (@$template) {
-			my $value = $data{$datum->{name}} || $datum->{value};
+			my $value = undef;
+			$value = $data{$datum->{name}} if $datum->{name};
+			$value = $datum->{value} if !defined($value);
 			next unless defined($value);
 
 			if($datum->{type} eq "num") {
 				$packet .= pack($datum->{packlet}, $value);
 			} elsif($datum->{type} eq "data") {
+				confess Data::Dumper::Dumper($datum) unless $value;
 				if($datum->{packlet}) {
-					my $prefix = _protopack([{type => "num", packlet => $datum->{packlet}, len => $datum->{len}}], $value);
+					my $prefix = _protopack($oscar, [{name => "length", type => "num", packlet => $datum->{packlet}, len => $datum->{len}}], length => length($value));
 					$packet .= $prefix;
 				}
 				$packet .= $value;
@@ -211,26 +218,28 @@ sub _protopack($$@) {
 
 				foreach (@{$datum->{items}}) {
 					$tlvcount++;
-					my $tmp = _protopack([$_], %data);
+					my $tmp = _protopack($oscar, [$_], %data);
+					next if $tmp eq "";
+					confess "No num: ", Data::Dumper::Dumper($_) unless $_->{num};
 					if($datum->{short}) {
-						$tlvpacket .= _protopack([
-							{type => "num", packlet => "n", len => 2, value => $_->{num}},
-							{type => "data", packlet => "n", len => 2, value => $tmp},
-						]);
-					} else {
-						$tlvpacket .= _protpack([
+						$tlvpacket .= _protopack($oscar, [
 							{type => "num", packlet => "n", len => 2, value => $_->{num}},
 							{type => "num", packlet => "C", len => 1, value => $_->{shortno}},
 							{type => "data", packlet => "C", len => 1, value => $tmp},
+						]);
+					} else {
+						$tlvpacket .= _protopack($oscar, [
+							{type => "num", packlet => "n", len => 2, value => $_->{num}},
+							{type => "data", packlet => "n", len => 2, value => $tmp},
 						]);
 					}
 				}
 
 				if($datum->{prefix}) {
 					if($datum->{prefix} eq "count") {
-						$packet .= _protopack([{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, value => $tlvcount}]);
+						$packet .= _protopack($oscar, [{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, value => $tlvcount}]);
 					} else {
-						$packet .= _protopack([{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, value => length($tlvpacket)}]);
+						$packet .= _protopack($oscar, [{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, value => length($tlvpacket)}]);
 					}
 				}
 
@@ -244,6 +253,7 @@ sub _protopack($$@) {
 
 sub _num_to_packlen($$) {
 	my($type, $order) = @_;
+	$order ||= "network";
 
 	if($type eq "byte") {
 		return ("C", 1);
@@ -276,8 +286,14 @@ sub _xmlnode_to_template($$) {
 	$datum->{shortno} = $attrs->{shortno} if exists($attrs->{shortno});
 
 	if($tag eq "ref") {
-		unshift @$xml, @{$xmlmap{$value->[0]->{name}}};
-		next;
+		my $xml = $xmlmap{$attrs->{name}}->{xml};
+		shift @$xml; # remove attributes
+		my($tag, $value) = ("0", "");
+		while($tag eq "0") {
+			$tag = shift @$xml;
+			$value = shift @$xml;
+		}
+		return _xmlnode_to_template($tag, $value);
 	} elsif($tag eq "byte" or $tag eq "word" or $tag eq "dword") {
 		my($packlet, $len) = _num_to_packlen($tag, $attrs->{order});
 		$datum->{type} = "num";
@@ -293,6 +309,8 @@ sub _xmlnode_to_template($$) {
 			$datum->{len} = $len;
 		}
 	} elsif($tag eq "tlvchain") {
+		$datum->{type} = "tlvchain";
+
 		if($attrs->{count_prefix} or $attrs->{length_prefix}) {
 			my($packlet, $len) = _num_to_packlen($attrs->{count_prefix} || $attrs->{length_prefix}, $attrs->{prefix_order});
 			$datum->{packlet} = $packlet;
@@ -300,14 +318,23 @@ sub _xmlnode_to_template($$) {
 			$datum->{prefix} = $attrs->{count_prefix} ? "count" : "length";
 		}
 
-		$datum->{short} = 1 if $attrs->{short} eq "yes";
+		$datum->{short} = 1 if $attrs->{short} and $attrs->{short} eq "yes";
 		$datum->{items} = [];
 
 		while(@$value) {
 			my($tlvtag, $tlvval) = splice(@$value, 0, 2);
 			next if $tlvtag eq "0";
+			my $attrs = shift @$tlvval;
 
-			push @{$datum->{items}}, _xmlnode_to_template($tlvtag, $tlvval);
+			my($innertag, $innerval) = ("0", "");
+			while($innertag eq "0") {
+				($innertag, $innerval) = splice(@$tlvval, 0, 2);
+			}
+			my $item = _xmlnode_to_template($innertag, $innerval);
+			$item->{name} = $attrs->{name} if $attrs->{name};
+			$item->{num} = $attrs->{type};
+
+			push @{$datum->{items}}, $item;
 		}
 	}
 
@@ -317,6 +344,8 @@ sub _xmlnode_to_template($$) {
 sub protoparse($$) {
 	my ($oscar, $wanted) = @_;
 	my $xml = $xmlmap{$wanted}->{xml} or croak "Couldn't find requested protocol element '$wanted'.";
+
+	confess "No oscar!" unless $oscar;
 
 	my $attrs = shift @$xml;
 
@@ -500,12 +529,14 @@ sub signon_tlv($;$$) {
 
 	if($session->{svcdata}->{hashlogin}) {
 		$protodata{password} = encode_password($session, $password);
+		$protodata{protobit} = "signon_ICQ";
 	} else {
 		if($session->{auth_response}) {
 			$protodata{auth_response} = delete $session->{auth_response};
 		} else {
 			$protodata{auth_response} = encode_password($session, $password, $key);
 		}
+		$protodata{protobit} = "signon";
 	}
 
 	return %protodata;

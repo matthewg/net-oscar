@@ -37,7 +37,8 @@ sub process_snac($$) {
 
 		if(defined($connection->{auth})) {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Sending password.");
-			$connection->snac_put(family => 0x17, subtype => 0x2, data => tlv_encode(signon_tlv($session, $connection->{auth}, $key)));
+			my %data = signon_tlv($session, $connection->{auth}, $key);
+			$session->svcdo(CONNTYPE_BOS, protobit => delete $data{protobit}, protodata => {%data});
 		} else {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Giving client authentication challenge.");
 			$session->callback_auth_challenge($key, "AOL Instant Messenger (SM)");

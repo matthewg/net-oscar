@@ -427,11 +427,8 @@ sub auth_response($$) {
 	my($self, $digest) = @_;
 	$self->log_print(OSCAR_DBG_SIGNON, "Got authentication response - proceeding with signon");
 	$self->{auth_response} = $digest;
-	if($self->{svcdata}->{hashlogin}) {
-		$self->svcdo(CONNTYPE_BOS, protobit => "signon_ICQ", protodata => signon_tlv($self));
-	} else {
-		$self->svcdo(CONNTYPE_BOS, protobit => "signon", protodata => signon_tlv($self));
-	}
+	my %data = signon_tlv($self);
+	$self->svcdo(CONNTYPE_BOS, protobit => delete $data{protobit}, protodata => {%data});
 }
 
 =pod
@@ -1078,7 +1075,7 @@ sub postprocess_userinfo($$) {
 	if($userinfo->{icon_md5sum}) {
 		if(!exists($self->{userinfo}->{$userinfo->{screenname}})
 		   or !exists($self->{userinfo}->{$userinfo->{screenname}}->{icon_md5sum})
-		   or $self->{userinfo}->{$userinfo->{screenname}}->{icon_md5sum} ne $icon_md5sum) {
+		   or $self->{userinfo}->{$userinfo->{screenname}}->{icon_md5sum} ne $userinfo->{icon_md5sum}) {
 			$self->callback_new_buddy_icon($retval->{screenname}, $retval);
 		}
 	}
@@ -1572,7 +1569,7 @@ sub svcdo($$%) {
 
 	my %snac = %data;
 	($snac{family}, $snac{subtype}) = protobit_to_snacfam($data{protobit}) or croak "Couldn't find protobit $data{protobit}";
-	$snac{data} = protoparse($self, $data{protobit})->(%{$data->{protodata}});
+	$snac{data} = protoparse($self, $data{protobit})->(%{$data{protodata}});
 
 	if($self->{services}->{$service} and ref($self->{services}->{$service})) {
 		$self->{services}->{$service}->snac_put(%snac);

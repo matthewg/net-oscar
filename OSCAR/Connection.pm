@@ -163,7 +163,7 @@ sub snac_encode($%) {
 	$snac{reqid} ||= ($snac{subtype}<<16) | (unpack("n", randchars(2)))[0];
 	$self->{reqdata}->[$snac{family}]->{pack("N", $snac{reqid})} = $snac{reqdata} if $snac{reqdata};
 
-	return pack("nnCCNa*", $snac{family}, $snac{subtype}, $snac{flags1}, $snac{flags2}, $snac{reqid}, $snac{data});
+	return pack("nnCCN", $snac{family}, $snac{subtype}, $snac{flags1}, $snac{flags2}, $snac{reqid}) . $snac{data};
 }
 
 sub snac_put($%) {
