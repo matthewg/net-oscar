@@ -10,6 +10,7 @@ $build = Module::Build->new (
                 'Digest::MD5' => '>= 2.0',
                 'Scalar::Util' => '>= 1.0',
 		'Test::More' => '>= 0.01',
+		'XML::Parser' => '>= 0.01',
 	},
 	create_makefile_pl => "traditional",
 	dist_version_from => "OSCAR.pm",

@@ -11,8 +11,14 @@ Net::OSCAR - Implementation of AOL's OSCAR protocol for instant messaging (for i
 
 	use Net::OSCAR qw(:standard);
 
+	sub im_in {
+		my($oscar, $sender, $message, $is_away) = @_;
+		print "[AWAY] " if $is_away;
+		print "$sender: $message\n";
+	}
+
 	$oscar = Net::OSCAR->new();
-	$oscar->set_callback_foo(\&foo);
+	$oscar->set_callback_im_in(\&im_in);
 	$oscar->signon($screenname, $password);
 	while(1) {
 		$oscar->do_one_loop();
@@ -21,21 +27,25 @@ Net::OSCAR - Implementation of AOL's OSCAR protocol for instant messaging (for i
 
 =head1 INSTALLATION
 
+=head2 HOW TO INSTALL
+
 	perl Build.PL
 	perl Build
 	perl Build test
 	perl Build install
-                                                                                                      
+
 See C<perldoc Module::Build> for details.
 Note that this requires that you have the perl module Module::Build installed.
 If you don't, the traditional C<perl Makefile.PL ; make ; make test ; make install>
 should still work.
 
-=head1 DEPENDENCIES
+=head2 DEPENDENCIES
 
-This modules requires C<Digest::MD5> and C<Scalar::Util>.
+This modules requires C<Digest::MD5>, C<Scalar::Util>, C<Test::More>, and C<XML::Parser>.
 
-=head1 ABSTRACT
+=head1 INTRODUCTION
+
+=head2 ABSTRACT
 
 C<Net::OSCAR> implements the OSCAR protocol which is used by AOL's AOL Instant
 Messenger service.  To use the module, you create a C<Net::OSCAR> object,
@@ -56,88 +66,30 @@ protocol-level differences prevent total compatibility.  The TOC protocol implem
 by C<Net::AIM> is simpler and more well-documented but less-powerful protocol then
 C<OSCAR>.  See the section on L<Net::AIM Compatibility> for more information.
 
-=head1 EVENT PROCESSING
+=head2 EVENT PROCESSING
 
 There are three main ways for the module to handle event processing.  The first is to
 call the L<do_one_loop> method, which performs a C<select> call on all the object's
 sockets and reads incoming commands from the OSCAR server on any connections which
 have them.  The C<select> call has a default timeout of 0.01 seconds which can
-be adjust using the L<timeout> method.
+be adjust using the L<timeout> method.  If you need lower overhead, want better
+performance, or need to handle many Net::OSCAR objects and/or other files and sockets
+at once, see L<HIGH-PERFORMANCE EVENT PROCESSING> below.
 
-A second way of doing event processing is designed to make it easy to integrate
-C<Net::OSCAR> into an existing C<select>-based event loop, especially one where you
-have many C<Net::OSCAR> objects.  Simply call the L<"process_connections"> method
-with references to the lists of readers, writers, and errors given to you by
-C<select>.  Connections that don't belong to the object will be ignored, and
-connections that do belong to the object will be removed from the C<select> lists
-so that you can use the lists for your own purposes.  Here is an example that
-demonstrates how to use this method with multiple C<Net::OSCAR> objects:
+=head2 FUNCTIONALITY
 
-	my($rin, $win) = (0, 0);
-	foreach my $oscar(@oscars) {
-		my($thisrin, $thiswin) = $oscar->selector_filenos;
-		$rin |= $thisrin;
-		$win |= $thiswin;
-	}
-	# Add in any other file descriptors you care about using vec().
-	my $ein = $rin | $win;
-	select($rin, $win, $ein, 0.01);
-	foreach my $oscar(@oscars) {
-		$oscar->process_connections(\$rin, \$win, \$ein);
-	}
-
-	# Now $rin, $win, and $ein only have the file descriptors not
-	# associated with any of the OSCAR objects in them - we can
-	# process our events.
-
-The third way of doing connection processing uses the L<"connection_changed">
-callback in conjunction with C<Net::OSCAR::Connection>'s L<"process_one"> method.
-This method, in conjunction with C<IO::Poll>, probably offers the highest performance
-in situations where you have a long-lived application which creates and destroys many
-C<Net::OSCAR> sessions; that is, an application whose list of file descriptors to
-monitor will likely be sparse.  However, this method is the most complicated.
-What you need to do is call C<IO::Poll::mask> inside of the L<"connection_changed">
-callback.  That part's simple.  The tricky bit is figuring out which
-C<Net::OSCAR::Connection::process_one>'s to call and how to call them.  My recommendation
-for doing this is to use a hashmap whose keys are the file descriptors of everything
-you're monitoring in the C<IO::Poll> - the FDs can be retrieved by doing
-C<fileno($connection-E<gt>get_filehandle)> inside of the L<"connection_changed"> -
-and then calling C<@handles = $poll-E<gt>handles(POLLIN | POLLOUT | POLLERR | POLLHUP)>
-and walking through the handles.
-
-For optimum performance, use the L<"connection_changed"> callback.
-
-=head1 FUNCTIONALITY
-
-C<Net::OSCAR> pretends to be WinAIM 5.2.3292.  It supports remote buddylists
+C<Net::OSCAR> pretends to be WinAIM 5.5.3595.  It supports remote buddylists
 including permit and deny settings.  It also supports chat, buddy icons,
 and extended status messages.  At the present time, setting and retrieving of
 directory information is not supported; nor are email privacy settings,
 voice chat, stock ticker, file transfer, direct IM, and many other of the
 official AOL Instant Messenger client's features.
 
-=head1 TERMINOLOGY/METHODOLOGY
+=head2 TERMINOLOGY
 
 When you sign on with the OSCAR service, you are establishing an OSCAR session.
-C<Net::OSCAR> connects to the login server and requests a random challenge
-string.  It then sends the MD5 sum of the challenge string,
-C<AOL Instant Messenger (SM)>, and your password to the server.  If the login
-is successful, the login server gives you an IP address and an authorization
-cookie to use to connect with the BOS (Basic OSCAR Services) server.
-
-C<Net::OSCAR> proceeds to disconnect from the login server and connect to the
-BOS server.  The two go through a handshaking process which includes the
-server sending us our buddylist.
-
-C<Net::OSCAR> supports privacy controls.  Our visibility setting, along
-with the contents of the permit and deny lists, determines who can
-contact us.  Visibility can be set to permit or deny everyone, permit only
-those on the permit list, deny only those on the deny list, or permit
-everyone on our buddylist.
 
 =head1 METHODS
-
-=over 4
 
 =cut
 
@@ -167,6 +119,10 @@ require Exporter;
 Net::OSCAR::XML::load_xml();
 
 =pod
+
+=head2 GETTING STARTED
+
+=over 4
 
 =item new ([capabilities => CAPABILITIES])
 
@@ -247,33 +203,16 @@ sub new($) {
 
 =pod
 
-=item timeout ([NEW TIMEOUT])
+=item signon (HASH)
 
-Gets or sets the timeout value used by the L<do_one_loop> method.
-The default timeout is 0.01 seconds.
+=item signon (SCREENNAME, PASSWORD[, HOST, PORT]
 
-=cut
-
-sub timeout($;$) {
-	my($self, $timeout) = @_;
-	return $self->{timeout} unless $timeout;
-	$self->{timeout} = $timeout;
-}
-
-=pod
-
-=item signon (HASH) 
-
-=item signon (SCREENNAME, PASSWORD[, HOST, PORT])
-
-Sign on to the OSCAR service.  Using a hash to
-pass the parameters to this function is preferred -
-the old method is deprecated.  You can specify an
+Sign on to the OSCAR service.  You can specify an
 alternate host/port to connect to.  The default is
-login.oscar.aol.com port 5190.
+login.oscar.aol.com port 5190.  
 
-If you use a hash to pass parameters to this function,
-here are the valid keys:
+The non-hash form of C<signon> is obsolete and is only provided for compatibility with C<Net::AIM>.
+If you use a hash to pass parameters to this function, here are the valid keys:
 
 =over 4
 
@@ -385,30 +324,6 @@ sub signon($@) {
 
 =pod
 
-=item auth_response (MD5_DIGEST[, PASS_IS_HASHED])
-
-Provide a response to an authentication challenge - see the L<"auth_challenge">
-callback for details.
-
-=cut
-
-sub auth_response($$$) {
-	my($self, $digest, $pass_is_hashed) = @_;
-
-	if($pass_is_hashed) {
-		$self->{pass_is_hashed} = 1;
-	} else {
-		$self->{pass_is_hashed} = 0;
-	}
-
-	$self->log_print(OSCAR_DBG_SIGNON, "Got authentication response - proceeding with signon");
-	$self->{auth_response} = $digest;
-	my %data = signon_tlv($self);
-	$self->svcdo(CONNTYPE_BOS, protobit => "signon", protodata => {%data});
-}
-
-=pod
-
 =item signoff
 
 Sign off from the OSCAR service.
@@ -427,212 +342,14 @@ sub signoff($) {
 
 =pod
 
-=item loglevel ([LOGLEVEL[, SCREENNAME DEBUG]])
+=back
 
-Gets or sets the loglevel.  If this is non-zero, varing amounts of information will be printed
-to standard error (unless you have a L<"log"> callback defined).  Higher loglevels will give you more information.
-If the optional screenname debug parameter is non-zero,
-debug messages will be prepended with the screenname of the OSCAR session which is generating
-the message (but only if you don't have a L<"log"> callback defined).  This is useful when you have multiple C<Net::OSCAR> objects.
+=head2 BUDDIES AND BUDDYLISTS
 
-See the L<"log"> callback for more information.
+See also L<"OTHER USERS"> for methods which pertain to any other user, regardless of
+whether they're on the buddylist or not.
 
-=cut
-
-sub loglevel($;$$) {
-	my $self = shift;
-	return $self->{LOGLEVEL} unless @_;
-	$self->{LOGLEVEL} = shift;
-	$self->{SNDEBUG} = shift if @_;
-}
-
-sub addconn($@) {
-	my $self = shift;
-	my %data = @_;
-
-	$data{session} = $self;
-	my $connection;
-	my $conntype = $data{conntype};
-
-	if($conntype == CONNTYPE_CHAT) {
-		$connection = Net::OSCAR::Connection::Chat->new(%data);
-	} else {
-		$connection = Net::OSCAR::Connection->new(%data);
-		# We set the connection to 1 to indicate that it is in progress but not ready for SNAC-sending yet.
-		$self->{services}->{$conntype} = 1 unless $conntype == CONNTYPE_CHAT;
-	}
-
-	if($conntype == CONNTYPE_BOS) {
-		$self->{services}->{$conntype} = $connection;
-	}
-
-	push @{$self->{connections}}, $connection;
-	$self->callback_connection_changed($connection, $connection->{state});
-	return $connection;
-}
-
-sub delconn($$) {
-	my($self, $connection) = @_;
-
-	return unless $self->{connections};
-	$self->callback_connection_changed($connection, "deleted");
-	for(my $i = scalar @{$self->{connections}} - 1; $i >= 0; $i--) {
-		next unless $self->{connections}->[$i] == $connection;
-		$connection->log_print(OSCAR_DBG_NOTICE, "Closing.");
-		splice @{$self->{connections}}, $i, 1;
-		if(!$connection->{sockerr}) {
-			eval {
-				$connection->flap_put("", FLAP_CHAN_CLOSE) if $connection->{socket};
-				close $connection->{socket} if $connection->{socket};
-			};
-		} else {
-			delete $self->{services}->{$connection->{conntype}} unless $connection->{conntype} == CONNTYPE_CHAT;
-
-			if($connection->{conntype} == CONNTYPE_BOS or ($connection->{conntype} == CONNTYPE_LOGIN and !$connection->{closing})) {
-				delete $connection->{socket};
-				return $self->crapout($connection, "Lost connection to BOS");
-			} elsif($connection->{conntype} == CONNTYPE_ADMIN) {
-				$self->callback_admin_error("all", ADMIN_ERROR_CONNREF, undef) if scalar(keys(%{$self->{adminreq}}));
-			} elsif($connection->{conntype} == CONNTYPE_CHAT) {
-				$self->callback_chat_closed($connection, "Lost connection to chat");
-			} else {
-				$self->log_print(OSCAR_DBG_NOTICE, "Closing connection ", $connection->{conntype});
-			}
-		}
-		delete $connection->{socket};
-		return 1;
-	}
-	return 0;
-}
-
-=pod
-
-=item findconn (FILENO)
-
-Finds the connection that is using the specified file number, or undef
-if the connection could not be found.  Returns a C<Net::OSCAR::Connection>
-object.
-
-=cut
-
-sub findconn($$) {
-	my($self, $target) = @_;
-	my($conn) = grep { fileno($_->{socket}) == $target } @{$self->{connections}};
-	return $conn;
-}
-
-sub DESTROY {
-	my $self = shift;
-
-	foreach my $connection(@{$self->{connections}}) {
-		next unless $connection->{socket} and not $connection->{sockerr};
-		$connection->flap_put("", FLAP_CHAN_CLOSE);
-		close $connection->{socket} if $connection->{socket};
-	}
-}
-
-=pod
-
-=item process_connections (READERSREF, WRITERSREF, ERRORSREF)
-
-Use this method when you want to implement your own C<select>
-statement for event processing instead of using C<Net::OSCAR>'s
-L<do_one_loop> method.  The parameters are references to the
-readers, writers, and errors parameters used by the select
-statement.  The method will ignore all connections which
-are not C<Net::OSCAR::Connection> objects or which are
-C<Net::OSCAR::Connection> objects from a different C<Net::OSCAR>
-object.  It modifies its arguments so that its connections
-are removed from the connection lists.  This makes it very
-convenient for use with multiple C<Net::OSCAR> objects or
-use with a C<select>-based event loop that you are also
-using for other purposes.
-
-See the L<selector_filenos> method for a way to get the necessary
-bit vectors to use in your C<select>.
-
-=cut
-
-sub process_connections($\$\$\$) {
-	my($self, $readers, $writers, $errors) = @_;
-
-	# Filter out our connections and remove them from the to-do list
-	foreach my $connection(@{$self->{connections}}) {
-		my($read, $write) = (0, 0);
-		next unless $connection->fileno;
-		if($connection->{connected}) {
-			next unless vec($$readers | $$errors, $connection->fileno, 1);
-			vec($$readers, $connection->fileno, 1) = 0;
-			$read = 1;
-		}
-		if(!$connection->{connected} or $connection->{outbuff}) {
-			next unless vec($$writers | $$errors, $connection->fileno, 1);
-			vec($$writers, $connection->fileno, 1) = 0;
-			$write = 1;
-		}
-		if(vec($$errors, $connection->fileno, 1)) {
-			vec($$errors, $connection->fileno, 1) = 0;
-			$connection->{sockerr} = 1;
-			$connection->disconnect();
-		} else {
-			$connection->process_one($read, $write);
-		}
-	}
-}
-
-=pod
-
-=item do_one_loop
-
-Processes incoming data from our connections to the various
-OSCAR services.  This method reads one command from any
-connections which have data to be read.  See the
-L<timeout> method to set the timeout interval used
-by this method.
-
-=cut
-
-sub do_one_loop($) {
-	my $self = shift;
-	my $timeout = $self->{timeout};
-
-	undef $timeout if $timeout == -1;
-
-	my($rin, $win, $ein) = ('', '', '');
-
-	foreach my $connection(@{$self->{connections}}) {
-		next unless exists($connection->{socket});
-		if($connection->{connected}) {
-			vec($rin, fileno $connection->{socket}, 1) = 1;
-		} else {
-			vec($win, fileno $connection->{socket}, 1) = 1;
-		}
-	}
-	$ein = $rin | $win;
-
-	return unless $ein;
-	my $nfound = select($rin, $win, $ein, $timeout);
-	$self->process_connections(\$rin, \$win, \$ein) if $nfound and $nfound != -1;
-}
-
-sub findgroup($$) {
-	my($self, $groupid) = @_;
-	my($group, $currgroup, $currid);
-
-	my $thegroup = undef;
-
-	$self->log_printf(OSCAR_DBG_DEBUG, "findgroup 0x%04X", $groupid);
-	while(($group, $currgroup) = each(%{$self->{buddies}})) {
-		$self->log_printf(OSCAR_DBG_DEBUG, "\t$group == 0x%04X", $currgroup->{groupid});
-		next unless exists($currgroup->{groupid}) and $groupid == $currgroup->{groupid};
-		$thegroup = $group;
-		last;
-	}
-	my $a = keys %{$self->{buddies}}; # reset the iterator
-	return $thegroup;
-}
-
-=pod
+=over 4
 
 =item findbuddy (BUDDY)
 
@@ -641,7 +358,6 @@ BUDDY could not be found in any group.  If BUDDY is in multiple
 groups, will return the first one we find.
 
 =cut
-
 
 sub findbuddy($$) {
 	my($self, $buddy) = @_;
@@ -652,43 +368,6 @@ sub findbuddy($$) {
 		return $group if $self->{buddies}->{$group}->{members}->{$buddy};
 	}
 	return undef;
-}
-
-sub findbuddy_byid($$$) {
-	my($self, $buddies, $bid) = @_;
-
-	while(my($buddy, $value) = each(%$buddies)) {
-		return $buddy if $value->{buddyid} == $bid;
-	}
-	return undef;
-}
-
-sub newid($;$) {
-	my($self, $group) = @_;
-	my $id = 4;
-	my %ids = ();
-
-	if($group) {
-		%ids = map { $_->{buddyid} => 1 } values %$group;
-		do { ++$id; } while($ids{$id}) or $id < 4;
-	} else {
-		do { $id = ++$self->{nextid}->{__GROUPID__}; } while($self->findgroup($id));
-	}
-	return $id;
-}
-
-sub capabilities($) {
-	my $self = shift;
-
-	my $caps;
-
-	$caps = OSCAR_CAPS()->{chat}->{value} . OSCAR_CAPS()->{interoperate}->{value};
-	$caps .= OSCAR_CAPS()->{extstatus}->{value} if $self->{capabilities}->{extended_status};
-	$caps .= OSCAR_CAPS()->{buddyicon}->{value} if $self->{capabilities}->{buddy_icons};
-	$caps .= OSCAR_CAPS()->{filexfer}->{value} if $self->{capabilities}->{file_transfer};
-	$caps .= OSCAR_CAPS()->{fileshare}->{value} if $self->{capabilities}->{file_sharing};
-
-	return $caps;
 }
 
 =pod
@@ -718,31 +397,6 @@ new order on the OSCAR server.
 Changes the ordering of the buddies in a group on your buddylist.
 Call L<"commit_buddylist"> to save the new order on the OSCAR server.
 
-=item add_permit (BUDDIES)
-
-Add buddies to your permit list.  Call L<"commit_buddylist"> for the
-change to take effect.
-
-=item add_deny (BUDDIES)
-
-See L<add_permit>.
-
-=item remove_permit (BUDDIES)
-
-See L<add_permit>.
-
-=item remove_deny (BUDDIES)
-
-See L<add_permit>.
-
-=item get_permitlist
-
-Returns a list of all members of the permit list.
-
-=item get_denylist
-
-Returns a list of all members of the deny list.
-
 =cut
 
 sub commit_buddylist($) {
@@ -771,13 +425,6 @@ sub reorder_buddies($$@) {
 	my @buddies = @_;
 	tied(%{$self->{buddies}->{$group}->{members}})->setorder(@buddies);
 }
-
-sub add_permit($@) { shift->mod_permit(MODBL_ACTION_ADD, "permit", @_); }
-sub add_deny($@) { shift->mod_permit(MODBL_ACTION_ADD, "deny", @_); }
-sub remove_permit($@) { shift->mod_permit(MODBL_ACTION_DEL, "permit", @_); }
-sub remove_deny($@) { shift->mod_permit(MODBL_ACTION_DEL, "deny", @_); }
-sub get_permitlist($) { return keys %{shift->{permit}}; }
-sub get_denylist(@) { return keys %{shift->{deny}}; }
 
 =pod
 
@@ -813,6 +460,118 @@ sub remove_buddy($$@) {
 	my($self, $group, @buddies) = @_;
 	$self->mod_buddylist(MODBL_ACTION_DEL, MODBL_WHAT_BUDDY, $group, @buddies);
 }
+
+
+=item groups
+
+Returns a list of groups in the user's buddylist.
+
+=item buddies (GROUP)
+
+Returns the names of the buddies in the specified group in the user's buddylist.
+The names may not be formatted - that is, they may have spaces and capitalization
+removed.  The names are C<Net::OSCAR::Screenname> objects, so you don't have to
+worry that they're case and whitespace insensitive when using them for comparison.
+
+=item buddy (BUDDY[, GROUP])
+
+Returns information about a buddy on the user's buddylist.  This information is
+a hashref as per L<USER INFORMATION> below.
+
+=cut
+
+sub groups($) { return keys %{shift->{buddies}}; }
+sub buddies($;$) {
+	my($self, $group) = @_;
+
+	return keys %{$self->{buddies}->{$group}->{members}} if $group;
+	return map { keys %{$_->{members}} } values %{$self->{buddies}};
+}
+sub buddy($$;$) {
+	my($self, $buddy, $group) = @_;
+	$group ||= $self->findbuddy($buddy);
+	return $self->{buddies}->{$group}->{members}->{$buddy} if $group;
+	return $self->{userinfo}->{$buddy} || undef;
+}
+
+=pod
+
+=item set_buddy_comment (GROUP, BUDDY[, COMMENT])
+
+Set a brief comment about a buddy.  You must call L<"commit_buddylist"> to save
+the comment to the server.  If COMMENT is undefined, the comment is
+deleted.
+
+=item set_buddy_alias (GROUP, BUDDY[, ALIAS])
+
+Set an alias for a buddy.  You must call L<"commit_buddylist"> to save
+the comment to the server.  If ALIAS is undefined, the alias is
+deleted.
+
+=cut
+
+sub set_buddy_comment($$$;$) {
+	my($self, $group, $buddy, $comment) = @_;
+	return must_be_on($self) unless $self->{is_on};
+	$self->{buddies}->{$group}->{members}->{$buddy}->{comment} = $comment;
+}
+
+sub set_buddy_alias($$$;$) {
+	my($self, $group, $buddy, $alias) = @_;
+	return must_be_on($self) unless $self->{is_on};
+	$self->{buddies}->{$group}->{members}->{$buddy}->{alias} = $alias;
+}
+
+
+
+
+=pod
+
+=back
+
+=head2 PRIVACY
+
+=over 4
+
+=item add_permit (BUDDIES)
+
+Add buddies to your permit list.  Call L<"commit_buddylist"> for the
+change to take effect.
+
+=item add_deny (BUDDIES)
+
+See L<add_permit>.
+
+=item remove_permit (BUDDIES)
+
+See L<add_permit>.
+
+=item remove_deny (BUDDIES)
+
+See L<add_permit>.
+
+=item get_permitlist
+
+Returns a list of all members of the permit list.
+
+=item get_denylist
+
+Returns a list of all members of the deny list.
+
+=item visibility
+
+Returns the user's current visibility setting.  See L<set_visibility>.
+
+=cut
+
+sub add_permit($@) { shift->mod_permit(MODBL_ACTION_ADD, "permit", @_); }
+sub add_deny($@) { shift->mod_permit(MODBL_ACTION_ADD, "deny", @_); }
+sub remove_permit($@) { shift->mod_permit(MODBL_ACTION_DEL, "permit", @_); }
+sub remove_deny($@) { shift->mod_permit(MODBL_ACTION_DEL, "deny", @_); }
+sub get_permitlist($) { return keys %{shift->{permit}}; }
+sub get_denylist(@) { return keys %{shift->{deny}}; }
+sub visibility($) { return shift->{visibility}; }
+
 
 =pod
 
@@ -955,143 +714,13 @@ sub group_permissions($) {
 
 =pod
 
-=item profile
+=back
 
-Returns your current profile.
+=head2 OTHER USERS
 
-=cut
+See also L<"BUDDIES AND BUDDYLISTS">.
 
-sub profile($) { return shift->{profile}; }
-
-=pod
-
-=item get_app_data ([GROUP[, BUDDY]])
-
-Gets application-specific data.  Returns a hashref whose keys are app-data IDs.
-IDs with high-order byte 0x0001 are reserved for non-application-specific usage
-and must be registered with the C<libfaim-aim-protocol@lists.sourceforge.net> list.
-If you wish to set application-specific data, you should reserve a high-order
-byte for your application by emailing C<libfaim-aim-protocol@lists.sourceforge.net>.
-This data is stored in your server-side buddylist and so will be persistent,
-even across machines.
-
-If C<GROUP> is present, a hashref for accessing data specific to that group
-is returned.
-
-If C<BUDDY> is present, a hashref for accessing data specific to that buddy
-is returned.
-
-Call L<"commit_buddylist"> to have the new data saved on the OSCAR server.
-
-=cut
-
-sub get_app_data($;$$) {
-	my($self, $group, $buddy) = @_;
-
-	return $self->{appdata} unless $group;
-	return $self->{buddies}->{$group}->{data} unless $buddy;
-	return $self->{buddies}->{$group}->{members}->{$buddy}->{data};
-}
-
-sub mod_permit($$$@) {
-	my($self, $action, $group, @buddies) = @_;
-
-	return must_be_on($self) unless $self->{is_on};
-	if($action == MODBL_ACTION_ADD) {
-		foreach my $buddy(@buddies) {
-			next if exists($self->{$group}->{$buddy});
-			$self->{$group}->{$buddy}->{buddyid} = $self->newid($self->{$group});
-		}
-	} else {
-		foreach my $buddy(@buddies) {
-			delete $self->{$group}->{$buddy};
-		}
-	}
-}
-
-sub mod_buddylist($$$$;@) {
-	my($self, $action, $what, $group, @buddies) = @_;
-	return must_be_on($self) unless $self->{is_on};
-
-	@buddies = ($group) if $what == MODBL_WHAT_GROUP;
-
-	if($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_ADD) {
-		return if exists $self->{buddies}->{$group};
-		$self->{buddies}->{$group} = {
-			groupid => $self->newid(),
-			members => bltie,
-			data => tlv
-		};
-	} elsif($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_DEL) {
-		return unless exists $self->{buddies}->{$group};
-		delete $self->{buddies}->{$group};
-	} elsif($what == MODBL_WHAT_BUDDY and $action == MODBL_ACTION_ADD) {
-		$self->mod_buddylist(MODBL_ACTION_ADD, MODBL_WHAT_GROUP, $group) unless exists $self->{buddies}->{$group};
-		@buddies = grep {not exists $self->{buddies}->{$group}->{members}->{$_}} @buddies;
-		return unless @buddies;
-		foreach my $buddy(@buddies) {
-			$self->{buddies}->{$group}->{members}->{$buddy} = {
-				buddyid => $self->newid($self->{buddies}->{$group}->{members}),
-				data => tlv,
-				online => 0,
-				comment => undef,
-				alias => undef
-			};
-		}
-	} elsif($what == MODBL_WHAT_BUDDY and $action == MODBL_ACTION_DEL) {
-		return unless exists $self->{buddies}->{$group};
-		@buddies = grep {exists $self->{buddies}->{$group}->{members}->{$_}} @buddies;
-		return unless @buddies;
-		foreach my $buddy(@buddies) {
-			delete $self->{buddies}->{$group}->{members}->{$buddy};
-		}
-		$self->mod_buddylist(MODBL_ACTION_DEL, MODBL_WHAT_GROUP, $group) unless scalar keys %{$self->{buddies}->{$group}->{members}};
-	}
-}
-
-sub postprocess_userinfo($$) {
-	my($self, $userinfo) = @_;
-
-	if($userinfo->{idle}) {
-		$userinfo->{idle} *= 60;
-		$userinfo->{idle_since} = time() - $userinfo->{idle};
-	}
-	$userinfo->{evil} /= 10 if exists($userinfo->{evil});
-	if(exists($userinfo->{flags})) {
-		my $flags = $userinfo->{flags};
-		$userinfo->{trial} = $flags & 0x1;
-		$userinfo->{admin} = $flags & 0x2;
-		$userinfo->{aol} = $flags & 0x4;
-		$userinfo->{pay} = $flags & 0x8;
-		$userinfo->{free} = $flags & 0x10;
-		$userinfo->{away} = $flags & 0x20;
-		$userinfo->{mobile} = $flags & 0x80;
-	}
-
-	if(exists($userinfo->{capabilities})) {
-		my $capabilities = delete $userinfo->{capabilities};
-		foreach my $capability (@$capabilities) {
-			$self->log_print(OSCAR_DBG_DEBUG, "Got a capability.");
-			if(OSCAR_CAPS_INVERSE()->{$capability}) {
-				my $capname = OSCAR_CAPS_INVERSE()->{$capability};
-				$self->log_print(OSCAR_DBG_DEBUG, "Got capability $capname.");
-				$userinfo->{capabilities}->{$capname} = OSCAR_CAPS()->{$capname}->{description};
-			} else {
-				$self->log_print(OSCAR_DBG_INFO, "Unknown capability: ", hexdump($capability));
-			}
-		}
-	}
-		
-	if(exists($userinfo->{icon_md5sum})) {
-		if(!exists($self->{userinfo}->{$userinfo->{screenname}})
-		   or !exists($self->{userinfo}->{$userinfo->{screenname}}->{icon_md5sum})
-		   or $self->{userinfo}->{$userinfo->{screenname}}->{icon_md5sum} ne $userinfo->{icon_md5sum}) {
-			$self->callback_new_buddy_icon($userinfo->{screenname}, $userinfo);
-		}
-	}
-}
-
-=pod
+=over 4
 
 =item get_info (WHO)
 
@@ -1116,37 +745,6 @@ sub get_away($$) {
 	return must_be_on($self) unless $self->{is_on};
 
 	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, protobit => "get away", protodata => {screenname => $screenname});
-}
-
-
-sub send_message($$$$;$) {
-	my($self, $recipient, $channel, $body, $flags2) = @_;
-	$flags2 ||= 0;
-
-	my $reqid = (8<<16) | (unpack("n", randchars(2)))[0];
-	my %protodata = (
-		cookie => randchars(8),
-		channel => $channel,
-		screenname => $recipient,
-		message_body => $body,
-	);
-	$self->svcdo(CONNTYPE_BOS, reqdata => $recipient, protobit => "outgoing IM", protodata => \%protodata, flags2 => $flags2);
-
-	return $reqid;
-}
-
-sub rendezvous_reject($$) {
-	my($self, $cookie) = @_;
-
-	return unless exists($self->{rv_proposals}->{$cookie});
-	my $proposal = delete $self->{rv_proposals}->{$cookie};
-
-	my %protodata;
-	$protodata{status} = 1;
-	$protodata{cookie} = $cookie;
-	$protodata{capability} = OSCAR_CAPS()->{$proposal->{type}} ? OSCAR_CAPS()->{$proposal->{type}}->{value} : $proposal->{type};
-
-	return $self->send_message($proposal->{sender}, 2, protoparse($self, "rendezvous IM")->pack(%protodata));
 }
 
 
@@ -1248,22 +846,6 @@ sub send_typing_status($$$) {
 
 =pod
 
-=item buddyhash
-
-Returns a reference to a tied hash which automatically normalizes its keys upon a fetch.
-Use this for hashes whose keys are AIM screennames since AIM screennames with different
-capitalization and spacing are considered equivalent.
-
-The keys of the hash as returned by the C<keys> and C<each> functions will be
-C<Net::OSCAR::Screenname> objects, so you they will automagically be compared
-without regards to case and whitespace.
-
-=cut
-
-sub buddyhash($) { bltie; }
-
-=pod
-
 =item evil (WHO[, ANONYMOUSLY])
 
 C<Evils>, or C<warns>, a user.  Evilling a user increases their evil level,
@@ -1289,11 +871,76 @@ sub evil($$;$) {
 
 =pod
 
+=item get_icon (SCREENNAME, MD5SUM)
+
+Gets a user's buddy icon.  See L<set_icon> for details.  To make
+sure this method isn't called excessively, please check the
+C<icon_checksum> and C<icon_timestamp> data, which are available
+via the L<buddy> method (even for people not on the user's buddy
+list.)  The MD5 checksum of a user's icon will be in the
+C<icon_md5sum> key returned by L<buddy>.
+
+You should receive a L<buddy_icon_downloaded> callback in
+response to this method.
+
+=cut
+
+sub get_icon($$$) {
+	my($self, $screenname, $md5sum) = @_;
+
+	carp "This client does not support buddy icons!" unless $self->{capabilities}->{buddy_icons};
+
+	$self->svcdo(CONNTYPE_ICON, protobit => "buddy icon download", protodata => {
+		screenname => $screenname,
+		md5sum => $md5sum
+	});
+}	
+
+=pod
+
+=back
+
+=head2 THE SIGNED-ON USER
+
+These methods deal with the user who is currently signed on using a particular
+C<Net::OSCAR> object.
+
+=over 4
+
+=item email
+
+Returns the email address currently assigned to the user's account.
+
+=item screenname
+
+Returns the user's current screenname, including all capitalization and spacing.
+
+=item is_on
+
+Returns true if the user is signed on to the OSCAR service.  Otherwise,
+returns false.
+
+=cut
+
+sub email($) { return shift->{email}; }
+sub screenname($) { return shift->{screenname}; }
+sub is_on($) { return shift->{is_on}; }
+
+=item profile
+
+Returns your current profile.
+
+=cut
+
+sub profile($) { return shift->{profile}; }
+
+=pod
+
 =item set_away (MESSAGE)
 
 Sets the user's away message, also marking them as being away.
 If the message is undef or the empty string, the user will be
-marked as no longer being away.
+marked as no longer being away.  See also L<"get_away">.
 
 =cut
 
@@ -1318,7 +965,8 @@ C<Net::OSCAR> object to have been created with the C<extended_status>
 capability.  Currently, the only clients which support extended
 status messages are Net::OSCAR, Gaim, and iChat.  If the message
 is undef or the empty string, the user's extended status
-message will be cleared.
+message will be cleared.  Use L<"get_info"> to get another
+user's extended status.
 
 =cut
 
@@ -1349,6 +997,8 @@ if L<"commit_buddylist"> is called after setting the profile with this method,
 the user will automatically get that same profile set whenever they sign on
 through Net::OSCAR.  See the file C<PROTOCOL>, included with the C<Net::OSCAR> distribution,
 for details of how we're storing this data.
+
+Use L<"get_info"> to retrieve another user's profile.
 
 =cut
 
@@ -1401,6 +1051,8 @@ for details of how we're storing this data.
 You should receive a L<buddy_icon_uploaded> callback in response to this
 method.
 
+Use L<"get_icon"> to retrieve another user's icon.
+
 =cut
 
 sub set_icon($$) {
@@ -1423,77 +1075,8 @@ sub set_icon($$) {
 	}
 }
 
-=pod
-
-=item get_icon (SCREENNAME, MD5SUM)
-
-Gets a user's buddy icon.  See L<set_icon> for details.  To make
-sure this method isn't called excessively, please check the
-C<icon_checksum> and C<icon_timestamp> data, which are available
-via the L<buddy> method (even for people not on the user's buddy
-list.)  The MD5 checksum of a user's icon will be in the
-C<icon_md5sum> key returned by L<buddy>.
-
-You should receive a L<buddy_icon_downloaded> callback in
-response to this method.
-
-=cut
-
-sub get_icon($$$) {
-	my($self, $screenname, $md5sum) = @_;
-
-	carp "This client does not support buddy icons!" unless $self->{capabilities}->{buddy_icons};
-
-	$self->svcdo(CONNTYPE_ICON, protobit => "buddy icon download", protodata => {
-		screenname => $screenname,
-		md5sum => $md5sum
-	});
-}	
 
 =pod
-
-=item icon_checksum (ICONDATA)
-
-Returns a checksum of the buddy icon.  Use this in conjunction with the
-C<icon_checksum> buddy info key to cache buddy icons.
-
-=cut
-
-sub icon_checksum($$) {
-	my($self, $icon) = @_;
-
-	my $sum = 0;
-	my $i = 0;
-	for($i = 0; $i+1 < length($icon); $i += 2) {
-		$sum += (ord(substr($icon, $i+1, 1)) << 8) + ord(substr($icon, $i, 1));
-	}
-
-	$sum += ord(substr($icon, $i, 1)) if $i < length($icon);
-
-	$sum = (($sum & 0xFFFF0000) >> 16) + ($sum & 0x0000FFFF);
-
-	return $sum;
-}
-
-
-
-sub svcdo($$%) {
-	my($self, $service, %data) = @_;
-
-	if($self->{services}->{$service} and ref($self->{services}->{$service})) {
-		$self->{services}->{$service}->proto_send(%data);
-	} else {
-		push @{$self->{svcqueues}->{$service}}, \%data;
-		$self->svcreq($service) unless $self->{services}->{$service};
-	}
-}
-
-sub svcreq($$) {
-        my($self, $svctype) = @_;
-
-        $self->log_print(OSCAR_DBG_INFO, "Sending service request for servicetype $svctype.");
-        $self->svcdo(CONNTYPE_BOS, protobit => "service request", protodata => {type => $svctype});
-}
 
 =pod
 
@@ -1603,6 +1186,119 @@ sub format_screenname($$) {
 
 =pod
 
+=item set_idle (TIME)
+
+Sets the user's idle time in seconds.  Set to zero to mark the user as
+not being idle.  Set to non-zero once the user becomes idle.  The OSCAR
+server will automatically increment the user's idle time once you mark
+the user as being idle.
+
+=cut
+
+sub set_idle($$) {
+	my($self, $time) = @_;
+	return must_be_on($self) unless $self->{is_on};
+	$self->svcdo(CONNTYPE_BOS, protobit => "set idle", protodata => {duration => $time});
+}
+
+=pod
+
+=back
+
+=head2 EVENT-PROCESSING METHODS
+
+=over 4
+
+=item do_one_loop
+
+Processes incoming data from our connections to the various
+OSCAR services.  This method reads one command from any
+connections which have data to be read.  See the
+L<timeout> method to set the timeout interval used
+by this method.
+
+=cut
+
+sub do_one_loop($) {
+	my $self = shift;
+	my $timeout = $self->{timeout};
+
+	undef $timeout if $timeout == -1;
+
+	my($rin, $win, $ein) = ('', '', '');
+
+	foreach my $connection(@{$self->{connections}}) {
+		next unless exists($connection->{socket});
+		if($connection->{connected}) {
+			vec($rin, fileno $connection->{socket}, 1) = 1;
+		} else {
+			vec($win, fileno $connection->{socket}, 1) = 1;
+		}
+	}
+	$ein = $rin | $win;
+
+	return unless $ein;
+	my $nfound = select($rin, $win, $ein, $timeout);
+	$self->process_connections(\$rin, \$win, \$ein) if $nfound and $nfound != -1;
+}
+
+=pod
+
+=item process_connections (READERSREF, WRITERSREF, ERRORSREF)
+
+Use this method when you want to implement your own C<select>
+statement for event processing instead of using C<Net::OSCAR>'s
+L<do_one_loop> method.  The parameters are references to the
+readers, writers, and errors parameters used by the select
+statement.  The method will ignore all connections which
+are not C<Net::OSCAR::Connection> objects or which are
+C<Net::OSCAR::Connection> objects from a different C<Net::OSCAR>
+object.  It modifies its arguments so that its connections
+are removed from the connection lists.  This makes it very
+convenient for use with multiple C<Net::OSCAR> objects or
+use with a C<select>-based event loop that you are also
+using for other purposes.
+
+See the L<selector_filenos> method for a way to get the necessary
+bit vectors to use in your C<select>.
+
+=cut
+
+sub process_connections($\$\$\$) {
+	my($self, $readers, $writers, $errors) = @_;
+
+	# Filter out our connections and remove them from the to-do list
+	foreach my $connection(@{$self->{connections}}) {
+		my($read, $write) = (0, 0);
+		next unless $connection->fileno;
+		if($connection->{connected}) {
+			next unless vec($$readers | $$errors, $connection->fileno, 1);
+			vec($$readers, $connection->fileno, 1) = 0;
+			$read = 1;
+		}
+		if(!$connection->{connected} or $connection->{outbuff}) {
+			next unless vec($$writers | $$errors, $connection->fileno, 1);
+			vec($$writers, $connection->fileno, 1) = 0;
+			$write = 1;
+		}
+		if(vec($$errors, $connection->fileno, 1)) {
+			vec($$errors, $connection->fileno, 1) = 0;
+			$connection->{sockerr} = 1;
+			$connection->disconnect();
+		} else {
+			$connection->process_one($read, $write);
+		}
+	}
+}
+
+=pod
+
+=back
+
+=head2 CHATS
+
+=over 4
+
 =item chat_join (NAME[, EXCHANGE])
 
 Creates (or joins?) a chatroom.  The exchange parameter should probably not be
@@ -1663,32 +1359,70 @@ sub chat_decline($$) {
 	});
 }
 
-sub crapout($$$;$) {
-	my($self, $connection, $reason, $errno) = @_;
-	send_error($self, $connection, $errno || 0, $reason, 1);
-	$self->signoff();
-}
+=pod
 
-sub must_be_on($) {
-	my $self = shift;
-	send_error($self, $self->{services}->{CONNTYPE_BOS()}, 0, "You have not finished signing on.", 0);
+=back
+
+=head2 MISCELLANEOUS
+
+=over 4
+
+=item timeout ([NEW TIMEOUT])
+
+Gets or sets the timeout value used by the L<do_one_loop> method.
+The default timeout is 0.01 seconds.
+
+=cut
+
+sub timeout($;$) {
+	my($self, $timeout) = @_;
+	return $self->{timeout} unless $timeout;
+	$self->{timeout} = $timeout;
 }
 
 =pod
 
-=item set_idle (TIME)
+=item loglevel ([LOGLEVEL[, SCREENNAME DEBUG]])
 
-Sets the user's idle time in seconds.  Set to zero to mark the user as
-not being idle.  Set to non-zero once the user becomes idle.  The OSCAR
-server will automatically increment the user's idle time once you mark
-the user as being idle.
+Gets or sets the level of logging verbosity.  If this is non-zero, varing amounts of information will be printed
+to standard error (unless you have a L<"log"> callback defined).  Higher loglevels will give you more information.
+If the optional screenname debug parameter is non-zero,
+debug messages will be prepended with the screenname of the OSCAR session which is generating
+the message (but only if you don't have a L<"log"> callback defined).  This is useful when you have multiple C<Net::OSCAR> objects.
+
+See the L<"log"> callback for more information.
 
 =cut
 
-sub set_idle($$) {
-	my($self, $time) = @_;
-	return must_be_on($self) unless $self->{is_on};
-	$self->svcdo(CONNTYPE_BOS, protobit => "set idle", protodata => {duration => $time});
+sub loglevel($;$$) {
+	my $self = shift;
+	return $self->{LOGLEVEL} unless @_;
+	$self->{LOGLEVEL} = shift;
+	$self->{SNDEBUG} = shift if @_;
+}
+
+=pod
+
+=item auth_response (MD5_DIGEST[, PASS_IS_HASHED])
+
+Provide a response to an authentication challenge - see the L<"auth_challenge">
+callback for details.
+
+=cut
+
+sub auth_response($$$) {
+	my($self, $digest, $pass_is_hashed) = @_;
+
+	if($pass_is_hashed) {
+		$self->{pass_is_hashed} = 1;
+	} else {
+		$self->{pass_is_hashed} = 0;
+	}
+
+	$self->log_print(OSCAR_DBG_SIGNON, "Got authentication response - proceeding with signon");
+	$self->{auth_response} = $digest;
+	my %data = signon_tlv($self);
+	$self->svcdo(CONNTYPE_BOS, protobit => "signon", protodata => {%data});
 }
 
 =pod
@@ -1722,6 +1456,22 @@ sub clone($) {
 
 =pod
 
+=item buddyhash
+
+Returns a reference to a tied hash which automatically normalizes its keys upon a fetch.
+Use this for hashes whose keys are AIM screennames since AIM screennames with different
+capitalization and spacing are considered equivalent.
+
+The keys of the hash as returned by the C<keys> and C<each> functions will be
+C<Net::OSCAR::Screenname> objects, so you they will automagically be compared
+without regards to case and whitespace.
+
+=cut
+
+sub buddyhash($) { bltie; }
+
+=pod
+
 =item selector_filenos
 
 Returns a list whose first element is a vec of all filehandles that we care
@@ -1745,189 +1495,57 @@ sub selector_filenos($) {
 	return ($rin, $win);
 }
 
-=pod
+=item icon_checksum (ICONDATA)
 
-=item visibility
-
-Returns the user's current visibility setting.  See L<set_visibility>.
-
-=item groups
-
-Returns a list of groups in the user's buddylist.
-
-=item buddies (GROUP)
-
-Returns the names of the buddies in the specified group in the user's buddylist.
-The names may not be formatted - that is, they may have spaces and capitalization
-removed.  The names are C<Net::OSCAR::Screenname> objects, so you don't have to
-worry that they're case and whitespace insensitive when using them for comparison.
-
-=item buddy (BUDDY[, GROUP])
-
-Returns information about a buddy on the user's buddylist.  This information is
-a hashref which may have the following keys:
-
-=over 4
-
-=item online
-
-The user is signed on.  If this key is not present, all of the other keys may not
-be present.
-
-=item screenname
-
-The formatted version of the user's screenname.  This includes all spacing and
-capitalization.  This is a C<Net::OSCAR::Screenname> object, so you don't have to
-worry about the fact that it's case and whitespace insensitive when comparing it.
-
-=item comment
-
-A user-defined comment associated with the buddy.  See L<"set_buddy_comment">.
-Note that this key will be present but undefined if there is no comment.
-
-=item alias
-
-A user-defined alias for the buddy.  See L<"set_buddy_alias">.
-Note that this key will be present but undefined if there is no alias.
-
-=item extended_status
-
-The user's extended status message, if one is set, will be in this key.
-This requires that you set the C<extended_status> capability when
-creating the C<Net::OSCAR> object.
-
-=item trial
-
-The user's account has trial status.
-
-=item aol
-
-The user is accessing the AOL Instant Messenger service from America OnLine.
-
-=item free
-
-Opposite of aol.
-
-=item away
-
-The user is away.
-
-=item admin
-
-The user is an administrator.
-
-=item mobile
-
-The user is using a mobile device.
-
-=item typing_status
-
-The user is known to support typing status notification.  We only find this out if they send us an IM.
-
-=item capabilities
-
-The user's capabilities.  This is a reference to a hash whose keys are the user's capabilities, and
-whose values are descriptions of their respective capabilities.
-
-=item icon
-
-The user's buddy icon, if available.
-
-=item icon_checksum
-
-The checksum time of the user's buddy icon, if available.  Use this, in conjunction with
-the L<icon_checksum> method, to cache buddy icons.
-
-=item icon_timestamp
-
-The modification timestamp of the user's buddy icon, if available.
-
-=item icon_length
-
-The length of the user's buddy icon, if available.
-
-=item membersince
-
-Time that the user's account was created, in the same format as the C<time> function.
-
-=item onsince
-
-Time that the user signed on to the service, in the same format as the C<time> function.
-
-=item idle_since
-
-Time, in seconds since Jan 1st 1970, since which the user has been idle.  This will only
-be present if the user is idle.  To figure out how long the user has been idle for,
-subtract this value from C<time()> .
-
-=item evil
-
-Evil (warning) level for the user.
-
-=back
-
-Some keys; namely, C<typing_status> and C<icon_checksum>, may be available for people
-who the user has communicated with but who are not on the user's buddylist.
-
-=item email
-
-Returns the email address currently assigned to the user's account.
-
-=item screenname
-
-Returns the user's current screenname, including all capitalization and spacing.
-
-=item is_on
-
-Returns true if the user is signed on to the OSCAR service.  Otherwise,
-returns false.
+Returns a checksum of the buddy icon.  Use this in conjunction with the
+C<icon_checksum> buddy info key to cache buddy icons.
 
 =cut
 
-sub visibility($) { return shift->{visibility}; }
-sub groups($) { return keys %{shift->{buddies}}; }
-sub buddies($;$) {
-	my($self, $group) = @_;
+sub icon_checksum($$) {
+	my($self, $icon) = @_;
 
-	return keys %{$self->{buddies}->{$group}->{members}} if $group;
-	return map { keys %{$_->{members}} } values %{$self->{buddies}};
+	my $sum = 0;
+	my $i = 0;
+	for($i = 0; $i+1 < length($icon); $i += 2) {
+		$sum += (ord(substr($icon, $i+1, 1)) << 8) + ord(substr($icon, $i, 1));
+	}
+
+	$sum += ord(substr($icon, $i, 1)) if $i < length($icon);
+
+	$sum = (($sum & 0xFFFF0000) >> 16) + ($sum & 0x0000FFFF);
+
+	return $sum;
 }
-sub buddy($$;$) {
-	my($self, $buddy, $group) = @_;
-	$group ||= $self->findbuddy($buddy);
-	return $self->{buddies}->{$group}->{members}->{$buddy} if $group;
-	return $self->{userinfo}->{$buddy} || undef;
-}
-sub email($) { return shift->{email}; }
-sub screenname($) { return shift->{screenname}; }
-sub is_on($) { return shift->{is_on}; }
 
 =pod
 
-=item set_buddy_comment (GROUP, BUDDY[, COMMENT])
+=item get_app_data ([GROUP[, BUDDY]])
 
-Set a brief comment about a buddy.  You must call L<"commit_buddylist"> to save
-the comment to the server.  If COMMENT is undefined, the comment is
-deleted.
+Gets application-specific data.  Returns a hashref whose keys are app-data IDs.
+IDs with high-order byte 0x0001 are reserved for non-application-specific usage
+and must be registered with the C<libfaim-aim-protocol@lists.sourceforge.net> list.
+If you wish to set application-specific data, you should reserve a high-order
+byte for your application by emailing C<libfaim-aim-protocol@lists.sourceforge.net>.
+This data is stored in your server-side buddylist and so will be persistent,
+even across machines.
 
-=item set_buddy_alias (GROUP, BUDDY[, ALIAS])
+If C<GROUP> is present, a hashref for accessing data specific to that group
+is returned.
 
-Set an alias for a buddy.  You must call L<"commit_buddylist"> to save
-the comment to the server.  If ALIAS is undefined, the alias is
-deleted.
+If C<BUDDY> is present, a hashref for accessing data specific to that buddy
+is returned.
+
+Call L<"commit_buddylist"> to have the new data saved on the OSCAR server.
 
 =cut
 
-sub set_buddy_comment($$$;$) {
-	my($self, $group, $buddy, $comment) = @_;
-	return must_be_on($self) unless $self->{is_on};
-	$self->{buddies}->{$group}->{members}->{$buddy}->{comment} = $comment;
-}
+sub get_app_data($;$$) {
+	my($self, $group, $buddy) = @_;
 
-sub set_buddy_alias($$$;$) {
-	my($self, $group, $buddy, $alias) = @_;
-	return must_be_on($self) unless $self->{is_on};
-	$self->{buddies}->{$group}->{members}->{$buddy}->{alias} = $alias;
+	return $self->{appdata} unless $group;
+	return $self->{buddies}->{$group}->{data} unless $buddy;
+	return $self->{buddies}->{$group}->{members}->{$buddy}->{data};
 }
 
 =pod
@@ -2363,10 +1981,9 @@ This is normally 4 but can be 5 for certain chatrooms.
 
 =head1 ICQ
 
-ICQ support is very preliminary.  A patch enabling us to sign on to
-ICQ was provided by Sam Wong.  No further work beyond the ability
-to sign on has been done on ICQ at this time.  See the C<signon> method
-for details on signing on via ICQ.
+ICQ support isn't nearly as well-tested as AIM support, and ICQ-specific
+features aren't being particularly actively developed.  Patches for ICQ-isms
+are welcome.  The initial patch enabling us to sign on to ICQ was provided by Sam Wong.
 
 =head1 CONSTANTS
 
@@ -2483,9 +2100,11 @@ Different callbacks with different parameters.
 =head1 MISCELLANEOUS
 
 There are two programs included with the C<Net::OSCAR> distribution.
-oscartest is a minimalist implementation of a C<Net::OSCAR> client.
-snacsnatcher is a tool designed for analyzing the OSCAR protocol from
-libpcap-format packet captures.
+oscartest is half a reference implementation of a C<Net::OSCAR> client
+and half a tool for testing this library.  snacsnatcher is a tool designed
+for analyzing the OSCAR protocol from libpcap-format packet captures, but
+it isn't particularly well-maintained; the Ethereal sniffer does a good
+job at this nowadays.
 
 There is a class C<Net::OSCAR::Screenname>.  OSCAR screennames
 are case and whitespace insensitive, and if you do something like
@@ -2518,6 +2137,163 @@ connection, set C<HAS_ERROR> to non-zero.
 Returns the C<Net::OSCAR> object associated with this C<Net::OSCAR::Connection>.
 
 =back
+
+=head1 USER INFORMATION
+
+Methods which return information about a user, such as L<"buddy">, will return
+the information in the form of a hash.  The keys of the hash are the following --
+note that any of these may be absent.
+
+=over 4
+
+=item online
+
+The user is signed on.  If this key is not present, all of the other keys may not
+be present.
+
+=item screenname
+
+The formatted version of the user's screenname.  This includes all spacing and
+capitalization.  This is a C<Net::OSCAR::Screenname> object, so you don't have to
+worry about the fact that it's case and whitespace insensitive when comparing it.
+
+=item comment
+
+A user-defined comment associated with the buddy.  See L<"set_buddy_comment">.
+Note that this key will be present but undefined if there is no comment.
+
+=item alias
+
+A user-defined alias for the buddy.  See L<"set_buddy_alias">.
+Note that this key will be present but undefined if there is no alias.
+
+=item extended_status
+
+The user's extended status message, if one is set, will be in this key.
+This requires that you set the C<extended_status> capability when
+creating the C<Net::OSCAR> object.
+
+=item trial
+
+The user's account has trial status.
+
+=item aol
+
+The user is accessing the AOL Instant Messenger service from America OnLine.
+
+=item free
+
+Opposite of aol.
+
+=item away
+
+The user is away.
+
+=item admin
+
+The user is an administrator.
+
+=item mobile
+
+The user is using a mobile device.
+
+=item typing_status
+
+The user is known to support typing status notification.  We only find this out if they send us an IM.
+
+=item capabilities
+
+The user's capabilities.  This is a reference to a hash whose keys are the user's capabilities, and
+whose values are descriptions of their respective capabilities.
+
+=item icon
+
+The user's buddy icon, if available.
+
+=item icon_checksum
+
+The checksum time of the user's buddy icon, if available.  Use this, in conjunction with
+the L<icon_checksum> method, to cache buddy icons.
+
+=item icon_timestamp
+
+The modification timestamp of the user's buddy icon, if available.
+
+=item icon_length
+
+The length of the user's buddy icon, if available.
+
+=item membersince
+
+Time that the user's account was created, in the same format as the C<time> function.
+
+=item onsince
+
+Time that the user signed on to the service, in the same format as the C<time> function.
+
+=item idle_since
+
+Time, in seconds since Jan 1st 1970, since which the user has been idle.  This will only
+be present if the user is idle.  To figure out how long the user has been idle for,
+subtract this value from C<time()> .
+
+=item evil
+
+Evil (warning) level for the user.
+
+=back
+
+Some keys; namely, C<typing_status> and C<icon_checksum>, may be available for people
+who the user has communicated with but who are not on the user's buddylist.
+
+=cut
+
+=head1 ADVANCED TOPICS
+
+=head2 PRIVACY
+
+C<Net::OSCAR> supports privacy controls.  Our visibility setting, along
+with the contents of the permit and deny lists, determines who can
+contact us.  Visibility can be set to permit or deny everyone, permit only
+those on the permit list, deny only those on the deny list, or permit
+everyone on our buddylist.
+
+=head2 HIGH-PERFORMANCE EVENT PROCESSING
+
+A second way of doing event processing is designed to make it easy to integrate C<Net::OSCAR> into
+an existing C<select>-based event loop, especially one where you have many C<Net::OSCAR> objects.
+Simply call the L<"process_connections"> method with references to the lists of readers, writers,
+and errors given to you by C<select>.  Connections that don't belong to the object will be ignored,
+and connections that do belong to the object will be removed from the C<select> lists so that you
+can use the lists for your own purposes.
+Here is an example that demonstrates how to use this method with multiple C<Net::OSCAR> objects:
+
+	my $ein = $rin | $win;
+	select($rin, $win, $ein, 0.01);
+	foreach my $oscar(@oscars) {
+		$oscar->process_connections(\$rin, \$win, \$ein);
+	}
+
+	# Now $rin, $win, and $ein only have the file descriptors not
+	# associated with any of the OSCAR objects in them - we can
+	# process our events.
+
+The third way of doing connection processing uses the L<"connection_changed">
+callback in conjunction with C<Net::OSCAR::Connection>'s L<"process_one"> method.
+This method, in conjunction with C<IO::Poll>, probably offers the highest performance
+in situations where you have a long-lived application which creates and destroys many
+C<Net::OSCAR> sessions; that is, an application whose list of file descriptors to
+monitor will likely be sparse.  However, this method is the most complicated.
+What you need to do is call C<IO::Poll::mask> inside of the L<"connection_changed">
+callback.  That part's simple.  The tricky bit is figuring out which
+C<Net::OSCAR::Connection::process_one>'s to call and how to call them.  My recommendation
+for doing this is to use a hashmap whose keys are the file descriptors of everything
+you're monitoring in the C<IO::Poll> - the FDs can be retrieved by doing
+C<fileno($connection-E<gt>get_filehandle)> inside of the L<"connection_changed"> -
+and then calling C<@handles = $poll-E<gt>handles(POLLIN | POLLOUT | POLLERR | POLLHUP)>
+and walking through the handles.
+
+For optimum performance, use the L<"connection_changed"> callback.
 
 =head1 HISTORY
 
@@ -3190,5 +2966,306 @@ are registered trademarks of Apple Computer, Inc.  C<Net::OSCAR> is not endorsed
 or affiliated with, Apple Computer, Inc or iChat.
 
 =cut
+
+
+
+### Private methods
+
+sub addconn($@) {
+	my $self = shift;
+	my %data = @_;
+
+	$data{session} = $self;
+	my $connection;
+	my $conntype = $data{conntype};
+
+	if($conntype == CONNTYPE_CHAT) {
+		$connection = Net::OSCAR::Connection::Chat->new(%data);
+	} else {
+		$connection = Net::OSCAR::Connection->new(%data);
+		# We set the connection to 1 to indicate that it is in progress but not ready for SNAC-sending yet.
+		$self->{services}->{$conntype} = 1 unless $conntype == CONNTYPE_CHAT;
+	}
+
+	if($conntype == CONNTYPE_BOS) {
+		$self->{services}->{$conntype} = $connection;
+	}
+
+	push @{$self->{connections}}, $connection;
+	$self->callback_connection_changed($connection, $connection->{state});
+	return $connection;
+}
+
+sub delconn($$) {
+	my($self, $connection) = @_;
+
+	return unless $self->{connections};
+	$self->callback_connection_changed($connection, "deleted");
+	for(my $i = scalar @{$self->{connections}} - 1; $i >= 0; $i--) {
+		next unless $self->{connections}->[$i] == $connection;
+		$connection->log_print(OSCAR_DBG_NOTICE, "Closing.");
+		splice @{$self->{connections}}, $i, 1;
+		if(!$connection->{sockerr}) {
+			eval {
+				$connection->flap_put("", FLAP_CHAN_CLOSE) if $connection->{socket};
+				close $connection->{socket} if $connection->{socket};
+			};
+		} else {
+			delete $self->{services}->{$connection->{conntype}} unless $connection->{conntype} == CONNTYPE_CHAT;
+
+			if($connection->{conntype} == CONNTYPE_BOS or ($connection->{conntype} == CONNTYPE_LOGIN and !$connection->{closing})) {
+				delete $connection->{socket};
+				return $self->crapout($connection, "Lost connection to BOS");
+			} elsif($connection->{conntype} == CONNTYPE_ADMIN) {
+				$self->callback_admin_error("all", ADMIN_ERROR_CONNREF, undef) if scalar(keys(%{$self->{adminreq}}));
+			} elsif($connection->{conntype} == CONNTYPE_CHAT) {
+				$self->callback_chat_closed($connection, "Lost connection to chat");
+			} else {
+				$self->log_print(OSCAR_DBG_NOTICE, "Closing connection ", $connection->{conntype});
+			}
+		}
+		delete $connection->{socket};
+		return 1;
+	}
+	return 0;
+}
+
+=pod
+
+=item findconn (FILENO)
+
+Finds the connection that is using the specified file number, or undef
+if the connection could not be found.  Returns a C<Net::OSCAR::Connection>
+object.
+
+=cut
+
+sub findconn($$) {
+	my($self, $target) = @_;
+	my($conn) = grep { fileno($_->{socket}) == $target } @{$self->{connections}};
+	return $conn;
+}
+
+sub DESTROY {
+	my $self = shift;
+
+	foreach my $connection(@{$self->{connections}}) {
+		next unless $connection->{socket} and not $connection->{sockerr};
+		$connection->flap_put("", FLAP_CHAN_CLOSE);
+		close $connection->{socket} if $connection->{socket};
+	}
+}
+
+sub findgroup($$) {
+	my($self, $groupid) = @_;
+	my($group, $currgroup, $currid);
+
+	my $thegroup = undef;
+
+	$self->log_printf(OSCAR_DBG_DEBUG, "findgroup 0x%04X", $groupid);
+	while(($group, $currgroup) = each(%{$self->{buddies}})) {
+		$self->log_printf(OSCAR_DBG_DEBUG, "\t$group == 0x%04X", $currgroup->{groupid});
+		next unless exists($currgroup->{groupid}) and $groupid == $currgroup->{groupid};
+		$thegroup = $group;
+		last;
+	}
+	my $a = keys %{$self->{buddies}}; # reset the iterator
+	return $thegroup;
+}
+
+sub findbuddy_byid($$$) {
+	my($self, $buddies, $bid) = @_;
+
+	while(my($buddy, $value) = each(%$buddies)) {
+		return $buddy if $value->{buddyid} == $bid;
+	}
+	return undef;
+}
+
+sub newid($;$) {
+	my($self, $group) = @_;
+	my $id = 4;
+	my %ids = ();
+
+	if($group) {
+		%ids = map { $_->{buddyid} => 1 } values %$group;
+		do { ++$id; } while($ids{$id}) or $id < 4;
+	} else {
+		do { $id = ++$self->{nextid}->{__GROUPID__}; } while($self->findgroup($id));
+	}
+	return $id;
+}
+
+sub capabilities($) {
+	my $self = shift;
+
+	my $caps;
+
+	$caps = OSCAR_CAPS()->{chat}->{value} . OSCAR_CAPS()->{interoperate}->{value};
+	$caps .= OSCAR_CAPS()->{extstatus}->{value} if $self->{capabilities}->{extended_status};
+	$caps .= OSCAR_CAPS()->{buddyicon}->{value} if $self->{capabilities}->{buddy_icons};
+	$caps .= OSCAR_CAPS()->{filexfer}->{value} if $self->{capabilities}->{file_transfer};
+	$caps .= OSCAR_CAPS()->{fileshare}->{value} if $self->{capabilities}->{file_sharing};
+
+	return $caps;
+}
+
+sub mod_permit($$$@) {
+	my($self, $action, $group, @buddies) = @_;
+
+	return must_be_on($self) unless $self->{is_on};
+	if($action == MODBL_ACTION_ADD) {
+		foreach my $buddy(@buddies) {
+			next if exists($self->{$group}->{$buddy});
+			$self->{$group}->{$buddy}->{buddyid} = $self->newid($self->{$group});
+		}
+	} else {
+		foreach my $buddy(@buddies) {
+			delete $self->{$group}->{$buddy};
+		}
+	}
+}
+
+sub mod_buddylist($$$$;@) {
+	my($self, $action, $what, $group, @buddies) = @_;
+	return must_be_on($self) unless $self->{is_on};
+
+	@buddies = ($group) if $what == MODBL_WHAT_GROUP;
+
+	if($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_ADD) {
+		return if exists $self->{buddies}->{$group};
+		$self->{buddies}->{$group} = {
+			groupid => $self->newid(),
+			members => bltie,
+			data => tlv
+		};
+	} elsif($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_DEL) {
+		return unless exists $self->{buddies}->{$group};
+		delete $self->{buddies}->{$group};
+	} elsif($what == MODBL_WHAT_BUDDY and $action == MODBL_ACTION_ADD) {
+		$self->mod_buddylist(MODBL_ACTION_ADD, MODBL_WHAT_GROUP, $group) unless exists $self->{buddies}->{$group};
+		@buddies = grep {not exists $self->{buddies}->{$group}->{members}->{$_}} @buddies;
+		return unless @buddies;
+		foreach my $buddy(@buddies) {
+			$self->{buddies}->{$group}->{members}->{$buddy} = {
+				buddyid => $self->newid($self->{buddies}->{$group}->{members}),
+				data => tlv,
+				online => 0,
+				comment => undef,
+				alias => undef
+			};
+		}
+	} elsif($what == MODBL_WHAT_BUDDY and $action == MODBL_ACTION_DEL) {
+		return unless exists $self->{buddies}->{$group};
+		@buddies = grep {exists $self->{buddies}->{$group}->{members}->{$_}} @buddies;
+		return unless @buddies;
+		foreach my $buddy(@buddies) {
+			delete $self->{buddies}->{$group}->{members}->{$buddy};
+		}
+		$self->mod_buddylist(MODBL_ACTION_DEL, MODBL_WHAT_GROUP, $group) unless scalar keys %{$self->{buddies}->{$group}->{members}};
+	}
+}
+
+sub postprocess_userinfo($$) {
+	my($self, $userinfo) = @_;
+
+	if($userinfo->{idle}) {
+		$userinfo->{idle} *= 60;
+		$userinfo->{idle_since} = time() - $userinfo->{idle};
+	}
+	$userinfo->{evil} /= 10 if exists($userinfo->{evil});
+	if(exists($userinfo->{flags})) {
+		my $flags = $userinfo->{flags};
+		$userinfo->{trial} = $flags & 0x1;
+		$userinfo->{admin} = $flags & 0x2;
+		$userinfo->{aol} = $flags & 0x4;
+		$userinfo->{pay} = $flags & 0x8;
+		$userinfo->{free} = $flags & 0x10;
+		$userinfo->{away} = $flags & 0x20;
+		$userinfo->{mobile} = $flags & 0x80;
+	}
+
+	if(exists($userinfo->{capabilities})) {
+		my $capabilities = delete $userinfo->{capabilities};
+		foreach my $capability (@$capabilities) {
+			$self->log_print(OSCAR_DBG_DEBUG, "Got a capability.");
+			if(OSCAR_CAPS_INVERSE()->{$capability}) {
+				my $capname = OSCAR_CAPS_INVERSE()->{$capability};
+				$self->log_print(OSCAR_DBG_DEBUG, "Got capability $capname.");
+				$userinfo->{capabilities}->{$capname} = OSCAR_CAPS()->{$capname}->{description};
+			} else {
+				$self->log_print(OSCAR_DBG_INFO, "Unknown capability: ", hexdump($capability));
+			}
+		}
+	}
+		
+	if(exists($userinfo->{icon_md5sum})) {
+		if(!exists($self->{userinfo}->{$userinfo->{screenname}})
+		   or !exists($self->{userinfo}->{$userinfo->{screenname}}->{icon_md5sum})
+		   or $self->{userinfo}->{$userinfo->{screenname}}->{icon_md5sum} ne $userinfo->{icon_md5sum}) {
+			$self->callback_new_buddy_icon($userinfo->{screenname}, $userinfo);
+		}
+	}
+}
+
+sub send_message($$$$;$) {
+	my($self, $recipient, $channel, $body, $flags2) = @_;
+	$flags2 ||= 0;
+
+	my $reqid = (8<<16) | (unpack("n", randchars(2)))[0];
+	my %protodata = (
+		cookie => randchars(8),
+		channel => $channel,
+		screenname => $recipient,
+		message_body => $body,
+	);
+	$self->svcdo(CONNTYPE_BOS, reqdata => $recipient, protobit => "outgoing IM", protodata => \%protodata, flags2 => $flags2);
+
+	return $reqid;
+}
+
+sub rendezvous_reject($$) {
+	my($self, $cookie) = @_;
+
+	return unless exists($self->{rv_proposals}->{$cookie});
+	my $proposal = delete $self->{rv_proposals}->{$cookie};
+
+	my %protodata;
+	$protodata{status} = 1;
+	$protodata{cookie} = $cookie;
+	$protodata{capability} = OSCAR_CAPS()->{$proposal->{type}} ? OSCAR_CAPS()->{$proposal->{type}}->{value} : $proposal->{type};
+
+	return $self->send_message($proposal->{sender}, 2, protoparse($self, "rendezvous IM")->pack(%protodata));
+}
+
+sub svcdo($$%) {
+	my($self, $service, %data) = @_;
+
+	if($self->{services}->{$service} and ref($self->{services}->{$service})) {
+		$self->{services}->{$service}->proto_send(%data);
+	} else {
+		push @{$self->{svcqueues}->{$service}}, \%data;
+		$self->svcreq($service) unless $self->{services}->{$service};
+	}
+}
+
+sub svcreq($$) {
+        my($self, $svctype) = @_;
+
+        $self->log_print(OSCAR_DBG_INFO, "Sending service request for servicetype $svctype.");
+        $self->svcdo(CONNTYPE_BOS, protobit => "service request", protodata => {type => $svctype});
+}
+
+sub crapout($$$;$) {
+	my($self, $connection, $reason, $errno) = @_;
+	send_error($self, $connection, $errno || 0, $reason, 1);
+	$self->signoff();
+}
+
+sub must_be_on($) {
+	my $self = shift;
+	send_error($self, $self->{services}->{CONNTYPE_BOS()}, 0, "You have not finished signing on.", 0);
+}
+
 
 1;
