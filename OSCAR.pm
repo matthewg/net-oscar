@@ -227,6 +227,13 @@ Screenname and password are mandatory.  The other keys are optional.
 In the special case of password being present but undefined, the
 auth_challenge callback will be used - see L<"auth_challenge"> for details.
 
+=item stealth
+
+Use this to sign on with stealth mode activated.  Using this, as opposed
+to signon on without this setting and then calling L<"set_stealth">, will prevent
+the user from showing as online for a brief interval after signon.  See L<"set_stealth">
+for information about stealth mode.
+
 =item pass_is_hashed
 
 If you want to give Net::OSCAR the MD5 hash of the password instead of the password
@@ -299,8 +306,8 @@ sub signon($@) {
 	($self->{screenname}, $password, $host, $self->{port},
 		$self->{proxy_type}, $self->{proxy_host}, $self->{proxy_port},
 		$self->{proxy_username}, $self->{proxy_password}, $self->{local_ip},
-		$self->{pass_is_hashed}) =
-			delete @args{qw(screenname password host port proxy_type proxy_host proxy_port proxy_username proxy_password local_ip pass_is_hashed)};
+		$self->{pass_is_hashed}, $self->{stealth}) =
+			delete @args{qw(screenname password host port proxy_type proxy_host proxy_port proxy_username proxy_password local_ip pass_is_hashed stealth)};
 
 	$self->{svcdata} = \%args;
 
@@ -658,7 +665,6 @@ nicely.
 sub is_stealth($) { return shift->{stealth}; }
 sub set_stealth($$) {
 	my($self, $new_state) = @_;
-	return unless $new_state xor $self->{stealth}; #Short-circuit the NOP
 	$self->svcdo(CONNTYPE_BOS, protobit => "set extended status", protodata => {
 		stealth => {state => $new_state ? 0x100 : 0}
 	});

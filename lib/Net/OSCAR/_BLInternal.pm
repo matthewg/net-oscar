@@ -74,7 +74,6 @@ sub BLI_to_NO($) {
 	delete $session->{appdata};
 	delete $session->{showidle};
 	delete $session->{presence_unknown};
-	delete $session->{stealth};
 
 	$session->{buddies} = bltie(1);
 	$session->{permit} = bltie;

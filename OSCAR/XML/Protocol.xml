@@ -320,6 +320,8 @@
 		<tlvchain subtyped="yes">
 			<tlv type="0" subtype="65"><data name="upload_checksum" /></tlv>
 			<tlv type="1" subtype="65"><data name="upload_checksum" /></tlv>
+			<tlv type="0" subtype="0"><data name="upload_checksum" /></tlv>
+			<tlv type="1" subtype="1"><data name="upload_checksum" /></tlv>
 
 			<tlv type="0" subtype="129"><data name="resend_checksum" /></tlv>
 			<tlv type="1" subtype="129"><data name="resend_checksum" /></tlv>

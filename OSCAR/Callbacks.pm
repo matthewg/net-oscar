@@ -76,16 +76,15 @@ sub process_snac($$) {
 		if($conntype == CONNTYPE_BOS) {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Signon BOS handshake complete!");
 
-			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting personal info.");
-
 			$connection->proto_send(protobit => "personal info request");
+			$session->set_stealth(1) if $session->{stealth};
+
 			$connection->proto_send(protobit => "buddylist rights request");
 			$connection->proto_send(protobit => "buddylist request");
 			$connection->proto_send(protobit => "locate rights request");
 			$connection->proto_send(protobit => "buddy rights request");
 			$connection->proto_send(protobit => "IM parameter request");
 			$connection->proto_send(protobit => "BOS rights request");
-
 		} elsif($conntype == CONNTYPE_CHAT) {
 			$connection->ready();
 
@@ -135,16 +134,19 @@ sub process_snac($$) {
 		$error .= " (".$data{error_details}.")." if $data{error_details};
 		send_error($session, $connection, $data{errno}, $error, 0, $reqdata);
 	} elsif($protobit eq "self information") {
-		$session->{stealth} ||= 0;
-		my $stealth_state = 0;
 		if(exists($data{stealth_status})) {
-			$stealth_state = 1 if $data{stealth_status} & 0x100;
-		}
+			my $stealth_state;
+			if($data{stealth_status} & 0x100) {
+				$stealth_state = 1;
+			} else {
+				$stealth_state = 0;
+			}
 
-		if($stealth_state xor $session->{stealth}) {
-			$connection->log_print(OSCAR_DBG_DEBUG, "Stealth state changed: ", $stealth_state);
-			$session->{stealth} = $stealth_state;
-			$session->callback_stealth_changed($stealth_state);
+			if($stealth_state xor $session->{stealth}) {
+				$connection->log_print(OSCAR_DBG_DEBUG, "Stealth state changed: ", $stealth_state);
+				$session->{stealth} = $stealth_state;
+				$session->callback_stealth_changed($stealth_state);
+			}
 		}
 
 
@@ -492,7 +494,6 @@ sub got_buddylist($$) {
 	$connection->ready();
 
 	$session->set_extended_status("") if $session->{capabilities}->{extended_status};
-
 	$connection->proto_send(protobit => "set idle", protodata => {duration => 0});
 	$connection->proto_send(protobit => "buddylist done");
 

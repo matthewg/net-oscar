@@ -2,6 +2,8 @@
 
 use lib "./blib/lib";
 use strict;
+use warnings;
+use Getopt::Long;
 use Net::OSCAR qw(:standard);
 use Digest::MD5 qw(md5);
 eval {
@@ -243,18 +245,35 @@ sub stealth_changed($$) {
 	print "Stealth state changed to $stealth_state.\n";
 }
 
-$loglevel = $ARGV[0] || undef;
-$domd5 = $ARGV[1] || 0;
 
-print "Username: ";
-my $username = <STDIN>;
-print "Password: ";
-system("stty -echo");
-$password = <STDIN>;
-system("stty echo");
-print "\n";
-chomp $username;
-chomp $password;
+my $loglevel = undef;
+my $do_md5 = 0;
+my $stealth = 0;
+my $screenname = undef;
+my $password = undef;
+if(!GetOptions(
+	"l|loglevel=i" => \$loglevel,
+	"m|md5" => \$do_md5,
+	"s|stealth" => \$stealth,
+	"u|screenname=s" => \$screenname,
+	"p|password=s" => \$password
+) or @ARGV) {
+	die "Usage: $0 [--loglevel=NUM] [--md5] [--stealth] [--screenname S] [--password P]\n";
+}
+
+if(!defined($screenname)) {
+	print "Screenname: ";
+	$screenname = <STDIN>;
+	chomp $screenname;
+}
+if(!defined($password)) {
+	print "Password: ";
+	system("stty -echo");
+	$password = <STDIN>;
+	system("stty echo");
+	print "\n";
+	chomp $password;
+}
 
 $oscar = Net::OSCAR->new(capabilities => [qw(typing_status extended_status buddy_icons file_transfer)]);
 $oscar->set_callback_error(\&error);
@@ -284,10 +303,10 @@ $oscar->set_callback_auth_challenge(\&auth_challenge);
 $oscar->set_callback_im_ok(\&im_ok);
 $oscar->set_callback_stealth_changed(\&stealth_changed);
 $oscar->loglevel($loglevel) if defined($loglevel);
-if($domd5) {
-	$oscar->signon(screenname => $username, password => undef);
+if($do_md5) {
+	$oscar->signon(screenname => $screenname, password => undef, stealth => $stealth);
 } else {
-	$oscar->signon(screenname => $username, password => $password);
+	$oscar->signon(screenname => $screenname, password => $password, stealth => $stealth);
 }
 
 my $inline = "";
