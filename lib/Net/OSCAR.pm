@@ -1846,6 +1846,13 @@ This is normally 4 but can be 5 for certain chatrooms.
 
 =back
 
+=head1 ICQ
+
+ICQ support is very preliminary.  A patch enabling us to sign on to
+ICQ was provided by SDiZ Cheng.  No further work beyond the ability
+to sign on has been done on ICQ at this time.  See the C<signon> method
+for details on signing on via ICQ.
+
 =head1 CONSTANTS
 
 The following constants are defined when C<Net::OSCAR> is imported with the
@@ -2352,7 +2359,7 @@ was used to help figure out a lot of the protocol details.  E<lt>http://www.ziga
 
 Mark Doliner for help with remote buddylists.  E<lt>http://kingant.net/libfaim/ReadThis.htmlE<gt>
 
-SDiZ Cheng for a patch implementing ICQ2000 support.
+SDiZ Cheng E<lt>sdiz@uhome.netE<gt> for a patch implementing ICQ2000 support.
 
 The gaim team - the source to their libfaim client was also very helpful.  E<lt>http://gaim.sourceforge.net/E<gt>
 

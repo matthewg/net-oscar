@@ -286,16 +286,18 @@ sub process_one($) {
 			$snac = $self->snac_get() or return 0;
 			return Net::OSCAR::Callbacks::process_snac($self, $snac);
 		} else {
-			$snac = $self->flap_get() or return 0;
+			my $data = $self->flap_get() or return 0;
+			$snac = {data => $data, reqid => 0, family => 0x17, subtype => 0x3};
 			if($self->{channel} == FLAP_CHAN_CLOSE) {
 				$self->{conntype} = CONNTYPE_LOGIN;
 				$self->{family} = 0x17;
 				$self->{subtype} = 0x3;
-				$self->{data} = $snac;
+				$self->{data} = $data;
 				$self->{reqid} = 0;
+				$self->{reqdata}->[0x17]->{pack("N", 0)} = "";
 				return Net::OSCAR::Callbacks::process_snac($self, $snac);
 			} else {
-				return Net::OSCAR::Callbacks::process_snac($self, $self->snac_decode($snac));
+				return Net::OSCAR::Callbacks::process_snac($self, $self->snac_decode($data));
 			}
 		}
 	}

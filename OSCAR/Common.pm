@@ -123,6 +123,7 @@ use constant GROUPPERM_AOL => dualvar(0x04, "AOL subscribers");
 use constant OSCAR_SVC_AIM => (
 	host => 'login.oscar.aol.com',
 	port => 5190,
+	supermajor => 109,
 	major => 4,
 	minor => 7,
 	subminor => 0,
@@ -134,8 +135,9 @@ use constant OSCAR_SVC_AIM => (
 use constant OSCAR_SVC_ICQ => ( # Courtesy of SDiZ Cheng
 	host => 'login.icq.com',
 	port => 5190,
-	major => '2000b',
-	minor => 4,
+	supermajor => 266,
+	major => 4,
+	minor => 63,
 	subminor => 1,
 	build => 3279,
 	subbuild => 85,
@@ -327,11 +329,10 @@ sub tlvtie(;$) {
 sub signon_tlv($$;$) {
 	my($session, $password, $key) = @_;
 
-	return (
+	my %tlv = (
 		0x01 => $session->{screenname},
-		0x25 => encode_password($session, $password, $key),
 		0x03 => $session->{svcdata}->{clistr},
-		0x16 => pack("n", 0x109),
+		0x16 => pack("n", $session->{svcdata}->{supermajor}),
 		0x17 => pack("n", $session->{svcdata}->{major}),
 		0x18 => pack("n", $session->{svcdata}->{minor}),
 		0x19 => pack("n", $session->{svcdata}->{subminor}),
@@ -339,8 +340,16 @@ sub signon_tlv($$;$) {
 		0x14 => pack("N", $session->{svcdata}->{subbuild}),
 		0x0F => "en", # lang
 		0x0E => "us", # country
-		0x4A => pack("C", 1),
 	);
+
+	if($session->{svcdata}->{hashlogin}) {
+		$tlv{0x02} = encode_password($session, $password);
+	} else {
+		$tlv{0x25} = encode_password($session, $password, $key);
+		$tlv{0x4A} = pack("C", 1);
+	}
+
+	return %tlv;
 }
 
 sub encode_password($$;$) {
