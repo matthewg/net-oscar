@@ -637,7 +637,7 @@ EOF
 				print "Name: ", $oscar->{blinternal}->{$params[0]}->{$params[1]}->{$params[2]}->{name}, "\n\t", join("\n\t", map { sprintf "0x%04X", $_ } keys %{$oscar->{blinternal}->{$params[0]}->{$params[1]}->{$params[2]}->{data}}), "\n";
 			} elsif(@params == 4) {
 				print "BLI type data for entry $params[0]/$params[1]/$params[2]/$params[3]:\n\t";
-				print Net::OSCAR::Common::hexdump($oscar->{blinternal}->{$params[0]}->{$params[1]}->{$params[2]}->{data}->{hex($params[3])}), "\n";
+				print Net::OSCAR::Utility::hexdump($oscar->{blinternal}->{$params[0]}->{$params[1]}->{$params[2]}->{data}->{hex($params[3])}), "\n";
 			}
 		} elsif($cmd eq "set_stealth") {
 			$oscar->set_stealth($params[0]);
