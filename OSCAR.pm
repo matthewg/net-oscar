@@ -633,7 +633,7 @@ sub capabilities($) {
 	$caps = OSCAR_CAPS()->{chat}->{value} . OSCAR_CAPS()->{interoperate}->{value};
 	$caps .= OSCAR_CAPS()->{extstatus}->{value} if $self->{capabilities}->{extended_status};
 	$caps .= OSCAR_CAPS()->{buddyicon}->{value} if $self->{capabilities}->{buddy_icons};
-	$caps .= OSCAR_CAPS()->{getfile}->{value} . OSCAR_CAPS()->{sendfile}->{value} if $self->{capabilities}->{file_transfer};
+	$caps .= OSCAR_CAPS()->{sendfile}->{value} if $self->{capabilities}->{file_transfer};
 
 	return $caps;
 }
