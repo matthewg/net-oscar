@@ -143,6 +143,7 @@ use vars qw($VERSION $REVISION @ISA @EXPORT_OK %EXPORT_TAGS);
 use Carp;
 use Scalar::Util;
 use Digest::MD5 qw(md5);
+use Socket;
 use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::Connection;
 use Net::OSCAR::Callbacks;
@@ -216,7 +217,7 @@ sub new($) {
 	bless $self, $class;
 
 	my(%parameters) = @_;
-	if(my($badparam) = grep { $_ ne "capabilities" and $ne "direct_connect_port" } keys %parameters) {
+	if(my($badparam) = grep { $_ ne "capabilities" and $_ ne "direct_connect_port" } keys %parameters) {
 		croak "Invalid parameter '$badparam' passed to Net::OSCAR::new.";
 	}
 	if($parameters{capabilities}) {
@@ -1119,8 +1120,8 @@ If the message was too long to send, returns zero.
 
 =cut
 
-sub send_im($$$;$) {
-	my($self, $to, $msg, $away) = @_;
+sub send_im($$$;$;) {
+	my($self, $to, $msg, $away, $channel) = @_;
 	return must_be_on($self) unless $self->{is_on};
 	my $packet = "";
 	my $reqid = (8<<16) | (unpack("n", randchars(2)))[0];
@@ -1132,29 +1133,38 @@ sub send_im($$$;$) {
 	}
 
 	$packet = randchars(8);
-	$packet .= pack("n", 1); # channel
+	$channel ||= 1;
+	$packet .= pack("n", $channel);
 	$packet .= pack("Ca*", length($to), $to);
 
-	$packet .= tlv_encode(tlv(2 => pack("n3 C n C n3 a*", 0x501, 4, 0x101, 1, 0x201, 1, length($msg)+4, 0, 0, $msg)));
+	my $flags2 = 0;
 
-	if($away) {
-		$packet .= tlv_encode(tlv(4 => ""));
+	if($channel == 1) {
+		$packet .= tlv_encode(tlv(2 => pack("n3 C n C n3 a*", 0x501, 4, 0x101, 1, 0x201, 1, length($msg)+4, 0, 0, $msg)));
+
+		if($away) {
+			$packet .= tlv_encode(tlv(4 => ""));
+		} else {
+			$packet .= tlv_encode(tlv(3 => "")); #request server confirmation
+		}
+
+		if($self->{capabilities}->{buddy_icons} and $self->{icon_checksum} and $self->{icon_timestamp} and
+			(!exists($self->{userinfo}->{$to}) or
+			!exists($self->{userinfo}->{to}->{icon_timestamp_received}) or
+			$self->{icon_timestamp} > $self->{userinfo}->{$to}->{icon_timestamp_received})
+		) {
+
+			$self->log_print(OSCAR_DBG_DEBUG, "Informing $to about our buddy icon.");
+			$self->{userinfo}->{$to} ||= {};
+			$self->{userinfo}->{$to}->{icon_timestamp_received} = $self->{icon_timestamp};
+			$packet .= tlv_encode(tlv(8 => pack("NnnN", $self->{icon_length}, 1, $self->{icon_checksum}, $self->{icon_timestamp})));
+		}
+
+		$flags2 = 0xB if $self->{capabilities}->{typing_status};
 	} else {
-		$packet .= tlv_encode(tlv(3 => "")); #request server confirmation
+		$packet .= $msg;
 	}
 
-	if($self->{capabilities}->{buddy_icons} and $self->{icon_checksum} and $self->{icon_timestamp} and
-		(!exists($self->{userinfo}->{$to}) or
-		!exists($self->{userinfo}->{to}->{icon_timestamp_received}) or
-		$self->{icon_timestamp} > $self->{userinfo}->{$to}->{icon_timestamp_received})
-	) {
-		$self->log_print(OSCAR_DBG_DEBUG, "Informing $to about our buddy icon.");
-		$self->{userinfo}->{$to} ||= {};
-		$self->{userinfo}->{$to}->{icon_timestamp_received} = $self->{icon_timestamp};
-		$packet .= tlv_encode(tlv(8 => pack("NnnN", $self->{icon_length}, 1, $self->{icon_checksum}, $self->{icon_timestamp})));
-	}
-
-	my $flags2 = $self->{capabilities}->{typing_status} ? 0xB : 0;
 	$self->svcdo(CONNTYPE_BOS, reqid => $reqid, reqdata => $to, family => 0x4, subtype => 0x6, data => $packet, flags2 => $flags2);
 	return $reqid;
 }
@@ -1200,6 +1210,48 @@ sub send_typing_status($$$) {
 	);
 }
 
+
+=pod
+
+=item direct_im_connect (SCREENNAME)
+
+Requests a direct IM connection to C<SCREENNAME>.
+
+=cut
+
+sub direct_listener($) {
+	my $self = shift;
+	my $listener = $self->{services}->{CONNTYPE_DIRECT_IN} or $self->addconn(conntype => CONNTYPE_DIRECT_IN, description => "direct connection listener");
+	$listener->touch();
+	return $listener;
+}
+
+sub ip($) {
+	my $self = shift;
+	my $sockaddr = getsockname($self->{services}->{CONNTYPE_BOS()}->{socket});
+	my $addr;
+	(undef, $addr) = sockaddr_in($sockaddr);
+	return $addr;
+}
+
+sub direct_im_connect($$) {
+	my($self, $to) = @_;
+
+	my $listener = $self->direct_listener();
+
+	my $cookie = randchars(8);
+	$self->send_im(
+		$to,
+		encode_tlv(tlv(0x05 =>
+			pack("na*a*a*",
+				0, $cookie, OSCAR_CAPS()->{directim}->{value},
+				encode_tlv(tlv(0x0A => pack("n", 1), 0x0F => "", 0x03 => $self->ip(), 0x05 => pack("n", $listener->port())))
+			), 0x03 => ""
+		)),
+		0,
+		2
+	);
+}
 
 =pod
 
