@@ -6,6 +6,7 @@ OSCAR.pm
 README
 TODO
 HACKING
+PROTOCOL
 oscartest
 snacsnatcher
 t/01_basic.t
