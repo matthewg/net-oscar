@@ -219,7 +219,7 @@ sub connect($$) {
 	$self->{port} = $port;
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Connecting to $host:$port.");
-	$self->{socket} = IO::Socket::INET->gensym;
+	$self->{socket} = gensym;
 	socket($self->{socket}, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
 
 	$self->{ready} = 0;
