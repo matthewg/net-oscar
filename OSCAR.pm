@@ -3791,7 +3791,9 @@ sub mod_buddylist($$$$;@) {
 		$self->{buddies}->{$group}->{__BLI_DELETED} = 1;
 	} elsif($what == MODBL_WHAT_BUDDY and $action == MODBL_ACTION_ADD) {
 
-		$self->mod_buddylist(MODBL_ACTION_ADD, MODBL_WHAT_GROUP, $group) unless exists $self->{buddies}->{$group};
+		$self->mod_buddylist(MODBL_ACTION_ADD, MODBL_WHAT_GROUP, $group) unless
+			exists $self->{buddies}->{$group} and
+			not $self->{buddies}->{$group}->{__BLI_DELETED};
 
 		my $grp = $self->{buddies}->{$group};
 		@buddies = grep {
