@@ -1953,6 +1953,10 @@ sub clone($) {
 	$clone->{SNDEBUG} = $self->{SNDEBUG};
 	$clone->{timeout} = $self->{timeout};
 
+	foreach my $c ($clone->{connections}) {
+		$c->{buffer} = \"";
+	}
+
 	return $clone;
 }
 
