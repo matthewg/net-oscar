@@ -22,7 +22,7 @@ require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(
 	randchars log_print log_printf log_print_cond log_printf_cond hexdump normalize tlv_decode tlv_encode send_error bltie
-	signon_tlv encode_password send_versions
+	signon_tlv encode_password send_versions hash_iter_reset
 );
 
 sub randchars($) {
@@ -271,6 +271,13 @@ sub send_versions($$;$) {
 	} else {
 		$connection->proto_send(protobit => "set service versions", protodata => \%protodata, nopause => 1);
 	}
+}
+
+# keys(%foo) in void context, the standard way of reseting
+# a hash iterator, appears to leak memory.
+#
+sub hash_iter_reset($) {
+	while((undef, undef) = each(%{$_[0]})) {}
 }
 
 1;
