@@ -227,6 +227,9 @@ sub connect($$) {
 		}
 	} else {
 		$port = $1;
+		if($port =~ /^[^0-9]/) {
+			$port = $self->{session}->{port};
+		}
 	}
 	$self->{host} = $host;
 	$self->{port} = $port;

@@ -199,7 +199,8 @@ sub signon($$$;$$) {
 
 	# We set BOS to the login connection so that our error handlers pick up errors on this connection as fatal.
 	$host ||= "login.oscar.aol.com";
-	$self->{port} = $port || 5190;
+	$port ||= 5190;
+	$self->{port} = $port;
 	$self->{bos} = $self->addconn($password, CONNTYPE_LOGIN, "login", $host);
 	push @{$self->{connections}}, $self->{bos};
 }
@@ -265,8 +266,9 @@ sub delconn($$) {
 		$connection->debug_print("Closing.");
 		splice @{$self->{connections}}, $i, 1;
 		if(!$connection->{sockerr}) {
-			$connection->flap_put("", FLAP_CHAN_CLOSE);
-			close $connection->{socket};
+			eval {
+				close $connection->{socket} if $connection->{socket};
+			};
 		} else {
 			if($connection->{conntype} == CONNTYPE_BOS) {
 				$self->crapout($connection, "Lost connection to BOS");
@@ -280,10 +282,8 @@ sub delconn($$) {
 			}
 		}
 		delete $connection->{socket};
-		#print STDERR "After removing connection: ", Data::Dumper::Dumper($self->{connections}), "\n";
 		return 1;
 	}
-	#print STDERR "Couldn't find connection ", $connection->{description}, "\n";
 	return 0;
 }
 
