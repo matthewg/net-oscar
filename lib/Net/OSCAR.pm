@@ -1020,6 +1020,10 @@ sub mod_buddylist($$$$;@) {
 sub postprocess_userinfo($$) {
 	my($self, $userinfo) = @_;
 
+	if($userinfo->{idle}) {
+		$userinfo->{idle} *= 60;
+		$userinfo->{idle_since} = time() - $userinfo->{idle};
+	}
 	$userinfo->{evil} /= 10 if exists($userinfo->{evil});
 	if(exists($userinfo->{flags})) {
 		my $flags = $userinfo->{flags};
@@ -1094,7 +1098,7 @@ sub send_message($$$$;$) {
 		screenname => $recipient,
 		message_body => $body,
 	);
-	$self->svcdo(CONNTYPE_BOS, reqdata => $to, protobit => "outgoing IM", protodata => \%protodata, flags2 => $flags2);
+	$self->svcdo(CONNTYPE_BOS, reqdata => $recipient, protobit => "outgoing IM", protodata => \%protodata, flags2 => $flags2);
 
 	return $reqid;
 }
