@@ -168,7 +168,32 @@
 			<tlv type="84"><data name="password_change_url" /></tlv>
 		</tlvchain>
 	</define>
-	<define name="rate_info_response" family="1" subtype="7" />
+	<define name="rate_class_info">
+		<word name="class_id" />
+		<dword name="window_size" />
+		<data name="levels">
+			<dword name="clear" />
+			<dword name="alert" />
+			<dword name="limit" />
+			<dword name="disconnect" />
+			<dword name="current" />
+			<dword name="max" />
+		</data>
+		<dword name="last_time" />
+		<byte name="current_state" />
+	</define>
+	<define name="rate_info_response" family="1" subtype="7">
+		<data count_prefix="word" name="classes">
+			<ref name="rate_class_info" />
+		</data>
+		<data count="-1" name="classmembers">
+			<word name="class_id" />
+			<data count_prefix="word" name="snacs">
+				<word name="family" />
+				<word name="subtype" />
+			</data>
+		</data>
+	</define>
 	<define name="rate_acknowledgement" family="1" subtype="8">
 		<word>1</word>
 		<word>2</word>
@@ -213,15 +238,8 @@
 	</define>
 	<define name="rate_info_request" family="1" subtype="6" />
 	<define name="rate_change" family="1" subtype="10">
-		<word />
-		<word name="group" />
-		<dword name="window" />
-		<dword name="clear" />
-		<dword name="alert" />
-		<dword name="limit" />
-		<dword name="disconnect" />
-		<dword name="current" />
-		<dword name="max" />
+		<word name="message_type" />
+		<ref name="rate_class_info" />
 	</define>
 	<define name="outgoing_warning" family="4" subtype="8">
 		<word name="is_anonymous" />
