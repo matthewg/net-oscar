@@ -120,8 +120,7 @@ sub process_snac($$) {
 		} elsif($conntype == CONNTYPE_CHAT) {
 			$connection->ready();
 
-			# We don't get the 0x0E/0x02 callback for exchange 5 chats until it's too late
-			$session->callback_chat_joined($connection->name, $connection) if $connection->exchange == 5;
+			$session->callback_chat_joined($connection->name, $connection) unless $connection->{chat_joined}++;
 		}
 	} elsif($subtype == 0x1) {
 		$subtype = $reqid >> 16;
@@ -388,7 +387,7 @@ sub process_snac($$) {
 		my($tlvcount) = unpack("n", substr($data, 0, 2, ""));
 		my $tlv = tlv_decode($data);
 
-		$session->callback_chat_joined($connection->{name}, $connection) unless $connection->exchange == 5;
+		$session->callback_chat_joined($connection->{name}, $connection) unless $connection->{sent_joined}++;
 
 		my $occupants = 0;
 		($occupants) = unpack("n", $tlv->{0x6F}) if $tlv->{0x6F};
