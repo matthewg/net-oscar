@@ -204,6 +204,7 @@ sub connect($$) {
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Connecting to $host:$port.");
 	$self->{socket} = IO::Socket::INET->new;
+	$self->{socket}->configure; # Needed in order to be able to set blocking
 
 	$self->{ready} = 0;
 	$self->{connected} = 0;
