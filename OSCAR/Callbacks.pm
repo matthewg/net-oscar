@@ -405,7 +405,7 @@ sub process_snac($$) {
 		$session->{blarray}->[$snac->{flags2}] = $data{data};
 
 		if($snac->{flags2}) {
-			$connection->log_print(OSCAR_DBG_SIGNON, "Got buddylist segment -- need %d more.", $snac->{flags2});
+			$connection->log_printf(OSCAR_DBG_SIGNON, "Got buddylist segment -- need %d more.", $snac->{flags2});
 		} else {
 			delete $session->{gotbl};
 
@@ -601,6 +601,8 @@ sub process_snac($$) {
 		$user_info->{icon} = $data{icon};
 		$session->callback_buddy_icon_downloaded($screenname, $data{icon});
 	} elsif($protobit eq "pause") {
+		$session->{__old_loglevel} = $session->loglevel();
+		$session->loglevel(10);
 		$connection->log_print(OSCAR_DBG_WARN, "Server initiated migration.  Migration support is experimental.  Please tell matthewg\@zevils.com that this happened and whether or not it worked!  Include the information below.");
 		$connection->log_print(OSCAR_DBG_WARN, "Migration families sent: ", join(" ", keys %{$connection->{families}}));
 		$connection->proto_send(protobit => "pause_ack", protodata => {
@@ -610,6 +612,7 @@ sub process_snac($$) {
 	} elsif($protobit eq "unpause") {
 		$connection->log_print(OSCAR_DBG_WARN, "Migration cancelled by server!");
 		$connection->unpause();
+		$connection->loglevel(delete $connection->{__old_loglevel});
 	} elsif($protobit eq "migrate") {
 		# It looks like we get a blank family if the server sends
 		# no migration families (full migration.)  Filter out
@@ -648,6 +651,8 @@ sub process_snac($$) {
 			$connection->log_printf(OSCAR_DBG_WARN, "Migration pause queue: %d/%d", @$pause_queue, @{$connection->{pause_queue}});
 		}
 
+
+		$session->loglevel(delete $session->{__old_loglevel});
 		my $newconn = $session->addconn(
 			auth => $data{cookie},
 			conntype => $connection->{conntype},
