@@ -28,6 +28,7 @@ sub capabilities($) {
 sub process_snac($$) {
 	my($connection, $snac) = @_;
 	my($conntype, $family, $subtype, $data, $reqid) = ($connection->{conntype}, $snac->{family}, $snac->{subtype}, $snac->{data}, $snac->{reqid});
+
 	my $reqdata = delete $connection->{reqdata}->[$family]->{pack("N", $reqid)};
 	my $session = $connection->{session};
 
@@ -91,9 +92,6 @@ sub process_snac($$) {
 
 			$connection->log_print(OSCAR_DBG_DEBUG, "Doing buddylist unknown 0x2.");
 			$connection->snac_put(family => 0x13, subtype => 0x2);
-
-			#$connection->log_print(OSCAR_DBG_DEBUG, "Requesting buddylist.");
-			#$connection->snac_put(family => 0x13, subtype => 0x5, data => chr(0)x6);
 
 			$connection->log_print(OSCAR_DBG_DEBUG, "Making unknown buddylist request.");
 			$connection->snac_put(family => 0x13, subtype => 0x4);
@@ -313,7 +311,6 @@ sub process_snac($$) {
 	} elsif($family == 0x13 and $subtype == 0x3) {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Got buddylist 0x0003.");	
 		$session->{gotbl} = 1;
-		#$connection->snac_put(family => 0x13, subtype => 0x7);
 	} elsif($family == 0x13 and $subtype == 0x6) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got buddylist.");
 
@@ -332,12 +329,11 @@ sub process_snac($$) {
 			got_buddylist($session, $connection);
 		}
 	} elsif($family == 0x13 and $subtype == 0x0E) {
-		$session->{budmods}--;
-		$connection->log_print(OSCAR_DBG_DEBUG, "Got blmod ack ($session->{budmods} left).");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Got blmod ack (", scalar(@{$session->{budmods}}), " left).");
 		my(@errors) = unpack("n*", $data);
 
 		# If this is the last packet and there are/were no problems, send bl_ok
-		$session->callback_buddylist_ok() unless $session->{budmods} > 0 or $session->{buderrors} or grep { $_ } @errors;
+		$session->callback_buddylist_ok() unless @{$session->{budmods}} == 0 or $session->{buderrors} or grep { $_ } @errors;
 
 		my @reqdata = @$reqdata;
 		foreach my $error(@errors) {
@@ -352,13 +348,18 @@ sub process_snac($$) {
 					delete $session->{blinternal}->{$type}->{$gid} unless exists($session->{blold}->{$type}) and exists($session->{blold}->{$type}->{$gid});
 					delete $session->{blinternal}->{$type}->{$gid}->{$bid} unless exists($session->{blold}->{$type}) and exists($session->{blold}->{$type}->{$gid}) and exists($session->{blold}->{$type}->{$gid}->{$bid});
 				}
+
+				$connection->snac_put(%{pop @{$session->{budmods}}}); # Stop making changes
 				$session->callback_buddylist_error($error, $errdata->{desc});
+				last;
 			}
 		}
 
-		if($session->{budmods} == 0) {
+		$connection->snac_put(%{shift @{$session->{budmods}}}) unless $session->{buderrors};
+
+		if(@{$session->{budmods}} <= 1 or $session->{buderrors}) {
 			Net::OSCAR::_BLInternal::BLI_to_NO($session) if $session->{buderrors};
-			delete $session->{qw(blold buderrors)};
+			delete $session->{qw(blold buderrors budmods)};
 		}
 	} elsif($family == 0x13 and $subtype == 0x0F) {
 		if($session->{gotbl}) {

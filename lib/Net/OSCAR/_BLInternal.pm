@@ -89,6 +89,12 @@ sub BLI_to_NO($) {
 		}
 	}
 
+#          02 03 00 03  31 2E 35                                   .... 1.5
+#OSCAR session: New BLI entry  0x0004/0x0000/0x0002 with 20 bytes of data:
+#          00 CA 00 01  01 00 CB 00   04 FF FF FF  FF 02 03 00     .... ....  .... ....
+#          03 31 2E 35                                             .1.5
+
+
 	if(exists $bli->{4} and (my($visbid) = keys %{$bli->{4}->{0}})) {
 		my $typedata = $bli->{4}->{0}->{$visbid}->{data};
 		($session->{visibility}) = unpack("C", $typedata->{0xCA}) if $typedata->{0xCA};
@@ -225,6 +231,9 @@ sub NO_to_BLI($) {
 			}
 			$bli->{0}->{$gid}->{$bid}->{data}->{0x13C} = $session->{buddies}->{$group}->{members}->{$buddy}->{comment} if defined $session->{buddies}->{$group}->{members}->{$buddy}->{comment};
 		}
+
+		print Data::Dumper::Dumper($bli->{1}->{$gid});
+
 	}
 
 	BLI_to_OSCAR($session, $bli);
@@ -235,10 +244,8 @@ sub BLI_to_OSCAR($$) {
 	my($session, $newbli) = @_;
 	my $oldbli = $session->{blinternal};
 	my $oscar = $session->{bos};
-	my $modcount = 0;
 	my (@adds, @modifies, @deletes);
-
-	$oscar->snac_put(family => 0x13, subtype => 0x11); # Begin BL mods
+	$session->{budmods} = [];
 
 	# First, delete stuff that we no longer use and modify everything else
 	foreach my $type(keys %$oldbli) {
@@ -361,27 +368,22 @@ sub BLI_to_OSCAR($$) {
 				reqdata => [@reqdata],
 			};
 		}
-		$modcount += @packets;
 
-		foreach my $packet(@packets) {
-			$oscar->snac_put(
-				family => 0x13,
-				subtype => $type,
-				reqdata => $packet->{reqdata},
-				data => $packet->{data}
-			);
-		}
+		push @{$session->{budmods}}, map {{family => 0x13, subtype => $type, reqdata => $_->{reqdata}, data => $_->{data}}} @packets
 	}
 
-	$oscar->snac_put(family => 0x13, subtype => 0x12); # End BL mods
+	push @{$session->{budmods}}, {family => 0x13, subtype => 0x12}; # End BL mods
 
 	$session->{blold} = $oldbli;
 	$session->{blinternal} = $newbli;
 
-	# OSCAR doesn't send an 0x13/0xE if we don't actually modify anything.
-	$session->callback_buddylist_ok() unless $modcount;
-
-	$session->{budmods} = $modcount;
+	if(@{$session->{budmods}} <= 1) { # We only have the start/end modification packets, no actual changes
+		delete $session->{budmods};
+		$session->callback_buddylist_ok();
+	} else {
+		$oscar->snac_put(family => 0x13, subtype => 0x11); # Begin BL mods
+		$oscar->snac_put(%{shift @{$session->{budmods}}}); # Send the first modification
+	}
 }
 
 1;
