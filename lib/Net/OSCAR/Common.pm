@@ -180,10 +180,8 @@ sub log_print($$@) {
 	}
 }
 
-sub log_printf($$@) {
+sub log_printf($$$@) {
 	my($obj, $level, $fmtstr) = (shift, shift, shift);
-	my $session = exists($obj->{session}) ? $obj->{session} : $obj;
-	return unless $session->{DEBUG};
 
 	$obj->log_print($level, sprintf($fmtstr, @_));
 }

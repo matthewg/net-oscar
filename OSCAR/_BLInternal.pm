@@ -59,7 +59,7 @@ sub blparse($$) {
 # Buddylist-Internal -> Net::OSCAR
 # Sets various $session hashkeys from blinternal.
 # That's what Brian Bli-to-no'd do. ;)
-sub BLI_to_NO($;$$$) {
+sub BLI_to_NO($) {
 	my($session) = @_;
 	my $bli = $session->{blinternal};
 
