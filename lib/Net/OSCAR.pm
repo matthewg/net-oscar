@@ -180,7 +180,7 @@ sub new($) {
 		}
 	}
 
-	$self->{LOGLEVEL} = 0;
+	$self->{LOGLEVEL} = OSCAR_DBG_WARN;
 	$self->{SNDEBUG} = 0;
 	$self->{description} = "OSCAR session";
 	$self->{userinfo} = bltie;
@@ -197,6 +197,9 @@ sub new($) {
 	if($parameters{capabilities}) {
 		$self->{capabilities}->{$_} = 1 foreach @{$parameters{capabilities}};
 	}
+
+	# Set default callbacks
+	$self->set_callback_snac_unknown(\&Net::OSCAR::Callbacks::default_snac_unknown);
 
 	return $self;
 }
@@ -1854,6 +1857,16 @@ C<CONNECTION> is a C<Net::OSCAR::Connection> object.
 Users of this callback may also be interested in the L<"get_filehandle">
 method of C<Net::OSCAR::Connection>.
 
+=item snac_unknown (OSCAR, CONNECTION, SNAC, DATA)
+
+Called when Net::OSCAR receives a message from the OSCAR server which
+it doesn't known how to handle.  The default handler for this callback
+will print out the unknown SNAC.
+
+C<CONNECTION> is the C<Net::OSCAR::Connection> object on which the unknkown
+message was received.  C<SNAC> is a hashref with keys such as C<family>, C<subtype>, C<flags1>, and
+C<flags2>.
+
 =cut
 
 sub do_callback($@) {
@@ -1891,6 +1904,7 @@ sub callback_im_ok(@) { do_callback("im_ok", @_); }
 sub callback_connection_changed(@) { do_callback("connection_changed", @_); }
 sub callback_auth_challenge(@) { do_callback("auth_challenge", @_); }
 sub callback_stealth_changed(@) { do_callback("stealth_changed", @_); }
+sub callback_snac_unknown(@) { do_callback("snac_unknown", @_); }
 
 sub set_callback_error($\&) { set_callback("error", @_); }
 sub set_callback_buddy_in($\&) { set_callback("buddy_in", @_); }
@@ -1935,6 +1949,7 @@ sub set_callback_im_ok($\&) { set_callback("im_ok", @_); }
 sub set_callback_connection_changed($\&) { set_callback("connection_changed", @_); }
 sub set_callback_auth_challenge($\&) { set_callback("auth_challenge", @_); }
 sub set_callback_stealth_changed($\&) { set_callback("stealth_changed", @_); }
+sub set_callback_snac_unknown($\&) { set_callback("snac_unknown", @_); }
 
 =pod
 

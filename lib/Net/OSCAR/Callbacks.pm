@@ -29,13 +29,14 @@ sub process_snac($$) {
 	my $session = $connection->{session};
 
 	my $protobit = snac_to_protobit(%$snac);
-	die "Unknown SNAC: $family/$subtype\n" unless $protobit;
+	if(!$protobit) {
+		return $session->callback_snac_unknown($connection, $snac, $data);
+	}
+
 	my %data = protoparse($session, $protobit)->unpack($data);
 	$connection->log_printf(OSCAR_DBG_DEBUG, "Got SNAC 0x%04X/0x%04X: %s", $snac->{family}, $snac->{subtype}, $protobit);
 
-	if(!$protobit) {
-		$connection->log_print(OSCAR_DBG_NOTICE, "Unknown SNAC: ".hexdump($snac->{data}));
-	} elsif($protobit eq "authentication key") {
+	if($protobit eq "authentication key") {
 		if(defined($connection->{auth})) {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Sending password.");
 			my(%signon_data) = signon_tlv($session, $connection->{auth}, $data{key});
@@ -114,7 +115,7 @@ sub process_snac($$) {
 				});
 			}
 		} elsif(exists($data{resend_checksum})) {
-			$connection->log_print(OSCAR_DBG_WARN, "Got icon resend request!");
+			$connection->log_print(OSCAR_DBG_INFO, "Got icon resend request!");
 			$session->set_icon($session->{icon});
 		} elsif(exists($data{status_message})) {
 			$session->callback_extended_status($data{status_message});
@@ -497,6 +498,11 @@ sub got_buddylist($$) {
 
 	$session->{is_on} = 1;
 	$session->callback_signon_done() unless $session->{sent_done}++;
+}
+
+sub default_snac_unknown($$$$) {
+	my($session, $connection, $snac, $data) = @_;
+	$session->log_printf(OSCAR_DBG_WARN, "Unknown SNAC %d/%d: %s", $snac->{family}, $snac->{subtype}, hexdump($snac->{data}));
 }
 
 1;

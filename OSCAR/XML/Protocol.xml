@@ -342,8 +342,6 @@
 				<!--
 				   0x100 is the 'stealth' flag
 				   Presumably there are other things that can go here...
-				   Do they all get mysteriously preserved across signon
-				    without going in the buddylist?  Fah.
 				-->
 				<dword name="state" />
 			</tlv>
@@ -440,7 +438,6 @@
 		<ref name="userinfo" />
 		<data name="IM" />
 	</define>
-
 	<define name="outgoing IM" family="4" subtype="6">
 		<ref name="standard IM header" />
 		<data name="screenname" length_prefix="byte" />

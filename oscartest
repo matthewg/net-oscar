@@ -243,7 +243,7 @@ sub stealth_changed($$) {
 	print "Stealth state changed to $stealth_state.\n";
 }
 
-$loglevel = $ARGV[0] || 0;
+$loglevel = $ARGV[0] || undef;
 $domd5 = $ARGV[1] || 0;
 
 print "Username: ";
@@ -283,7 +283,7 @@ $oscar->set_callback_signon_done(\&signon_done);
 $oscar->set_callback_auth_challenge(\&auth_challenge);
 $oscar->set_callback_im_ok(\&im_ok);
 $oscar->set_callback_stealth_changed(\&stealth_changed);
-$oscar->loglevel($loglevel);
+$oscar->loglevel($loglevel) if defined($loglevel);
 if($domd5) {
 	$oscar->signon(screenname => $username, password => undef);
 } else {
