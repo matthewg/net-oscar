@@ -82,13 +82,11 @@ sub flap_get($) {
 		$self->disconnect();
 		return undef;
 	}
-	print STDERR "Wanted $len but got $nchars!!\n" unless $len == $nchars;
 	if($len > $nchars) {
 		my $abuff = "";
 		$len -= $nchars;
 		$nchars = sysread($self->{socket}, $abuff, $len);
 		$buffer .= $abuff;
-		print STDERR "Got $nchars more chars.\n";
 	}
 		
 	return $buffer;
