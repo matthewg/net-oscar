@@ -60,6 +60,7 @@ sub process_snac($$) {
 			return 0;
 		} else {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Login OK - connecting to BOS");
+			$connection->{closing} = 1;
 			$connection->disconnect;
 			$session->{screenname} = $tlv{0x01};
 			$session->{email} = $tlv{0x11};

@@ -60,7 +60,7 @@ sub flap_put($;$$) {
 		$emsg = $self->flap_encode($msg, $channel);
 		$self->{outbuff} .= $emsg;
 	}
-	my $nchars = syswrite($self->{socket}, $self->{outbuff}, length($emsg));
+	my $nchars = syswrite($self->{socket}, $self->{outbuff}, length($self->{outbuff}));
 	if(!defined($nchars)) {
 		return "" if $! == EAGAIN;
 		$self->log_print(OSCAR_DBG_NOTICE, "Couldn't write to socket: $!");

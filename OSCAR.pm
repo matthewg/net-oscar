@@ -352,7 +352,7 @@ sub delconn($$) {
 				close $connection->{socket} if $connection->{socket};
 			};
 		} else {
-			if($connection->{conntype} == CONNTYPE_BOS or $connection->{conntype} == CONNTYPE_LOGIN) {
+			if($connection->{conntype} == CONNTYPE_BOS or ($connection->{conntype} == CONNTYPE_LOGIN and !$connection->{closing})) {
 				$self->callback_connection_changed($connection, "deleted");
 				delete $connection->{socket};
 				return $self->crapout($connection, "Lost connection to BOS");
