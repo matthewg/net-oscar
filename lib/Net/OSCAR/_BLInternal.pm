@@ -551,7 +551,7 @@ sub chain_exists($@) {
 		}
 	}
 
-	return $tlv ? 1 : 0;	
+	return defined($tlv) ? 1 : 0;	
 }
 
 1;
