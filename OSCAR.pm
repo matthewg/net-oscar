@@ -1344,9 +1344,9 @@ sub chat_decline($$) {
 	);
 }
 
-sub crapout($$$) {
-	my($self, $connection, $reason) = @_;
-	send_error($self, $connection, 0, $reason, 1);
+sub crapout($$$;$) {
+	my($self, $connection, $reason, $errno) = @_;
+	send_error($self, $connection, $errno || 0, $reason, 1);
 	$self->signoff();
 }
 

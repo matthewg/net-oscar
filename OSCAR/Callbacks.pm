@@ -56,7 +56,9 @@ sub process_snac($$) {
 			$session->crapout($connection, "Invalid screenname.") if $error == 0x01;
 			$session->crapout($connection, "Invalid password.") if $error == 0x05;
 			$session->crapout($connection, "You've been connecting too frequently.") if $error == 0x18;
-			$session->crapout($connection, "Unknown error $error: $tlv{0x04}.");
+			my $errstr = (ERRORS)[$error] or "Unknown error";
+			$errstr .= ": $tlv{0x04}";
+			$session->crapout($connection, $errstr, $error);
 			return 0;
 		} else {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Login OK - connecting to BOS");
