@@ -17,7 +17,7 @@ WriteMakefile(
 sub MY::postamble {
 	<<EOF;
 
-ifdef OSCARVER
+ifdef \$(OSCARVER)
 VERSION = \$(OSCARVER)
 VERSION_SYM = \$(OSCARVER)
 XS_VERSION = \$(OSCARVER)
