@@ -1564,6 +1564,65 @@ oscartest is a minimalist implementation of a C<Net::OSCAR> client.
 snacsnatcher is a tool designed for analyzing the OSCAR protocol from
 libpcap-format packet captures.
 
+=head1 HISTORY
+
+=over 4
+
+=item 0.05, 2001-08-08
+
+=over 4
+
+=item *
+
+Don't send signon_done until after we get buddylist.
+
+=item *
+
+Added signoff method.
+
+=item *
+
+Fixed typo in documentation
+
+=item *
+
+Fixed chat_invite parm count
+
+=item *
+
+Added Scalar::Utils::dualvar variables, especially to Common.pm.
+dualvar variables return different values in numeric and string context.
+
+=item *
+
+Added url method for Net::OSCAR::Chat (closes #31)
+
+=item *
+
+Divide evil by 10 in extract_userinfo (closes #30)
+
+=item *
+
+chat_invite now exposes chatname (closes #32)
+
+=item *
+
+Removed unnecessary and warning-generating session length from extract_userinfo
+
+=back
+
+=item 0.01, 2001-08-02
+
+=over 4
+
+=item *
+
+Initial release.
+
+=back
+
+=back
+
 =head1 SUPPORT
 
 See http://www.zevils.com/programs/net-oscar/ for support, including
