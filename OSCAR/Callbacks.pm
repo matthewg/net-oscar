@@ -1,6 +1,6 @@
 package Net::OSCAR::Callbacks;
 
-$VERSION = 0.08;
+$VERSION = 0.09;
 
 use strict;
 use vars qw($VERSION);

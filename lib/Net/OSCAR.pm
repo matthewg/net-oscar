@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = 0.08;
+$VERSION = 0.09;
 
 =head1 NAME
 
@@ -1778,61 +1778,41 @@ you use the string comparison operators (eq, ne, cmp, etc.)
 
 0.09, 2001-10-01
 
-2001-09-23  Matthew Sachs  <matthewg@allevil>
+=over 4
 
-	* /home/cvs/net-oscar/OSCAR/Callbacks.pm, /home/cvs/net-oscar/OSCAR/Connection.pm:
-	Crash fixes
+=item *
 
-2001-09-21  Matthew Sachs  <matthewg@allevil>
+Crash and undefined value fixes
 
-	* /home/cvs/net-oscar/OSCAR.pm: rename_group fix
+=item *
 
-	* /home/cvs/net-oscar/OSCAR/Callbacks.pm:
-	Fix for buddy_in callback and data
+New method: im_ok
 
-	* /home/cvs/net-oscar/OSCAR/Connection.pm:
-	Better error handling when we can't resolve a host
+=item *
 
-	* /home/cvs/net-oscar/OSCAR.pm: Typo fix
+New method: rename_group, should fix "Couldn't get group name" error.
 
-2001-09-20  Matthew Sachs  <matthewg@allevil>
+=item *
 
-	* /home/cvs/net-oscar/OSCAR/_BLInternal.pm, /home/cvs/net-oscar/OSCAR.pm:
-	Added rename_group, should fix "Couldn't get group name" error
+Fix for buddy_in callback and data
 
-	* /home/cvs/net-oscar/OSCAR/Callbacks.pm:
-	Fixed really annoying typo in a log_print call.
+=item *
 
-	* /home/cvs/net-oscar/OSCAR/Callbacks.pm: Stupid typo fix
+Better error handling when we can't resolve a host
 
-	* /home/cvs/net-oscar/OSCAR/Common.pm:
-	Nope, had it right the first time
+=item *
 
-	* /home/cvs/net-oscar/OSCAR/Common.pm:
-	Whoops, lower loglevels are more important
+Vastly improved logging infrastructure - debug_print(f) replaced with log_print(f). debug_print callback is now called log and has an extra parameter.
 
-	* /home/cvs/net-oscar/OSCAR/_BLInternal.pm, /home/cvs/net-oscar/OSCAR/Callbacks.pm, /home/cvs/net-oscar/OSCAR/Chat.pm, /home/cvs/net-oscar/OSCAR/Common.pm, /home/cvs/net-oscar/OSCAR/Connection.pm, /home/cvs/net-oscar/OSCAR.pm, /home/cvs/net-oscar/oscartest:
-	Vastly improved logging infrastructure - debug_print(f) replaced with log_print(f).
-	debug_print callback is now called log and has an extra parameter.
+=item *
 
-2001-09-19  Matthew Sachs  <matthewg@allevil>
+Fixed MANIFEST - we don't actually use Changes (and we do use Screenname.pm)
 
-	* /home/cvs/net-oscar/Changes, /home/cvs/net-oscar/MANIFEST:
-	Fixed MANIFEST - we don't actually use Changes
+=item *
 
-2001-09-10  Matthew Sachs  <matthewg@allevil>
+blinternal now automagically enforces the proper structure (the right things become Net::OSCAR::TLV tied hashes and the name and data keys are automatically created) upon vivification.  So, you can do $bli->{0}->{1}->{2}->{data}->{0x3} = "foo" without worrying if 0, 1, 2, or data have been tied.  Should close bug #47.
 
-	* /home/cvs/net-oscar/OSCAR/_BLInternal.pm:
-	Looks like we need to change BLI_AUTOVIV
-
-	* /home/cvs/net-oscar/OSCAR/TLV.pm:
-	TLV can't use Common - Common uses TLV!  That shouldn't break, but I guess it does.
-
-	* /home/cvs/net-oscar/OSCAR/_BLInternal.pm, /home/cvs/net-oscar/OSCAR/Common.pm, /home/cvs/net-oscar/OSCAR/TLV.pm:
-	blinternal now automagically enforces the proper structure (the right things
-	become Net::OSCAR::TLV tied hashes and the name and data keys are automatically
-	created) upon vivification.  So, you can do $bli->{0}->{1}->{2}->{data}->{0x3} = "foo"
-	without worrying if 0, 1, 2, or data have been tied.  Should close bug #47.
+=back
 
 =item *
 
