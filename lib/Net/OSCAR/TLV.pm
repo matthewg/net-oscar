@@ -122,17 +122,16 @@ sub FIRSTKEY {
 }
 
 sub NEXTKEY {
-	my ($self, $currkey) = @_;
-	$currkey = ++$self->{CURRKEY};
-	my ($packedkey) = pack("n", $currkey);
+	my ($self) = @_;
 
+	my $currkey = ++$self->{CURRKEY};
 	if($currkey >= scalar @{$self->{ORDER}}) {
 		return wantarray ? () : undef;
-	} else {
-		my $packedkey = $self->{ORDER}->[$currkey];
-		($currkey) = unpack("n", $packedkey);
-		return wantarray ? ($currkey, $self->{DATA}->{$packedkey}) : $currkey;
 	}
+
+	my $packedkey = $self->{ORDER}->[$currkey];
+	my($key) = unpack("n", $packedkey);
+	return wantarray ? ($key, $self->{DATA}->{$packedkey}) : $key;
 }
 
 
