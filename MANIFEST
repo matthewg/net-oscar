@@ -15,3 +15,4 @@ OSCAR/Connection.pm
 OSCAR/Screenname.pm
 OSCAR/TLV.pm
 OSCAR/OldPerl.pm
+OSCAR/Proxy.pm
