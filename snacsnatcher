@@ -17,16 +17,15 @@ my $file = shift or die "Usage: snacsnatcher pcapfile [verbose]\n";
 
 # Quick and dirty protocol analyzer
 
-use vars qw($packet $verbose $buffer $bufflen $datalink @blarray);
+use vars qw($packet $verbose %buffer %bufflen $datalink @blarray);
 $packet = 0;
 $verbose = shift;
-$buffer = "";
-$bufflen = 0;
 
 $| = 1;
 
 sub got_packet($$$) {
 	my($user, $hdr, $pkt) = @_;
+	my($inaddr, $outaddr);
 	my $tlv;
 
 	$packet++;
@@ -56,6 +55,9 @@ sub got_packet($$$) {
 	$src = inet_ntoa($src);
 	$dst = inet_ntoa($dst);
 
+	$buffer{$src} ||= "";
+	$bufflen{$src} ||= 0;
+
 	substr($pkt, 0, 12) = "";
 	my($tcplen, $flags) = unpack("CC", $pkt);
 	$tcplen = ($tcplen>>4)*4;
@@ -63,20 +65,20 @@ sub got_packet($$$) {
 	return if $flags & 0x2; # SYN
 
 	PACKET: while($pkt) {
-		if($buffer) {
-			if($bufflen == -1) {
-				$pkt = $buffer . $pkt;
-				$buffer = "";
-				$bufflen = 0;
+		if($buffer{$src}) {
+			if($bufflen{$src} == -1) {
+				$pkt = $buffer{$src} . $pkt;
+				$buffer{$src} = "";
+				$bufflen{$src} = 0;
 			} else {
-				if(length($pkt) < ($bufflen - length($buffer))) {
-					$buffer .= $pkt;
+				if(length($pkt) < $bufflen{$src} - length($buffer{$src})) {
+					$buffer{$src} .= $pkt;
 					return;
 				} else {
-					$buffer .= substr($pkt, 0, $bufflen - length($buffer), "");
-					$pkt = $buffer;
-					$buffer = "";
-					$bufflen = 0;
+					$buffer{$src} .= substr($pkt, 0, $bufflen{$src} - length($buffer{$src}), "");
+					$pkt = $buffer{$src};
+					$buffer{$src} = "";
+					$bufflen{$src} = 0;
 				}
 			}
 		}
@@ -85,12 +87,12 @@ sub got_packet($$$) {
 		$len ||= 0;
 		if($flap == 0x2A) {
 			if((length($pkt) - 6) < $len) {
-				$buffer = $pkt;
-				$bufflen = $len + 6;
+				$buffer{$src} = $pkt;
+				$bufflen{$src} = $len + 6;
 				return;
 			} elsif((length($pkt) - 6) > $len) {
-				$buffer = substr($pkt, $len + 6, length($pkt) - $len - 6, "");
-				$bufflen = -1;
+				$buffer{$src} = substr($pkt, $len + 6, length($pkt) - $len - 6, "");
+				$bufflen{$src} = -1;
 			}
 		}
 
