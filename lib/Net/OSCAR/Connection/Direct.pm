@@ -21,17 +21,6 @@ use Net::OSCAR::Utility;
 use Net::OSCAR::XML;
 @ISA = qw(Net::OSCAR::Connection);
 
-sub new($@) {
-	my $self = shift->SUPER::new(@_);
-
-	$self->{checksum} = 0xFFFF0000;
-	$self->{received_checksum} = 0xFFFF0000;
-	$self->{sent_oft_header} = 0;
-	$self->{bytes_recv} = 0;
-
-	return $self;
-}
-
 sub process_one($;$$$) {
 	my($self, $read, $write, $error) = @_;
 	my $snac;

@@ -66,19 +66,6 @@ while(1) {
 
 			next unless $write;
 			my $hash = $Net::OSCAR::ServerCallbacks::SESSIONS;
-			next unless $hash->{somedude};
-			next unless $hash->{somedude}->{sessions}->[0];
-			next unless $conn == $hash->{somedude}->{sessions}->[0];
-
-			$conn->proto_send(protobit => "buddy status update", protodata => {
-				screenname => "Other Dude",
-				evil => 0,
-				flags => 0x20,
-				onsince => 0,
-				membersince => 0,
-				idle => 0,
-				capabilities => "",
-			});
 		}
 	}
 }

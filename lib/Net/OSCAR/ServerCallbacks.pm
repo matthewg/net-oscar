@@ -32,7 +32,7 @@ $SCREENNAMES->{somedude} = {sn => "Some Dude", pw => "somepass", email => 'some@
 $SCREENNAMES->{otherdude} = {sn => "Other Dude", pw => "otherpass", email => 'other@dude.com', blist => [qw(SomeDude OtherDude)]};
 
 
-sub srv_send_error($$) {
+sub srv_send_error($$$) {
 	my($connection, $family, $errno) = @_;
 
 	$connection->proto_send(family => $family, protobit => "error", protodata => {errno => $errno});
@@ -63,7 +63,6 @@ sub process_snac($$) {
 			$protohandlers{$protobit} = eval {
 				require "Net/OSCAR/ServerCallbacks/0/$protobit.pm";
 			};
-			die $olderr if $@;
 		}
 	}
 
