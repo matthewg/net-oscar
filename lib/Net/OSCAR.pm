@@ -115,7 +115,7 @@ when using multiple C<Net::OSCAR> objects.
 
 =cut
 
-use v5.6.1;
+use 5.006_001;
 use strict;
 use vars qw($VERSION $REVISION @ISA @EXPORT_OK %EXPORT_TAGS);
 use Carp;
@@ -419,10 +419,11 @@ groups, will return the first one we find.
 sub findbuddy($$) {
 	my($self, $buddy) = @_;
 
-	#$self->log_print(OSCAR_DBG_DEBUG, "findbuddy $buddy");
 	foreach my $group(keys %{$self->{buddies}}) {
-		#$self->debug_print("\t$buddy? ", join(",", keys %{$self->{buddies}->{$group}->{members}}));
-		return $group if $self->{buddies}->{$group}->{members}->{$buddy};
+		next if $group eq "__BLI_DIRTY";
+		return $group if
+			$self->{buddies}->{$group}->{members}->{$buddy} and
+			not $self->{buddies}->{$group}->{members}->{$buddy}->{__BLI_DELETED};
 	}
 	return undef;
 }
@@ -481,6 +482,7 @@ sub reorder_groups($@) {
 	return must_be_on($self) unless $self->{is_on};
 	my @groups = @_;
 	tied(%{$self->{buddies}})->setorder(@groups);
+	$self->{buddies}->{__BLI_DIRTY} = 1;
 }
 
 sub reorder_buddies($$@) {
@@ -489,6 +491,7 @@ sub reorder_buddies($$@) {
 	my $group = shift;
 	my @buddies = @_;
 	tied(%{$self->{buddies}->{$group}->{members}})->setorder(@buddies);
+	$self->{buddies}->{$group}->{__BLI_DIRTY} = 1;
 }
 
 =pod
@@ -520,7 +523,9 @@ sub rename_group($$$) {
 	my($self, $oldgroup, $newgroup) = @_;
 	return must_be_on($self) unless $self->{is_on};
 	return send_error($self, $self->{services}->{0+CONNTYPE_BOS}, 0, "That group does not exist", 0) unless exists $self->{buddies}->{$oldgroup};
+
 	$self->{buddies}->{$newgroup} = $self->{buddies}->{$oldgroup};
+	$self->{buddies}->{$newgroup}->{__BLI_DIRTY} = 1;
 	delete $self->{buddies}->{$oldgroup};
 }
 
@@ -565,17 +570,32 @@ a hashref as per L<USER INFORMATION> below.
 
 =cut
 
-sub groups($) { return keys %{shift->{buddies}}; }
+sub groups($) { return grep {$_ ne "__BLI_DIRTY"} keys %{shift->{buddies}}; }
 sub buddies($;$) {
 	my($self, $group) = @_;
 
-	return keys %{$self->{buddies}->{$group}->{members}} if $group;
-	return map { keys %{$_->{members}} } values %{$self->{buddies}};
+	if($group) {
+		my $grp = $self->{buddies}->{$group};
+
+		return grep {
+			not $grp->{members}->{$_}->{__BLI_DELETED}
+		} keys %{$grp->{members}};
+	}
+
+	my @buddies;
+	foreach my $group (values %{$self->{buddies}}) {
+		next unless ref($group);
+		push @buddies, grep { not $group->{members}->{$_}->{__BLI_DELETED} } keys %{$group->{members}};
+	}
+	return @buddies;
 }
 sub buddy($$;$) {
 	my($self, $buddy, $group) = @_;
 	$group ||= $self->findbuddy($buddy);
-	return $self->{buddies}->{$group}->{members}->{$buddy} if $group;
+
+	my $ret = $self->{buddies}->{$group}->{members}->{$buddy} if $group;
+	return $ret->{__BLI_DELETED} ? undef : $ret;
+
 	return $self->{userinfo}->{$buddy} || undef;
 }
 
@@ -598,13 +618,19 @@ deleted.
 sub set_buddy_comment($$$;$) {
 	my($self, $group, $buddy, $comment) = @_;
 	return must_be_on($self) unless $self->{is_on};
-	$self->{buddies}->{$group}->{members}->{$buddy}->{comment} = $comment;
+
+	my $bud = $self->{buddies}->{$group}->{members}->{$buddy};
+	$bud->{comment} = $comment;
+	$bud->{__BLI_DIRTY} = 1;
 }
 
 sub set_buddy_alias($$$;$) {
 	my($self, $group, $buddy, $alias) = @_;
 	return must_be_on($self) unless $self->{is_on};
-	$self->{buddies}->{$group}->{members}->{$buddy}->{alias} = $alias;
+
+	my $bud = $self->{buddies}->{$group}->{members}->{$buddy};
+	$bud->{alias} = $alias;
+	$bud->{__BLI_DIRTY} = 1;
 }
 
 =pod
@@ -1927,9 +1953,19 @@ Call L<"commit_buddylist"> to have the new data saved on the OSCAR server.
 sub get_app_data($;$$) {
 	my($self, $group, $buddy) = @_;
 
-	return $self->{appdata} unless $group;
-	return $self->{buddies}->{$group}->{data} unless $buddy;
-	return $self->{buddies}->{$group}->{members}->{$buddy}->{data};
+	# We don't track changes to the contents of these hashes,
+	# so mark as dirty and let BLI figure out whether anything really changed.
+	if($group and $buddy) {
+		my $bud = $self->{buddies}->{$group}->{members}->{$buddy};
+		$bud->{__BLI_DIRTY} = 1;
+		return $bud->{data};
+	} elsif($group) {
+		my $grp = $self->{buddies}->{$group};
+		$grp->{__BLI_DIRTY} = 1;
+		return $grp->{data};
+	} else {
+		return $self->{appdata};
+	}
 }
 
 =pod
@@ -3652,10 +3688,10 @@ sub findgroup($$) {
 
 	my $thegroup = undef;
 
-	$self->log_printf(OSCAR_DBG_DEBUG, "findgroup 0x%04X", $groupid);
 	while(($group, $currgroup) = each(%{$self->{buddies}})) {
-		$self->log_printf(OSCAR_DBG_DEBUG, "\t$group == 0x%04X", $currgroup->{groupid});
+		next if $group eq "__BLI_DIRTY";
 		next unless exists($currgroup->{groupid}) and $groupid == $currgroup->{groupid};
+		next if $currgroup->{__BLI_DELETED};
 		$thegroup = $group;
 		last;
 	}
@@ -3667,7 +3703,7 @@ sub findbuddy_byid($$$) {
 	my($self, $buddies, $bid) = @_;
 
 	while(my($buddy, $value) = each(%$buddies)) {
-		return $buddy if $value->{buddyid} == $bid;
+		return $buddy if $value->{buddyid} == $bid and !$value->{__BLI_DELETED};
 	}
 	return undef;
 }
@@ -3721,39 +3757,90 @@ sub mod_buddylist($$$$;@) {
 	my($self, $action, $what, $group, @buddies) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
+	if($group eq "__BLI_DIRTY") {
+		send_error($self, $self->{bos}, "Invalid group name", "__BLI_DIRTY is a reserved group name.", 0);
+		return;
+	}
+
 	@buddies = ($group) if $what == MODBL_WHAT_GROUP;
 
 	if($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_ADD) {
-		return if exists $self->{buddies}->{$group};
-		$self->{buddies}->{$group} = {
-			groupid => $self->newid(),
-			members => bltie(),
-			data => tlv()
-		};
+		return if exists $self->{buddies}->{$group} and !$self->{buddies}->{$group}->{__BLI_DELETED};
+
+		$self->{buddies}->{__BLI_DIRTY} = 1;
+
+		# Maybe group was deleted and then recreated
+		if(exists $self->{buddies}->{$group}) {
+			my $grp = $self->{buddies}->{$group};
+			$grp->{__BLI_DIRTY} = 1;
+			$grp->{data} = tlv();
+			$_->{__BLI_DELETED} = 1 foreach values %{$grp->{members}};
+		} else {
+			$self->{buddies}->{$group} = {
+				groupid => $self->newid(),
+				members => bltie(),
+				data => tlv(),
+				__BLI_DIRTY => 1,
+				__BLI_DELETED => 0,
+			};
+		}
 	} elsif($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_DEL) {
 		return unless exists $self->{buddies}->{$group};
-		delete $self->{buddies}->{$group};
+		$self->{buddies}->{__BLI_DIRTY} = 1;
+		$self->{buddies}->{$group}->{__BLI_DELETED} = 1;
 	} elsif($what == MODBL_WHAT_BUDDY and $action == MODBL_ACTION_ADD) {
+
 		$self->mod_buddylist(MODBL_ACTION_ADD, MODBL_WHAT_GROUP, $group) unless exists $self->{buddies}->{$group};
-		@buddies = grep {not exists $self->{buddies}->{$group}->{members}->{$_}} @buddies;
+
+		my $grp = $self->{buddies}->{$group};
+		@buddies = grep {
+			not (
+				exists $grp->{members}->{$_} and
+				not $grp->{members}->{$_}->{__BLI_DELETED}
+			)
+		} @buddies;
 		return unless @buddies;
+
+		$grp->{__BLI_DIRTY} = 1;
+
 		foreach my $buddy(@buddies) {
-			$self->{buddies}->{$group}->{members}->{$buddy} = {
-				buddyid => $self->newid($self->{buddies}->{$group}->{members}),
-				data => tlv(),
-				online => 0,
-				comment => undef,
-				alias => undef
-			};
+			# Buddy may have been deleted and recreated
+			if(exists($grp->{members}->{$buddy})) {
+				my $bud = $grp->{members}->{$buddy};
+				$bud->{__BLI_DIRTY} = 1;
+				$bud->{data} = tlv();
+				$bud->{comment} = undef;
+				$bud->{alias} = undef;
+			} else {
+				$grp->{members}->{$buddy} = {
+					buddyid => $self->newid($grp->{members}),
+					data => tlv(),
+					online => 0,
+					comment => undef,
+					alias => undef,
+					__BLI_DIRTY => 1,
+					__BLI_DELETED => 0,
+				};
+			}
 		}
 	} elsif($what == MODBL_WHAT_BUDDY and $action == MODBL_ACTION_DEL) {
 		return unless exists $self->{buddies}->{$group};
-		@buddies = grep {exists $self->{buddies}->{$group}->{members}->{$_}} @buddies;
+
+		my $grp = $self->{buddies}->{$group};
+		@buddies = grep {
+			exists $grp->{members}->{$_} and
+			not $grp->{members}->{$_}->{__BLI_DELETED}
+		} @buddies;
 		return unless @buddies;
+
+		$grp->{__BLI_DIRTY} = 1;
+
 		foreach my $buddy(@buddies) {
-			delete $self->{buddies}->{$group}->{members}->{$buddy};
+			$grp->{members}->{$buddy}->{__BLI_DELETED} = 1;
 		}
-		$self->mod_buddylist(MODBL_ACTION_DEL, MODBL_WHAT_GROUP, $group) unless scalar keys %{$self->{buddies}->{$group}->{members}};
+		$self->mod_buddylist(MODBL_ACTION_DEL, MODBL_WHAT_GROUP, $group) unless scalar
+			grep { not $grp->{members}->{$_}->{__BLI_DELETED} }
+			keys %{$grp->{members}};
 	}
 }
 

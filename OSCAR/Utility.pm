@@ -50,7 +50,7 @@ sub log_print($$@) {
 	}
 }
 
-sub log_printf($$$@) {
+sub log_printf($$@) {
 	my($obj, $level, $fmtstr) = (shift, shift, shift);
 
 	$obj->log_print($level, sprintf($fmtstr, @_));
