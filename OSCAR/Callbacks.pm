@@ -277,7 +277,7 @@ sub process_snac($$) {
 		return unless Net::OSCAR::_BLInternal::blparse($session, $data);
 		$connection->snac_put(family => 0x13, subtype => 0x7);
 
-		$session->set_info("");
+		$session->set_info("") unless $session->profile;
 
 		$connection->log_print(OSCAR_DBG_DEBUG, "Adding ICBM parameters.");
 		$connection->snac_put(family => 0x4, subtype => 0x2, data =>

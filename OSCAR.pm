@@ -69,13 +69,11 @@ connections that do belong to the object will be removed from the C<select> list
 so that you can use the lists for your own purposes.  Here is an example that
 demonstrates how to use this method with multiple C<Net::OSCAR> objects:
 
-	my $rin = $my_readers;
-	my $win = $my_writers;
+	my($rin, $win) = (0, 0);
 	foreach my $oscar(@oscars) {
-		my($readers, $writers) = $oscar->selector_filenos();
-		$rin |= $readers;
-		$win |= $writers;
+		my($rin, $win) = $oscar->selector_filenos;
 	}
+	# Add in any other file descriptors you care about using vec().
 	my $ein = $rin | $win;
 	select($rin, $win, $ein, 0.01);
 	foreach my $oscar(@oscars) {

@@ -197,6 +197,7 @@ sub NO_to_BLI($) {
 
 		foreach my $buddy(keys %{$session->{buddies}->{$group}->{members}}) {
 			my $bid = $session->{buddies}->{$group}->{members}->{$buddy}->{buddyid};
+			next unless $bid;
 			$bli->{0}->{$gid}->{$bid}->{name} = $buddy;
 			while(my ($key, $value) = each(%{$session->{buddies}->{$group}->{members}->{$buddy}->{data}})) {
 				$bli->{0}->{$gid}->{$bid}->{data}->{$key} = $value;
