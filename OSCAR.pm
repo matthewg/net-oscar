@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = 0.59;
+$VERSION = 0.60;
 
 =head1 NAME
 
@@ -2067,6 +2067,26 @@ Returns the C<Net::OSCAR> object associated with this C<Net::OSCAR::Connection>.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+0.60, 2002-02-17
+
+=over 4
+
+=item *
+
+Various connectino_changed fixes, including the new readwrite status.
+
+=item *
+
+Added Net::OSCAR::Connection::session method
+
+=item *
+
+Improved Net::OSCAR::Connection::process_one, documented it, and documented using it
+
+=back
 
 =item *
 
