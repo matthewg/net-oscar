@@ -42,7 +42,7 @@ $poll = IO::Poll->new();
 
 $oscar = Net::OSCAR->new();
 $oscar->set_callback_connection_changed(\&connection_changed);
-$oscar->loglevel(OSCAR_DBG_WARN);
+$oscar->loglevel(10);
 $oscar->server(local_port => 5190);
 
 while(1) {
