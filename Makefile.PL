@@ -28,6 +28,7 @@ VERSION = \$(OSCARVER)
 VERSION_SYM = \$(OSCARVER)
 XS_VERSION = \$(OSCARVER)
 CVS_TAG = RELEASE_\$(subst .,_,\$(OSCARVER))
+POSTOP = cp \$(DISTVNAME).tar\$(SUFFIX) /home/webstuff/programs/net-oscar/Net-OSCAR.tar.gz
 predist:
 	\@rcs2log -R > ~/tmp/rcslog
 	\@pico OSCAR.pm
