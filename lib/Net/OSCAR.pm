@@ -437,7 +437,7 @@ sub findbuddy($$) {
 		  not $group->{members}->{$buddy} or
 		  $group->{members}->{$buddy}->{__BLI_DELETED};
 
-		hash_iter_reset(%{$self->{buddies}}); # Reset the iterator
+		hash_iter_reset(\%{$self->{buddies}}); # Reset the iterator
 		return wantarray ? ($grpname, $group) : $grpname;
 	}
 	return;
@@ -3810,7 +3810,7 @@ sub findgroup($$) {
 		next unless exists($currgroup->{groupid}) and $groupid == $currgroup->{groupid};
 		next if $currgroup->{__BLI_DELETED};
 		$thegroup = $group;
-		hash_iter_reset(%{$self->{buddies}}); # Reset the iterator
+		hash_iter_reset(\%{$self->{buddies}}); # Reset the iterator
 		last;
 	}
 	return $thegroup;
@@ -3821,7 +3821,7 @@ sub findbuddy_byid($$$) {
 
 	while(my($buddy, $value) = each(%$buddies)) {
 		if($value->{buddyid} == $bid and !$value->{__BLI_DELETED}) {
-			hash_iter_reset(%$buddies); # reset the iterator
+			hash_iter_reset(\%$buddies); # reset the iterator
 			return $buddy;
 		}
 	}
