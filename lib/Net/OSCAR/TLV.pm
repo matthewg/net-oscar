@@ -92,6 +92,12 @@ sub DELETE {
 	for(my $i = 0; $i < scalar @{$self->{ORDER}}; $i++) {
 		next unless $packedkey eq $self->{ORDER}->[$i];
 		splice(@{$self->{ORDER}}, $i, 1);
+
+		# What if the user deletes a key while iterating?  We need to correct for the new index.
+		if($self->{CURRKEY} != -1 and $i <= $self->{CURRKEY}) {
+			$self->{CURRKEY}--;
+		}
+
 		last;
 	}
 }
