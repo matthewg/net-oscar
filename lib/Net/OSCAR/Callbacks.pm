@@ -386,7 +386,9 @@ sub process_snac($$) {
 			$connection->log_print(OSCAR_DBG_WARN, "Unexpected blmod ack!");
 			return;
 		}
-		$connection->log_print(OSCAR_DBG_DEBUG, "Got blmod ack (", scalar(@{$session->{budmods}}), " left).");
+		my $budmods = $session->{budmods};
+
+		$connection->log_print(OSCAR_DBG_DEBUG, "Got blmod ack (", scalar(@$budmods), " left).");
 		my(@errors) = @{$data{error}};
 
 		my @reqdata = @$reqdata;
@@ -404,7 +406,7 @@ sub process_snac($$) {
 					delete $session->{blinternal}->{$type}->{$gid}->{$bid} unless exists($session->{blold}->{$type}) and exists($session->{blold}->{$type}->{$gid}) and exists($session->{blold}->{$type}->{$gid}->{$bid});
 				}
 
-				$connection->proto_send(%{pop @{$session->{budmods}}}); # Stop making changes
+				$connection->proto_send(%{pop @$budmods}); # Stop making changes
 				delete $session->{budmods};
 				$session->callback_buddylist_error($error, $errdata->{desc});
 				last;
@@ -415,8 +417,11 @@ sub process_snac($$) {
 			Net::OSCAR::_BLInternal::BLI_to_NO($session) if $session->{buderrors};
 			delete $session->{qw(blold buderrors budmods)};
 		} else {
-			$connection->proto_send(%{shift @{$session->{budmods}}});
-			if(!@{$session->{budmods}}) {
+			if(@$budmods) {
+				$connection->proto_send(%{shift @$budmods});
+			}
+
+			if(!@$budmods) {
 				delete $session->{budmods};
 				$session->callback_buddylist_ok;
 			}
