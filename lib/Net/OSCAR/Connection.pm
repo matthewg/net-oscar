@@ -244,11 +244,11 @@ sub process_one($) {
 				0x17 => pack("C6", 0, 0, 0, 0, 0, 0),
 				0x01 => $self->{session}->{screenname}
 			);
-			$self->flap_put(tlv_encode(\%tlv));
+			$self->flap_put(tlv_encode(%tlv));
 		} else {
 			$self->debug_print("Sending BOS-Signon.");
 			%tlv = (0x06 =>$self->{auth});
-			$self->flap_put(pack("N", 1) . tlv_encode(\%tlv), FLAP_CHAN_NEWCONN);
+			$self->flap_put(pack("N", 1) . tlv_encode(%tlv), FLAP_CHAN_NEWCONN);
 		}
 		$self->debug_print("SNAC time.");
 		return $self->{ready} = 1;

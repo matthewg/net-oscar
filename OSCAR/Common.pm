@@ -7,6 +7,7 @@ use warnings;
 use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS $VERSION);
 use Scalar::Util qw(dualvar);
 use Net::OSCAR::TLV;
+use Carp;
 require Exporter;
 @ISA = qw(Exporter);
 
@@ -255,7 +256,7 @@ sub tlv(@) {
 	my %tlv = ();
 	tie %tlv, "Net::OSCAR::TLV";
 	while(@_) { $tlv{shift} = shift; }
-	return tlv_encode(\%tlv);
+	return tlv_encode(%tlv);
 }
 
 sub tlv_encode(\%) {

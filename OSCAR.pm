@@ -548,7 +548,7 @@ sub set_visibility($$;$) {
 		pack("nnn a*", 0, 0, 2,
 			tlv(0x04 =>
 				tlv(0x0100 => $self->{profile}) .
-				tlv(0xCA => pack("C", $vismode) .
+				tlv(0xCA => pack("C", $vismode)) .
 				tlv(0xCB => pack("N", $self->{groupperms})) .
 				tlv(%{$self->{appdata}})
 			)
@@ -783,7 +783,7 @@ sub modgroups($) {
 
 			$packet .=
 				tlv(1 =>
-					tlv(0xC8 => pack("n*", map { $self->{buddies}->{$group}->{members}->{$_}->{buddyid} } @members));
+					tlv(0xC8 => pack("n*", map { $self->{buddies}->{$group}->{members}->{$_}->{buddyid} } @members))
 				)
 			;
 		} else {
@@ -889,7 +889,7 @@ sub send_im($$$;$) {
 	$packet .= pack("n", 1); # channel
 	$packet .= pack("Ca*", length($to), $to);
 
-	$packet .= tlv(2 => pack("n3 C n C n3 a*", 0x501, 4, 0x101, 1, 0x201, 1, length($msg)+4, 0, 0, $msg);
+	$packet .= tlv(2 => pack("n3 C n C n3 a*", 0x501, 4, 0x101, 1, 0x201, 1, length($msg)+4, 0, 0, $msg));
 
 	if($away) {
 		$packet .= tlv(4 => "");
@@ -1057,7 +1057,7 @@ sub set_info($$;$) {
 	$tlv{0x5} = $self->capabilities();
 
 	$self->debug_print("Setting user information.");
-	$self->{bos}->snac_put(family => 0x02, subtype => 0x04, data => tlv_encode(\%tlv));
+	$self->{bos}->snac_put(family => 0x02, subtype => 0x04, data => tlv_encode(%tlv));
 	$self->set_visibility($self->visibility);
 }
 
@@ -1109,7 +1109,7 @@ sub change_password($$$) {
 		0x12 => $currpass
 	);
 
-	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv_encode(\%tlv));
+	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv_encode(%tlv));
 }
 
 =pod
@@ -1154,7 +1154,7 @@ sub change_email($$) {
 		$self->callback_admin_error(ADMIN_TYPE_EMAIL_CHANGE, ADMIN_ERROR_REQPENDING);
 		return;
 	}
-	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv(0x11 => $nemail));
+	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv(0x11 => $newmail));
 }
 
 =pod

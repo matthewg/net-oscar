@@ -29,7 +29,7 @@ sub FETCH {
 
 sub STORE {
 	my($self, $key, $value) = @_;
-	if(exists $self->{DATA}->{$normalkey}) {
+	if(exists $self->{DATA}->{normalize($key)}) {
 		my $foo = 0;
 		for(my $i = 0; $i < scalar @{$self->{ORDERFORM}}; $i++) {
 			next unless $key eq $self->{ORDERFORM}->[$i];

@@ -55,7 +55,7 @@ sub process_snac($$) {
 			0x0F => "en", # lang
 			0x4A => pack("C", 1),
 		);
-		$connection->snac_put(family => 0x17, subtype => 0x2, data => tlv_encode(\%tlv));
+		$connection->snac_put(family => 0x17, subtype => 0x2, data => tlv_encode(%tlv));
 	} elsif($conntype == CONNTYPE_LOGIN and $family == 0x17 and $subtype == 0x3) {
 		$connection->debug_print("Got authorization response.");
 
@@ -304,7 +304,7 @@ sub process_snac($$) {
 			($namelen) = unpack("n", substr($data, 0, 2));
 			if($namelen == 0) {
 				substr($data, 0, 6) = "";
-				($type, $len) = unpack("nn", substr($data, 0, 4, ""));
+				my($type, $len) = unpack("nn", substr($data, 0, 4, ""));
 				my $typedata = substr($data, 0, $len, "");
 
 				if($type == 4) {
@@ -334,10 +334,10 @@ sub process_snac($$) {
 					$tlv = tlv_decode($typedata);
 					($session->{showidle}) = unpack("N", $tlv->{0xC9});
 				} else {
-					$self->debug_print("Got unknown BLTtype $type: ", hexdump($typedata));
+					$session->debug_print("Got unknown BLTtype $type: ", hexdump($typedata));
 				}
 			} else {
-				$buddy = get_buddy($session, \$data);
+				my $buddy = get_buddy($session, \$data);
 				next unless $buddy;
 
 				if($buddy->{buddyid}) {
