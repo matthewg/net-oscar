@@ -16,6 +16,12 @@ use Net::OSCAR::TLV;
 use Net::OSCAR::Callbacks;
 use Net::OSCAR::OldPerl;
 
+if($^O eq "MSWin32") {
+	eval '*F_GETFL = sub {0};';
+	eval '*F_SETFL = sub {0};';
+	eval '*O_NONBLOCK = sub {0}; ';
+}
+
 sub new($$$$$$) { # Think you got enough parameters there, Chester?
 	my $class = ref($_[0]) || $_[0] || "Net::OSCAR::Connection";
 	shift;
@@ -200,13 +206,21 @@ sub set_blocking($$) {
 	my $blocking = shift;
 	my $flags = 0;
 
-	fcntl($self->{socket}, F_GETFL, $flags);
-	if($blocking) {
-		$flags &= ~O_NONBLOCK;
+	if($^O ne "MSWin32") {
+		fcntl($self->{socket}, F_GETFL, $flags);
+		if($blocking) {
+			$flags &= ~O_NONBLOCK;
+		} else {
+			$flags |= O_NONBLOCK;
+		}
+		fcntl($self->{socket}, F_SETFL, $flags);
 	} else {
-		$flags |= O_NONBLOCK;
+		# Cribbed from http://nntp.x.perl.org/group/perl.perl5.porters/42198
+		ioctl($self->{socket},
+			0x80000000 | (4 << 16) | (ord('f') << 8) | 126,
+			$blocking
+		) or croak "Couldn't set Win32 blocking: $!";
 	}
-	fcntl($self->{socket}, F_SETFL, $flags);
 
 	return $self->{socket};
 }
