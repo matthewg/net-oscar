@@ -120,7 +120,7 @@ sub process_snac($$) {
 		} elsif($conntype == CONNTYPE_CHAT) {
 			$connection->ready();
 
-			$session->callback_chat_joined($connection->name, $connection) unless $connection->{chat_joined}++;
+			$session->callback_chat_joined($connection->name, $connection) unless $connection->{sent_joined}++;
 		}
 	} elsif($subtype == 0x1) {
 		$subtype = $reqid >> 16;
