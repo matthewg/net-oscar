@@ -1,10 +1,14 @@
 package Net::OSCAR::Connection;
 
-$VERSION = 0.05;
+$VERSION = 0.06;
 
 use strict;
 use vars qw($VERSION);
-use warnings;
+if($[ > 5.005) {
+	require warnings;
+} else {
+	$^W = 1;  
+}
 use Carp;
 use Socket;
 use Symbol;

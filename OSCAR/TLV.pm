@@ -1,10 +1,15 @@
 package Net::OSCAR::TLV;
 
-$VERSION = 0.05;
+$VERSION = 0.06;
 
 use strict;
 use vars qw($VERSION);
-use warnings;
+if($[ > 5.005) {
+	require warnings;
+} else {
+	$^W = 1;  
+}
+
 
 sub new {
 	my $pkg = shift;

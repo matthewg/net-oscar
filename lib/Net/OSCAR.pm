@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = 0.05;
+$VERSION = 0.06;
 
 =head1 NAME
 
@@ -136,7 +136,6 @@ if($[ > 5.005) {
 } else {
 	$^W = 1;
 }
-use warnings;
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT_OK = @Net::OSCAR::Common::EXPORT_OK;
@@ -1621,6 +1620,107 @@ libpcap-format packet captures.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+0.06, 2001-08-12
+
+=over 4
+
+=item *
+
+Prevent sending duplicate signon_done messages
+
+=item *
+
+Don't addconn after crapping out!
+
+=item *
+
+Don't try to delconn unless we have connections.
+
+=item *
+
+delete returns the correct value now in Net::OSCAR::Buddylist.
+
+=item *
+
+Don't use warnings if $] <= 5.005
+
+=item *
+
+evil is a method, not a manpage (doc fix)
+
+=item *
+
+Added buddyhash method.
+
+=item *
+
+Added a debug_print callback.
+
+=item *
+
+Clarified process_connections method in documentation
+
+=item *
+
+You can now specify an alternate host/port in signon
+
+=item *
+
+Added name method to Chat.
+
+=item *
+
+permit list and deny list are no longer part of buddylist
+
+=item *
+
+Rewrote buddylist parsing (again!)
+
+=item *
+
+No more default profile.
+
+=item *
+
+Fix bug when storing into an already-existing key in Net::OSCAR::Buddylist.
+
+=item *
+
+snacsnatcher: Remove spurious include of Net::OSCAR::Common
+
+=item *
+
+We don't need to handle VISMODE_PERMITBUDS ourself - the server takes care of it.
+Thanks, VB!
+
+=item *
+
+Makefile.PL: Lots of way cool enhancements to make dist:
+
+=over 4
+
+=item -
+
+It modifies the version number for us
+
+=item -
+
+It does a CVS rtag
+
+=item -
+
+It updates the HTML documentation on zevils and the README.
+
+=back
+
+=item *
+
+Added HISTORY and INSTALLATION section to POD.
+
+=back
 
 =item *
 
