@@ -313,7 +313,7 @@ sub process_snac($$) {
 
 
 					$groupperms = $tlv->{0xCB};
-					($session->{groupperms}) = unpack("N", $groupperms);
+					($session->{groupperms}) = unpack("N", $groupperms) if $groupperms;
 					$session->{profile} = $tlv->{0x0100} if exists($tlv->{0x0100});
 
 					delete $tlv->{0xCB};
