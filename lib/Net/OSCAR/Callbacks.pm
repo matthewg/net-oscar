@@ -211,7 +211,9 @@ sub process_snac($$) {
 
  		delete $session->{userinfo}->{$buddy};
 		my $budinfo = $group->{members}->{$buddy};
-		%$budinfo = (online => 0);
+		foreach (keys %$budinfo) {
+			delete $budinfo->{$_} unless /^(?:buddyid|data|__BLI.*|alias|online|comment|screenname)$/;
+		}
 
 		$connection->log_print(OSCAR_DBG_DEBUG, "And so, another former ally has abandoned us.  Curse you, $buddy!");
 		$session->callback_buddy_out($buddy, $grpname);
@@ -609,10 +611,15 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_WARN, "Migration cancelled by server!");
 		$connection->unpause();
 	} elsif($protobit eq "migrate") {
-		$connection->log_print(OSCAR_DBG_WARN, "Migration families received: ", join(" ", @{$data{families}}));
+		# It looks like we get a blank family if the server sends
+		# no migration families (full migration.)  Filter out
+		# this dummy entry.
+		my @migfamilies = grep { $_ != 0 } @{$data{families}};
+
+		$connection->log_print(OSCAR_DBG_WARN, "Migration families received: ", join(" ", @migfamilies));
 
 		my $pause_queue;
-		if(@{$data{families}} == keys %{$connection->{families}} or @{$data{families}} == 0) {
+		if(@{$data{families}} == keys %{$connection->{families}} or @migfamilies == 0) {
 			$connection->log_print(OSCAR_DBG_WARN, "Full migration, disconnecting...");
 			$pause_queue = $connection->{pause_queue};
 			$session->delconn($connection);
@@ -623,7 +630,7 @@ sub process_snac($$) {
 			my @all_families = keys %{$connection->{families}};
 			$connection->{families} = {};
 			foreach my $fam (@all_families) {
-				next if grep { $_ == $fam } @{$data{families}};
+				next if grep { $_ == $fam } @migfamilies;
 				$connection->{families}->{$fam} = 1;
 			}
 
@@ -631,7 +638,7 @@ sub process_snac($$) {
 			my $all_pause_queue = $connection->{pause_queue};
 			$connection->{pause_queue} = [];
 			foreach my $item (@$all_pause_queue) {
-				if(grep { $item->{family} == $_ } @{$data{families}}) {
+				if(grep { $item->{family} == $_ } @migfamilies) {
 					push @$pause_queue, $item;
 				} else {
 					push @{$connection->{pause_queue}}, $item;
