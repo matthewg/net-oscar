@@ -21,6 +21,17 @@
 		<data name="data" />
 	</define>
 
+	<define name="TLV">
+		<word name="type" />
+		<data length_prefix="word" name="data" />
+	</define>
+	<define name="subtyped TLV">
+		<word name="type" />
+		<byte name="subtype" />
+		<data length_prefix="byte" name="data" />
+	</define>
+
+
 	<define name="userinfo">
 		<data name="screenname" length_prefix="byte" />
 		<word name="evil" />

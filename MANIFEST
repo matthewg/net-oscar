@@ -23,6 +23,7 @@ OSCAR/TLV.pm
 OSCAR/Utility.pm
 OSCAR/XML.pm
 OSCAR/Connection/Chat.pm
+OSCAR/XML/Template.pm
 OSCAR/XML/Protocol.dtd
 OSCAR/XML/Protocol.xml
 META.yml                                 Module meta-data (added by MakeMaker)

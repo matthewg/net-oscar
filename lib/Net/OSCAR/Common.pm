@@ -56,6 +56,8 @@ require Exporter;
 		OSCAR_DBG_NOTICE
 		OSCAR_DBG_DEBUG
 		OSCAR_DBG_PACKETS
+		OSCAR_DBG_XML
+		OSCAR_DBG_XML2
 	)]
 );
 $EXPORT_TAGS{all} = [@{$EXPORT_TAGS{standard}}, @{$EXPORT_TAGS{loglevels}}];
@@ -69,6 +71,8 @@ use constant OSCAR_DBG_SIGNON => 3;
 use constant OSCAR_DBG_NOTICE => 4;
 use constant OSCAR_DBG_DEBUG => 6;
 use constant OSCAR_DBG_PACKETS => 10;
+use constant OSCAR_DBG_XML => 30;
+use constant OSCAR_DBG_XML2 => 35;
 
 # Typing statuses
 use constant TYPINGSTATUS_STARTED => dualvar(2, "typing started");

@@ -2,69 +2,74 @@
 <!DOCTYPE oscar SYSTEM "Protocol.dtd">
 
 <oscar>
-	<!-- Simple primitives -->
-	<define name="just_byte"><byte /></define>
-	<define name="just_word"><word /></define>
-	<define name="just_dword"><dword /></define>
-	<define name="just_data"><data /></define>
+	<!-- TLV definitions are needed for bootstrapping TLV support -->
+	<define name="TLV">
+		<word name="type" />
+		<data length_prefix="word" name="data" />
+	</define>
+	<define name="subtyped TLV">
+		<word name="type" />
+		<byte name="subtype" />
+		<data length_prefix="byte" name="data" />
+	</define>
 
-	<!-- Naming -->
-	<define name="named_element"><data name="foo" /></define>
+
+	<!-- Simple primitives -->
+	<define name="just_byte"><byte name="x" /></define>
+	<define name="just_word"><word name="x" /></define>
+	<define name="just_dword"><dword name="x" /></define>
+	<define name="just_data"><data name="x" /></define>
 
 	<!-- Fixed values -->
 	<define name="fixed_value"><word>123</word></define>
 
 	<!-- Length prefixes, counts -->
-	<define name="length_prefix"><data length_prefix="word" /></define>
-	<define name="vax_prefix"><data length_prefix="word" prefix_order="vax" /></define>
-	<define name="count_prefix"><data count_prefix="word" /></define>
-	<define name="repeated_data"><data count="-1" /></define>
-	<define name="fixed_width_data"><data length="10" /></define>
+	<define name="length_prefix"><data length_prefix="word" name="x" /></define>
+	<define name="vax_prefix"><data length_prefix="word" prefix_order="vax" name="x" /></define>
+	<define name="repeated_data"><word count="-1" name="x" /></define>
+	<define name="fixed_width_data"><data length="10" name="x" /><data name="y" /></define>
 
 	<!-- TLVs -->
 	<define name="basic_tlv">
 		<tlvchain>
-			<tlv type="1"><data /></tlv>
-			<tlv type="2"><data /></tlv>
+			<tlv type="1"><data name="x" /></tlv>
+			<tlv type="2"><data name="y" /></tlv>
 		</tlvchain>
 	</define>
 	<define name="named_tlv">
 		<tlvchain>
-			<tlv type="1" name="foo"><data /></tlv>
-			<tlv type="2" name="bar"><data /></tlv>
+			<tlv type="1" name="foo"><data name="x" /></tlv>
+			<tlv type="2" name="bar"><data name="y" /></tlv>
 		</tlvchain>
 	</define>
 	<define name="complex_data_tlv">
 		<tlvchain>
 			<tlv type="1">
-				<data name="foo" />
+				<data name="foo" length="3" />
 				<word name="bar" />
-				<dword />
+				<dword>1793</dword>
 				<byte name="baz" />
 			</tlv>
 		</tlvchain>
 	</define>
 	<define name="subtyped_tlv">
 		<tlvchain subtyped="yes">
-			<tlv type="1" subtype="1" name="foo"><data /></tlv>
-			<tlv type="1" subtype="2" name="bar"><data /></tlv>
+			<tlv type="1" subtype="1" name="foo"><data name="x" /></tlv>
+			<tlv type="1" subtype="2" name="bar"><data name="y" /></tlv>
 		</tlvchain>
 	</define>
-	<define name="count_prefic_tlv">
+	<define name="count_prefix_tlv">
 		<tlvchain count_prefix="word">
-			<tlv type="1"><data /></tlv>
+			<tlv type="1"><data name="x" /></tlv>
+			<tlv type="2"><data name="y" /></tlv>
 		</tlvchain>
 	</define>
 
 	<!-- ref -->
-	<define name="ref_foo"><data /></define>
-	<define name="ref_bar"><data /></define>
+	<define name="ref_foo"><word name="foo" /></define>
+	<define name="ref_bar"><word name="bar" /></define>
 	<define name="ref"><ref name="ref_foo" /><ref name="ref_bar" /></define>
 
 	<!-- SNAC -->
 	<define name="snac" family="1" subtype="2"><data /></define>
-
-	<!-- Miscellaneous -->
-	<define name="empty_def" />
-
 </oscar>

@@ -27,6 +27,7 @@ $build = Module::Build->new (
 		'OSCAR/Utility.pm' => 'lib/Net/OSCAR/Utility.pm',
 		'OSCAR/_BLInternal.pm' => 'lib/Net/OSCAR/_BLInternal.pm',
 		'OSCAR/XML.pm' => 'lib/Net/OSCAR/XML.pm',
+		'OSCAR/XML/Template.pm' => 'lib/Net/OSCAR/XML/Template.pm',
 		'OSCAR/XML/Protocol.xml' => 'lib/Net/OSCAR/XML/Protocol.xml',
 		'OSCAR/XML/Protocol.dtd' => 'lib/Net/OSCAR/XML/Protocol.dtd'
 	},
