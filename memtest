@@ -1,11 +1,14 @@
 #!/usr/bin/perl -w
 
+#$::DEBUG = 1;
+
 use lib "./blib/lib";
 use Net::OSCAR;
 use Data::Dumper;
 use Devel::Size qw(total_size);
+use Devel::Size::Report qw(report_size);
 use Test::Memory::Cycle tests => 1;
-use Symbol::Table;
+use Devel::Symdump;
 
 use vars qw($oscar);
 sub signon_done($);
@@ -39,48 +42,30 @@ sub signon_done($) {
 	print "*main::\n";
 	ShowVars(undef, "\t");
 	print "*Net::OSCAR::\n";
-	ShowPackages("Net::OSCAR", "\t");
-	ShowVars("Net::OSCAR", "\t");
+	ShowPackages();
 	exit;
 }
 
 sub ShowPackages {
 	my($pkg, $prefix) = @_;
 
-	my $st = Symbol::Table->New('PACKAGE', "$pkg");
-	while(my($subpkgname, $subpkgsymtab) = each(%$st)) {
-		print $prefix . "*" . $subpkgname . "::\n";
-
-		my $subpkg = $pkg . "::" . $subpkgname;
-		ShowPackages($subpkg, "$prefix\t");
-		ShowVars($subpkg, "$prefix\t");
+	my $obj = Devel::Symdump->rnew();
+	foreach my $pkg ($obj->packages()) {
+		print "$pkg\n";
+		ShowVars($pkg);
 	}
 }
 
 sub ShowVars {
-	my($pkg, $prefix) = @_;
+	my($pkg) = @_;
 
-	foreach (["SCALAR", '$'], ["ARRAY", '@'], ["HASH", '%']) {
-		my($type, $sigil) = @$_;
-
-		my $st;
-		if($pkg) {
-			$st = Symbol::Table->New($type, $pkg);
-		} else {
-			$st = Symbol::Table->New($type);
-		}
-
-		foreach (keys %$st) {
-			my $size;
-			if($sigil eq '$') {
-				$size = total_size(\${$st->{$_}});
-			} elsif($sigil eq '@') {
-				$size = total_size(\@{$st->{$_}});
-			} else {
-				$size = total_size(\%{$st->{$_}});
-			}
-
-			print "$prefix$sigil$_ == $size\n";
+	my $obj = Devel::Symdump->new($pkg);
+	foreach my $method ([\&Devel::Symdump::scalars, '$'], [\&Devel::Symdump::arrays, '@'], [\&Devel::Symdump::hashes, '%'], [\&Devel::Symdump::functions, '&'], [\&Devel::Symdump::ios, '*'], [\&Devel::Symdump::unknowns, '?']) {
+		foreach my $varname ($method->[0]->($obj)) {
+			my $var = eval("\\" . $method->[1] . $varname);
+			print "\t", $method->[1], $varname, ":\n";
+			print join("\n", map {"\t\t$_"} split(/\n/, report_size($var))), "\n";
+			print "===========\n";
 		}
 	}
 }

@@ -172,33 +172,32 @@ sub process_snac($$) {
 	} elsif($protobit eq "BOS rights response") {
 		$session->set_info("");
 	} elsif($protobit eq "buddy status update") {
-		$data{screenname} = Net::OSCAR::Screenname->new($data{screenname});
-		$session->postprocess_userinfo(\%data);
-		my $screenname = $data{screenname};
+		my $screenname = $data{screenname} = Net::OSCAR::Screenname->new($data{screenname});
 		$connection->log_print(OSCAR_DBG_DEBUG, "Incoming bogey - er, I mean buddy - $screenname");
+		$session->postprocess_userinfo(\%data);
 
 		my($grpname, $group) = $session->findbuddy($screenname);
 		return unless $grpname; # Without this, remove_buddy screws things up until signoff/signon
-		$data{buddyid} = $group->{members}->{$screenname}->{buddyid};
-		$data{online} = 1;
-		foreach my $key(keys %data) {
-			$group->{members}->{$screenname}->{$key} = $data{$key};
-		}
-		if(exists($group->{members}->{$screenname}->{idle}) and !exists($data{idle})) {
-			delete $group->{members}->{$screenname}->{idle};
-			delete $group->{members}->{$screenname}->{idle_since};
-		}
-
 		my $budinfo = $group->{members}->{$screenname};
 
+		$data{buddyid} = $budinfo->{buddyid};
+		$data{online} = 1;
+		foreach my $key(keys %data) {
+			next if $key eq "__UNKNOWN";
+			$budinfo->{$key} = delete $data{$key};
+		}
+		if(exists($budinfo->{idle}) and !exists($data{idle})) {
+			delete $budinfo->{idle};
+			delete $budinfo->{idle_since};
+		}
+
 		# Sync $session->{userinfo}->{$foo} with buddylist entry
-		if($session->{userinfo}->{$screenname}) {
-			my $info = $session->{userinfo}->{$screenname};
-			if(!$info->{online}) {
+		if(exists($session->{userinfo}->{$screenname})) {
+			if($session->{userinfo}->{$screenname} != $budinfo)  {
+				my $info = $session->{userinfo}->{$screenname};
 				foreach my $key(keys %$info) {
 					$budinfo->{$key} = $info->{$key};
 				}
-				delete $session->{userinfo}->{$screenname};
 				$session->{userinfo}->{$screenname} = $budinfo;
 			}
 		} else {
@@ -206,10 +205,14 @@ sub process_snac($$) {
 		}
 		$session->callback_buddy_in($screenname, $grpname, $budinfo);
 	} elsif($protobit eq "buddy signoff") {
-		my $buddy = $data{screenname};
+		my $buddy = Net::OSCAR::Screenname->new($data{screenname});
 		my($grpname, $group) = $session->findbuddy($buddy);
 		return unless $grpname;
-		$group->{members}->{$buddy}->{online} = 0;
+
+ 		delete $session->{userinfo}->{$buddy};
+		my $budinfo = $group->{members}->{$buddy};
+		%$budinfo = (online => 0);
+
 		$connection->log_print(OSCAR_DBG_DEBUG, "And so, another former ally has abandoned us.  Curse you, $buddy!");
 		$session->callback_buddy_out($buddy, $grpname);
 	} elsif($protobit eq "service redirect response") {
@@ -609,7 +612,7 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_WARN, "Migration families received: ", join(" ", @{$data{families}}));
 
 		my $pause_queue;
-		if(@{$data{families}} == keys %{$connection->{families}}) {
+		if(@{$data{families}} == keys %{$connection->{families}} or @{$data{families}} == 0) {
 			$connection->log_print(OSCAR_DBG_WARN, "Full migration, disconnecting...");
 			$pause_queue = $connection->{pause_queue};
 			$session->delconn($connection);

@@ -119,7 +119,7 @@ use 5.006_001;
 use strict;
 use vars qw($VERSION $REVISION @ISA @EXPORT_OK %EXPORT_TAGS);
 use Carp;
-use Scalar::Util;
+use Scalar::Util qw(weaken);
 use Digest::MD5 qw(md5);
 use Socket;
 use Net::OSCAR::Common qw(:all);
@@ -3725,7 +3725,8 @@ sub addconn($@) {
 	my %data = @_;
 
 	$data{session} = $self;
-
+	weaken($data{session});
+	
 	my $connection;
 	my $conntype = $data{conntype};
 	$data{description} ||= $conntype;
