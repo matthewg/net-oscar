@@ -1217,6 +1217,12 @@ marked as no longer being away.
 sub set_away($$) {
 	my($self, $awaymsg) = @_;
 	return must_be_on($self) unless $self->{is_on};
+
+	# Because we use !defined(awaymsg) to indicate
+	# that we just want to set the profile, force
+	# it to be defined.
+	if(!defined($awaymsg)) $awaymsg = "";
+
 	shift->set_info(undef, $awaymsg);
 }
 
