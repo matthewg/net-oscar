@@ -38,7 +38,7 @@ our(%xmlmap, %xml_revmap, $PROTOPARSE_DEBUG);
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(
-	protoparse protobit_to_snacfam snacfam_to_protobit
+	protoparse protobit_to_snac snac_to_protobit
 );
 
 $PROTOPARSE_DEBUG = 0;
@@ -79,13 +79,11 @@ sub load_xml(;$) {
 		(undef, undef, $name, $value) = splice(@tags, 0, 4);
 		next unless $name and $name eq "define";
 	
-		$xmlmap{$value->[0]->{name}} = {xml => $value};
-		if($value->[0]->{family}) {
-			$xmlmap{$value->[0]->{name}}->{family} = $value->[0]->{family};
-			$xmlmap{$value->[0]->{name}}->{subtype} = $value->[0]->{subtype};
-			$xmlmap{$value->[0]->{name}}->{channel} = $value->[0]->{channel};
-			$xml_revmap{$value->[0]->{family}}->{$value->[0]->{subtype}} = $value->[0]->{name};
-		}
+		my %protobit = (xml => $value);
+		my %attrs = %{$value->[0]};
+		$protobit{$_} = $attrs{$_} foreach keys %attrs;
+		$xml_revmap{$attrs{family}}->{$attrs{subtype}} = $attrs{name} if exists($attrs{family}) and exists($attrs{subtype});
+		$xmlmap{$attrs{name}} = \%protobit;
 	}
 
 	return 1;
@@ -186,6 +184,7 @@ sub _xmlnode_to_template($$) {
 		}
 	} elsif($tag eq "tlvchain") {
 		$datum->{type} = "tlvchain";
+		$datum->{len} = $attrs->{length} if $attrs->{length};
 		$datum->{subtyped} = 1 if $attrs->{subtyped} and $attrs->{subtyped} eq "yes";
 
 		my($subtag, $subval);
@@ -247,20 +246,23 @@ sub protoparse($$) {
 
 
 
-# Map a "protobit" (XML <define name="foo">) to SNAC (family, subtype)
-sub protobit_to_snacfam($) {
+# Map a "protobit" (XML <define name="foo">) to SNAC (family => foo, subtype => bar)
+sub protobit_to_snac($) {
 	my $protobit = shift;
 	confess "Unknown protobit $protobit" unless $xmlmap{$protobit};
-	return ($xmlmap{$protobit}->{family}, $xmlmap{$protobit}->{subtype});
+
+	my %ret = %{$xmlmap{$protobit}};
+	delete $ret{xml};
+	return %ret;
 }
 
-# Map a SNAC (family, subtype) to "protobit" (XML <define name="foo">)
-sub snacfam_to_protobit($$) {
-	my($family, $subtype) = @_;
-	if($xml_revmap{$family} and $xml_revmap{$family}->{$subtype}) {
-		return $xml_revmap{$family}->{$subtype};
-	} elsif($xml_revmap{0} and $xml_revmap{0}->{$subtype}) {
-		return $xml_revmap{0}->{$subtype};
+# Map a SNAC (family => foo, subtype => bar) to "protobit" (XML <define name="foo">)
+sub snac_to_protobit(%) {
+	my(%snac) = @_;
+	if($xml_revmap{$snac{family}} and $xml_revmap{$snac{family}}->{$snac{subtype}}) {
+		return $xml_revmap{$snac{family}}->{$snac{subtype}};
+	} elsif($xml_revmap{'-1'} and $xml_revmap{'-1'}->{$snac{subtype}}) {
+		return $xml_revmap{'-1'}->{$snac{subtype}};
 	} else {
 		return undef;
 	}

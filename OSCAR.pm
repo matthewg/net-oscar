@@ -1113,7 +1113,7 @@ sub send_im($$$;$;) {
 		$self->{userinfo}->{$to} ||= {};
 		$self->{userinfo}->{$to}->{icon_timestamp_received} = $self->{icon_timestamp};
 
-		$protodata{"icon_".$_} = $self->{"icon_".$_} foreach qw(length checksum timestamp);
+		$protodata{icon_data}->{"icon_".$_} = $self->{"icon_".$_} foreach qw(length checksum timestamp);
 	}
 
 	
@@ -1122,7 +1122,7 @@ sub send_im($$$;$;) {
 		$flags2 = 0xB;
 	}
 
-	$self->svcdo(CONNTYPE_BOS, protobit => "outgoing IM", protodata => \%protodata, flags2 => $flags2);
+	$self->svcdo(CONNTYPE_BOS, reqdata => $to, protobit => "outgoing IM", protodata => \%protodata, flags2 => $flags2);
 
 	return $reqid;
 }
@@ -1440,7 +1440,7 @@ sub change_password($$$) {
 		$self->{adminreq}->{0+ADMIN_TYPE_PASSWORD_CHANGE}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, protobit => "change password", protodata => {
+	$self->svcdo(CONNTYPE_ADMIN, protobit => "change account info", protodata => {
 		newpass => $newpass,
 		oldpass => $currpass
 	});
@@ -1496,7 +1496,7 @@ sub change_email($$) {
 		$self->{adminreq}->{0+ADMIN_TYPE_EMAIL_CHANGE}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, protobit => "change email", protodata => {
+	$self->svcdo(CONNTYPE_ADMIN, protobit => "change account info", protodata => {
 		new_email => $newmail
 	});
 }
@@ -1522,7 +1522,7 @@ sub format_screenname($$) {
 		$self->{adminreq}->{0+ADMIN_TYPE_SCREENNAME_FORMAT}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, protobit => "format screenname", protodata => {
+	$self->svcdo(CONNTYPE_ADMIN, protobit => "change account info", protodata => {
 		new_screenname => $newname
 	});
 }

@@ -48,10 +48,17 @@ sub new($@) {
 
 sub proto_send($%) {
 	my($self, %data) = @_;
+	$data{protodata} ||= {};
 
-	my %snac;
-	($snac{family}, $snac{subtype}) = protobit_to_snacfam($data{protobit}) or croak "Couldn't find protobit $data{protobit}";
+	my %snac = protobit_to_snac($data{protobit}); # or croak "Couldn't find protobit $data{protobit}";
+	confess "BAD SELF!" unless ref($self);
+	confess "BAD DATA!" unless ref($data{protodata});
+	confess "No family/subtype" unless exists($snac{family}) and exists($snac{subtype});
+
 	$snac{data} = protoparse($self->{session}, $data{protobit})->pack(%{$data{protodata}});
+	foreach (qw(reqdata reqid flags1 flags2)) {
+		$snac{$_} = $data{$_} if exists($data{$_});
+	}
 
 	$self->log_printf(OSCAR_DBG_DEBUG, "Put SNAC 0x%04X/0x%04X: %s", $snac{family}, $snac{subtype}, $data{protobit});
 	$self->snac_put(%snac);
@@ -186,6 +193,7 @@ sub snac_encode($%) {
 sub snac_put($%) {
 	my($self, %snac) = @_;
 	$snac{channel} ||= 0+FLAP_CHAN_SNAC;
+	confess "No family/subtype" unless exists($snac{family}) and exists($snac{subtype});
 	$self->flap_put($self->snac_encode(%snac), $snac{channel});
 }
 
@@ -374,11 +382,10 @@ sub process_one($;$$$) {
 			}
 		} else {
 			$self->log_print(OSCAR_DBG_NOTICE, "Sending BOS-Signon.");
-			$self->snac_put(family => 0, subtype => 1,
-				flags2 => 0x6,
+			$self->proto_send(protobit => "BOS signon",
 				reqid => 0x01000000 | (unpack("n", substr($self->{auth}, 0, 2)))[0],
-				data => substr($self->{auth}, 2),
-				channel => FLAP_CHAN_NEWCONN);
+				protodata => {cookie => substr($self->{auth}, 2)}
+			)
 		}
 		$self->log_print(OSCAR_DBG_DEBUG, "SNAC time.");
 		return $self->{ready} = 1;

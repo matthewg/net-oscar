@@ -84,6 +84,10 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		data => {x => ""},
 		template => "subdata_prefix_tlv",
 	},{
+		binary => pack("nna*a*", 1, 3, "foo", "bar"),
+		data => {x => "foo", y => "bar"},
+		template => "length_tlv"
+	},{
 		binary => pack("nna* nna*", 1, length("Baby"), "Baby", 2, length("Surge"), "Surge"),
 		data => {foo => {x => "Baby"}, bar => {y => "Surge"}},
 		template => "named_tlv"

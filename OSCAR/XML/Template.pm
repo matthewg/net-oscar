@@ -49,6 +49,7 @@ sub unpack($$) {
 
 	assert(ref($template) eq "ARRAY");
 	foreach my $datum (@$template) {
+		# In TLV chains, count refers to number of TLVs, not number of repetitions of the datum, so it defaults to infinite.
 		my $count = $datum->{count} || ($datum->{type} eq "tlvchain" ? -1 : 1);
 		my @results;
 
@@ -70,10 +71,16 @@ sub unpack($$) {
 			if($datum->{prefix} and $datum->{prefix} eq "length") {
 				($size) = unpack($datum->{prefix_packlet}, substr($packet, 0, $datum->{prefix_len}, ""));
 			} elsif(exists($datum->{len})) {
-				if($count == -1) {
-					$size = length($packet);
+				# In TLV chains, count is the number of TLVs, not a repeat
+				# count for the datum.
+				if($datum->{type} eq "tlvchain") {
+					$size = $datum->{len};
 				} else {
-					$size = $datum->{len} * $count;
+					if($count == -1) {
+						$size = length($packet);
+					} else {
+						$size = $datum->{len} * $count;
+					}
 				}
 			}
 		}

@@ -30,6 +30,7 @@ is_deeply([sort keys(%Net::OSCAR::XML::xmlmap)], [sort qw(
 		data_prefix_tlv
 		subdata_tlv
 		subdata_prefix_tlv
+		length_tlv
 		named_tlv
 		complex_data_tlv
 		subtyped_tlv

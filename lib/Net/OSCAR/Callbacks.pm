@@ -28,7 +28,7 @@ sub process_snac($$) {
 	my $reqdata = delete $connection->{reqdata}->[$family]->{pack("N", $reqid)};
 	my $session = $connection->{session};
 
-	my $protobit = snacfam_to_protobit($family, $subtype);
+	my $protobit = snac_to_protobit(%$snac);
 	die "Unknown SNAC: $family/$subtype\n" unless $protobit;
 	my %data = protoparse($session, $protobit)->unpack($data);
 	$connection->log_printf(OSCAR_DBG_DEBUG, "Got SNAC 0x%04X/0x%04X: %s", $snac->{family}, $snac->{subtype}, $protobit);
@@ -216,16 +216,16 @@ sub process_snac($$) {
 
 			# Buddy icon
 			my $new_icon = 0;
-			if(exists($data{icon_length}) and $session->{capabilities}->{buddy_icons}) {
+			if(exists($data{icon_data}->{icon_length}) and $session->{capabilities}->{buddy_icons}) {
 				if(!exists($sender_info->{icon_timestamp})
-				  or $data{icon_timestamp} > $sender_info->{icon_timestamp}
-				  or $data{icon_checksum} != $sender_info->{icon_checksum}
+				  or $data{icon_data}->{icon_timestamp} > $sender_info->{icon_timestamp}
+				  or $data{icon_data}->{icon_checksum} != $sender_info->{icon_checksum}
 				) {
 					$new_icon = 1;
 				}
 			}
 
-			$sender_info->{$_} = $data{$_} foreach qw(icon_length icon_checksum icon_timestamp);
+			$sender_info->{$_} = $data{icon_data}->{$_} foreach keys %{$data{icon_data}};
 			
 			$session->callback_new_buddy_icon($sender, $sender_info) if $new_icon;
 
@@ -328,7 +328,7 @@ sub process_snac($$) {
 			Net::OSCAR::_BLInternal::BLI_to_NO($session) if $session->{buderrors};
 			delete $session->{qw(blold buderrors budmods)};
 		} else {
-			$connection->snac_put(%{shift @{$session->{budmods}}});
+			$connection->proto_send(%{shift @{$session->{budmods}}});
 			if(!@{$session->{budmods}}) {
 				delete $session->{budmods};
 				$session->callback_buddylist_ok;
@@ -379,7 +379,7 @@ sub process_snac($$) {
 		if($data{request_type} == 2) {
 			$reqdesc = ADMIN_TYPE_PASSWORD_CHANGE;
 		} elsif($data{request_type} == 3) {
-			if($data{subrequest} == 0x11) {
+			if(exists($data{new_email})) {
 				$reqdesc = ADMIN_TYPE_EMAIL_CHANGE;
 			} else {
 				$reqdesc = ADMIN_TYPE_SCREENNAME_FORMAT;
@@ -391,11 +391,13 @@ sub process_snac($$) {
 		$reqdesc ||= sprintf "unknown admin reply type 0x%04X/0x%04X", $data{request_type}, $data{subrequest};
 
 		my $errdesc = "";
-		if(!exists($data{success})) {
+		if(exists($data{error_code})) {
 			if($reqdesc eq "account confirm") {
 				$errdesc = "Your account is already confirmed.";
 			} else {
-				if($data{error_code} == 2) {
+				if($data{error_code} == 1) {
+					$errdesc = ADMIN_ERROR_DIFFSN;
+				} elsif($data{error_code} == 2) {
 					$errdesc = ADMIN_ERROR_BADPASS;
 				} elsif($data{error_code} == 6) {
 					$errdesc = ADMIN_ERROR_BADINPUT;
@@ -405,6 +407,10 @@ sub process_snac($$) {
 					$errdesc = ADMIN_ERROR_TRYLATER;
 				} elsif($data{error_code} == 0x1D) {
 					$errdesc = ADMIN_ERROR_REQPENDING;
+				} elsif($data{error_code} == 0x21) {
+					$errdesc = ADMIN_ERROR_EMAILLIM;
+				} elsif($data{error_code} == 0x23) {
+					$errdesc = ADMIN_ERROR_EMAILBAD;
 				} else {
 					$errdesc = sprintf("Unknown error 0x%04X.", $data{error_code});
 				}
@@ -412,7 +418,9 @@ sub process_snac($$) {
 			$session->callback_admin_error($reqdesc, $errdesc, $data{error_url});
 		} else {
 			if($reqdesc eq "screenname format") {
-				$session->{screenname} = $data;
+				$session->{screenname} = $data{new_screenname};
+			} elsif($reqdesc eq "email change") {
+				$session->{email} = $data{new_email};
 			}
 			$session->callback_admin_ok($reqdesc);
 		}

@@ -399,8 +399,9 @@ EOF
 		} elsif($cmd eq "denylist") {
 			print join("\n", $oscar->get_denylist), "\n";
 		} elsif($cmd eq "set_buddy_comment") {
-			my $buddy = shift @params;
-			$oscar->set_buddy_comment($buddy, join(" ", @params));
+			my ($group, $buddy) = splice(@params, 0, 2);
+			my $comment = join(" ", @params);
+			$oscar->set_buddy_comment($group, $buddy, $comment);
 			$oscar->commit_buddylist;
 		} elsif($cmd eq "set_buddy_alias") {
 			my $buddy = shift @params;

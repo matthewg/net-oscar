@@ -395,9 +395,11 @@ sub BLI_to_OSCAR($$) {
 		}
 
 		push @{$session->{budmods}}, map {
-			(protobit => "buddylist " . $_->{type},
-			reqdata => $_->{reqdata},
-			protodata => $_->{data});
+			{
+				protobit => "buddylist " . $_->{type},
+				reqdata => $_->{reqdata},
+				protodata => {mods => $_->{data}}
+			};
 		} @packets;
 	}
 

@@ -66,7 +66,7 @@
 	<define name="service request" family="1" subtype="4">
 		<word name="type" />
 	</define>
-	<define name="error" family="0" subtype="1">
+	<define name="error" family="-1" subtype="1">
 		<word name="errno" />
 		<tlvchain>
 			<tlv type="4"><data name="error_details" /></tlv>
@@ -82,6 +82,10 @@
 
 
 	<!-- Signing on -->
+
+	<define name="BOS signon" family="0" subtype="1" channel="1" flags2="6">
+		<data name="cookie" />
+	</define>
 
 	<define name="signon_TLV">
 		<tlvchain>
@@ -219,7 +223,7 @@
 	<define name="buddylist" family="19" subtype="6"> <!-- This is supremely weird and fucked up, no bloody way we'll be able to get it in the XML; notably, it is split across multiple SNACs, but not on any sort of coherent boundary, and you have to slice random bits off the front and back...  See OSCAR/Callbacks.pm handler for this protobit. -->
 		<data name="data" />		
 	</define>
-	<define name="buddylist modification acknowledgement" family="19" subtype="13">
+	<define name="buddylist modification acknowledgement" family="19" subtype="14">
 		<word name="error" count="-1" />
 	</define>
 	<define name="buddylist error" family="19" subtype="15">
@@ -237,8 +241,8 @@
 		<data name="entry_data" length_prefix="word" />
 	</define>
 	<define name="buddylist add" family="19" subtype="8"><data name="mods" /></define>
-	<define name="buddylist modify" family="19" subtype="9"><ref name="mods" /></define>
-	<define name="buddylist delete" family="19" subtype="10"><ref name="mods" /></define>
+	<define name="buddylist modify" family="19" subtype="9"><data name="mods" /></define>
+	<define name="buddylist delete" family="19" subtype="10"><data name="mods" /></define>
 	<define name="start buddylist modifications" family="19" subtype="17" />
 	<define name="end buddylist modifications" family="19" subtype="18" />
 	
@@ -258,6 +262,10 @@
 	</define>
 	<define name="incoming profile" family="2" subtype="6">
 		<ref name="userinfo" />
+		<tlvchain>
+			<tlv type="2"><data name="profile" /></tlv>
+			<tlv type="4"><data name="awaymsg" /></tlv>
+		</tlvchain>
 	</define>
 
 	<define name="set info" family="2" subtype="4">
@@ -356,7 +364,7 @@
 			<tlv type="4" name="is_automatic" />
 			<tlv type="3" name="request_server_confirmation" />
 			<tlv type="11" name="supports_typing_status" />
-			<tlv type="8">
+			<tlv type="8" name="icon_data">
 				<dword name="icon_length" />
 				<word>1</word>
 				<word name="icon_checksum" />
@@ -530,18 +538,14 @@
 
 	<define name="admin request response" family="7" subtype="5">
 		<word name="request_type" />
-		<data length="6">
-			<tlvchain>
-				<tlv type="3"><word name="subrequest" /></tlv>
-				<tlv type="1" name="success" />
-			</tlvchain>
-			<tlvchain>
-				<tlv type="8"><word name="error_code" /></tlv>
-				<tlv type="4"><data name="error_url" /></tlv>
-			</tlvchain>
-		</data>
+		<tlvchain count_prefix="word">
+			<tlv type="1"><data name="new_screenname" /></tlv>
+			<tlv type="17"><data name="new_email" /></tlv>
+			<tlv type="8"><word name="error_code" /></tlv>
+			<tlv type="4"><data name="error_url" /></tlv>
+			<tlv type="3"><word name="subrequest" /></tlv>
+		</tlvchain>
 	</define>
-	<define name="account confirmed" family="7" subtype="5" />
 	<define name="buddy icon uploaded" family="16" subtype="3" />
 	<define name="buddy icon download" family="16" subtype="4">
 		<data name="screenname" length_prefix="byte" />
@@ -559,20 +563,15 @@
 	</define>
 
 	<define name="confirm account" family="7" subtype="6" />
-	<define name="change password" family="7" subtype="4">
-		<tlvchain>
-			<tlv type="2"><data name="newpass" /></tlv>
-			<tlv type="18"><data name="oldpass" /></tlv>
-		</tlvchain>
-	</define>
-	<define name="change email" family="7" subtype="6">
-		<tlvchain>
-			<tlv type="17"><data name="new_email" /></tlv>
-		</tlvchain>
-	</define>
-	<define name="format screenname" family="7" subtype="6">
+	<define name="change account info" family="7" subtype="4">
+		<!-- Not all of these need to be present. -->
 		<tlvchain>
 			<tlv type="1"><data name="new_screenname" /></tlv>
+
+			<tlv type="17"><data name="new_email" /></tlv>
+
+			<tlv type="2"><data name="newpass" /></tlv>
+			<tlv type="18"><data name="oldpass" /></tlv>
 		</tlvchain>
 	</define>
 </oscar>

@@ -50,6 +50,8 @@
 	channel CDATA #IMPLIED
 	family CDATA #IMPLIED
 	subtype CDATA #IMPLIED
+	flags1 CDATA #IMPLIED
+	flags2 CDATA #IMPLIED
 >
 
 <!ELEMENT ref (EMPTY)>
@@ -89,6 +91,7 @@
 	count_prefix (byte|word|dword) #IMPLIED
 	length_prefix (byte|word|dword) #IMPLIED
 	prefix_order (network|vax) #DEFAULT network
+	length CDATA #IMPLIED
 >
 
 <!ELEMENT tlv (ref|byte|word|dword|data|tlvchain)+>

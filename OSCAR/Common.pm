@@ -22,12 +22,15 @@ require Exporter;
 		ADMIN_TYPE_SCREENNAME_FORMAT
 		ADMIN_TYPE_ACCOUNT_CONFIRM
 		ADMIN_ERROR_UNKNOWN
+		ADMIN_ERROR_DIFFSN
 		ADMIN_ERROR_BADPASS
 		ADMIN_ERROR_BADINPUT
 		ADMIN_ERROR_BADLENGTH
 		ADMIN_ERROR_TRYLATER
 		ADMIN_ERROR_REQPENDING
 		ADMIN_ERROR_CONNREF
+		ADMIN_ERROR_EMAILLIM
+		ADMIN_ERROR_EMAILBAD
 		VISMODE_PERMITALL
 		VISMODE_DENYALL
 		VISMODE_PERMITSOME
@@ -93,6 +96,9 @@ use constant ADMIN_ERROR_BADLENGTH => dualvar(3, "screenname/email/password is t
 use constant ADMIN_ERROR_TRYLATER => dualvar(4, "request could not be processed; wait a few minutes and try again");
 use constant ADMIN_ERROR_REQPENDING => dualvar(5, "request pending");
 use constant ADMIN_ERROR_CONNREF => dualvar(6, "couldn't connect to the admin server");
+use constant ADMIN_ERROR_DIFFSN => dualvar(7, "the new screenname is not equivalent to the old screenname");
+use constant ADMIN_ERROR_EMAILLIM => dualvar(8, "the email address has too many screennames");
+use constant ADMIN_ERROR_EMAILBAD => dualvar(9, "the email address is invalid");
 
 # Direct connect types
 use constant OSCAR_DIRECT_IM => dualvar(1, "direct IM");
