@@ -193,6 +193,7 @@ sub NO_to_BLI($) {
 	$bli->{1}->{0}->{0}->{data}->{0xC8} = pack("n*", map { $_->{groupid} } values %{$session->{buddies}});
 	foreach my $group(keys %{$session->{buddies}}) {
 		my $gid = $session->{buddies}->{$group}->{groupid};
+		$bli->{1}->{$gid}->{0}->{name} = $group;
 		$bli->{1}->{$gid}->{0}->{data}->{0xC8} = pack("n*", map { $_->{buddyid} } values %{$session->{buddies}->{$group}->{members}});
 
 		foreach my $buddy(keys %{$session->{buddies}->{$group}->{members}}) {
