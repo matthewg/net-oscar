@@ -74,7 +74,7 @@ sub process_snac($$) {
 			$connection->log_print(OSCAR_DBG_DEBUG, "Doing buddylist unknown 0x2.");
 			$connection->snac_put(family => 0x13, subtype => 0x2);
 
-			$connection->log_print(OSCAR_DBG_DEBUG, "Making unknown buddylist request.");
+			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting buddy list.");
 			$connection->snac_put(family => 0x13, subtype => 0x4);
 
 			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting locate rights.");
@@ -218,14 +218,16 @@ sub process_snac($$) {
 	} elsif($family == 0x1 and $subtype == 0x3) {
 		$connection->log_print($connection->{conntype} == CONNTYPE_BOS ? OSCAR_DBG_SIGNON : OSCAR_DBG_NOTICE, "Got server ready.  Sending set versions.");
 
-		if($connection->{conntype} != CONNTYPE_BOS) {
-			$connection->snac_put(family => 0x1, subtype => 0x17, data =>
-				pack("n*", $connection->{conntype}, 1, 1, 3)
-			);
+		my $conntype = $connection->{conntype};
+		if($conntype != CONNTYPE_BOS) {
+			$connection->snac_put(family => 0x1, subtype => 0x17, data => pack("n*",
+				1, OSCAR_TOOLDATA()->{1}->{version},
+				$conntype, OSCAR_TOOLDATA()->{$conntype}->{version},
+			));
 		} else {
-			$connection->snac_put(family => 0x1, subtype => 0x17, data =>
-				pack("n*", 0x15, 1, 0x13, 4, 0xC, 1, 0xB, 1, 0xA, 1, 9, 1, 8, 1, 6, 1, 4, 1, 3, 1, 2, 1, 1, 3)
-			);
+			my $data = "";
+			$data .= pack("n*", $_, OSCAR_TOOLDATA()->{$_}->{version}) foreach sort {$b <=> $a} grep {not OSCAR_TOOLDATA()->{$_}->{nobos}} keys %{OSCAR_TOOLDATA()};
+			$connection->snac_put(family => 0x1, subtype => 0x17, data => $data);
 		}
 
 		$connection->log_print(OSCAR_DBG_NOTICE, "Sending Rate Info Req.");

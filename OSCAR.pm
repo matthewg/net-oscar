@@ -1112,21 +1112,21 @@ to implement typing status notification.  Valid values for C<STATUS> are:
 =item *
 
 TYPINGSTATUS_STARTED: The user has started typing to the recipient.
+This indicates that typing is actively taking place.
 
 =item *
 
-TYPINGSTATUS_TYPING: The user is typing to the recipient.
+TYPINGSTATUS_TYPING: The user is typing to the recipient.  This
+indicates that there is text in the message input area, but
+typing is not actively taking place at the moment.
 
 =item *
 
 TYPINGSTATUS_FINISHED: The user has finished typing to the recipient.
+This should be sent when the user starts to compose a message, but
+then erases all of the text in the message input area.
 
 =back
-
-I B<believe> that the difference between C<TYPINGSTATUS_STARTED> and
-C<TYPINGSTATUS_TYPING> is that the latter indicates that text is
-actively being typed, while the former indicates that the user is
-composing a message (but isn't actively typing at the moment.)
 
 =cut
 
