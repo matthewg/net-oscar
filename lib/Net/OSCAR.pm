@@ -616,25 +616,26 @@ sub profile($) { return shift->{profile}; }
 
 =pod
 
-=item get_app_data NUMBER
+=item get_app_data
 
-Gets application-specific data.  NUMBER should be a long where the high-order byte
-is a number that you have reserved for your application and the low-order byte is
-the type of data.  High-order byte 0x01 is reserved for data not specific to any
-application.  This data is stored in your server-side buddylist and so will be persistent,
-even across machines.  Email C<libfaim-aim-protocol@lists.sourceforge.net> to reserve a
-high-order byte.
+Gets application-specific data.  Returns a hashref whose keys are app-data IDs.
+IDs with high-order byte 0x0001 are reserved for non-application-specific usage
+and must be registered with the C<libfaim-aim-protocol@lists.sourceforge.net> list.
+If you wish to set application-specific data, you should reserve a high-order
+byte for your application by emailing C<libfaim-aim-protocol@lists.sourceforge.net>.
+This data is stored in your server-side buddylist and so will be persistent,
+even across machines.
 
-=item set_app_data NUMBER VALUE
+=item set_app_data
 
+Call this after modifying the hashref returned by C<get_app_data>.
 See L<"get_app_data">.
 
 =cut
 
-sub get_app_data($$) { return shift->{appdata}->{shift}; }
-sub set_app_data($$$) {
-	my($self, $idno, $data) = @_;
-	$self->{appdata}->{$idno} = $data;
+sub get_app_data($) { return shift->{appdata}; }
+sub set_app_data($) {
+	my($self) = @_;
 	$self->set_visibility($self->visibility);
 }
 

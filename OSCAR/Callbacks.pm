@@ -378,6 +378,9 @@ sub process_snac($$) {
 		$session->callback_signon_done() unless $session->{sent_done}++;
 	} elsif($family == 0x13 and $subtype == 0x0E) {
 		$connection->debug_print("Got blmod ack.");
+		if($data ne chr(0)x2) {
+			send_error($session, $connection, (unpack("n", $data))[0], "There was an error setting buddylist data.  Maybe your profile is too long?", 0);
+		}
 		$session->modgroups();
 	} elsif($family == 0x1 and $subtype == 0x18) {
 		$connection->debug_print("Got hostversions.");
