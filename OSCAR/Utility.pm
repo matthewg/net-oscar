@@ -186,7 +186,9 @@ sub signon_tlv($;$$) {
 			# our auth_challenge/auth_response API.
 
 			$protodata{pass_is_hashed} = "";
-			$protodata{auth_response} = encode_password($session, md5($password), $key);
+			my $hashpass = $session->{pass_is_hashed} ? $password : md5($password);
+
+			$protodata{auth_response} = encode_password($session, $hashpass, $key);
 		}
 	}
 

@@ -283,6 +283,13 @@ Screenname and password are mandatory.  The other keys are optional.
 In the special case of password being present but undefined, the
 auth_challenge callback will be used - see L<"auth_challenge"> for details.
 
+=item pass_is_hashed
+
+If you want to give Net::OSCAR the MD5 hash of the password instead of the password
+itself, use the MD5'd password in the password key and also set this key.  The
+benefit of this is that, if your application saves user passwords, you can save
+them in hashed form and don't need to store the plaintext.
+
 =item local_ip
 
 If you have more than one IP address with a route to the internet, this
@@ -347,8 +354,9 @@ sub signon($@) {
 
 	($self->{screenname}, $password, $host, $self->{port},
 		$self->{proxy_type}, $self->{proxy_host}, $self->{proxy_port},
-		$self->{proxy_username}, $self->{proxy_password}, $self->{local_ip}) =
-			delete @args{qw(screenname password host port proxy_type proxy_host proxy_port proxy_username proxy_password local_ip)};
+		$self->{proxy_username}, $self->{proxy_password}, $self->{local_ip},
+		$self->{pass_is_hashed}) =
+			delete @args{qw(screenname password host port proxy_type proxy_host proxy_port proxy_username proxy_password local_ip pass_is_hashed)};
 
 	$self->{svcdata} = \%args;
 
