@@ -275,25 +275,18 @@ sub _protopack($$;@) {
 				while(my($num, $val) = each %$tlvmap) {
 					if($datum->{subtyped}) {
 						while(my($subtype, $subval) = each %$val) {
-							next unless $subval->{type};
-
 							if(exists($subval->{data})) {
-								my(%tmp) = _protopack($oscar, [$subval], $subval->{data});
-								$data{$_} = $tmp{$_} foreach keys %tmp;
+								$data{$subval->{name}} = "" if exists($subval->{name});
+								if(@{$subval->{items}} and $subval->{data}) {
+									my(%tmp) = _protopack($oscar, [$subval], $subval->{data});
+									$data{$_} = $tmp{$_} foreach keys %tmp;
+								}
 							}
 						}
 					} else {
 						if(exists($val->{data})) {
-							# Consider:
-							#   <tlv type="1"><data name="foo" /></tlv>
-							# when TLV 1 is present but empty.
-							# In this case, we want to set key foo.
-							# The protoparse won't do it, so we override here
-							# for that special case of a TLV containing a single data item.
-							#
-							if(!$val->{data} and $val->{type} eq "data" and @{$val->{items}} == 1) {
-								$data{$val->{items}->[0]->{name}} = "";
-							} else {
+							$data{$val->{name}} = "" if exists($val->{name});
+							if(@{$val->{items}} and $val->{data}) {
 								my(%tmp) = _protopack($oscar, [$val], $val->{data});
 								$data{$_} = $tmp{$_} foreach keys %tmp;
 							}
@@ -360,36 +353,8 @@ sub _protopack($$;@) {
 				foreach (@{$datum->{items}}) {
 					$tlvcount++;
 
-					if(ref($_->{items}) and @{$_->{items}} == 1) { # TLV contains a single element
-						# If the TLV contains a single element,
-						# AND that element has a name,
-						# AND that name doesn't exist in our input hash...
-						# ...then suppress this TLV.
-						#
-						# This allows us to handle TLVs which alter
-						# the protocol behavior based on their presence
-						# or absence, as opposed to their value.
-						#
-						# The alternative to this auto-suppression
-						# would be to add a separate name attribute
-						# onto the TLV when we wanted to allow the
-						# user to control its presence, and then
-						# the TLVs which have a dummy data element
-						# under the current scheme would have no
-						# elements.  That would wind up being even
-						# less elegant than the auto-suppression
-						# route, at least in terms of the effect on the
-						# XML.  It'd probably wind up being a wash
-						# in terms of the effect on this routine.
-
-						if($_->[0]->{name} and
-						   not exists($data{$_->[0]->{name}})) {
-							next;
-						}
-					}
-
 					my $tmp = _protopack($oscar, [$_], %data);
-					next if $tmp eq "";
+					next if $tmp eq "" and !$datum->{name};
 					confess "No num: ", Data::Dumper::Dumper($_) unless $_->{num};
 
 					if($datum->{subtyped}) {

@@ -336,9 +336,9 @@
 					</tlv>
 				</tlvchain>
 			</tlv>
-			<tlv type="4"><data name="is_automatic" /></tlv>
-			<tlv type="3"><data name="request_server_confirmation" /></tlv>
-			<tlv type="11"><data name="supports_typing_status" /></tlv>
+			<tlv type="4" name="is_automatic" />
+			<tlv type="3" name="request_server_confirmation" />
+			<tlv type="11" name="supports_typing_status" />
 			<tlv type="8">
 				<dword name="icon_length" />
 				<word>1</word>
@@ -489,8 +489,8 @@
 		<tlvchain>
 			<tlv type="1" />
 			<tlv type="3"><data name="sender" length_prefix="byte" /></tlv>
-			<tlv type="6"><data name="reflect" /></tlv>
-			<tlv type="7"><data name="is_automatic" /></tlv>
+			<tlv type="6" name="reflect" />
+			<tlv type="7" name="is_automatic" />
 			<tlv type="5">
 				<tlvchain>
 					<tlv type="2"><data name="message_encoding" /></tlv>
@@ -512,7 +512,7 @@
 		<data length="6">
 			<tlvchain>
 				<tlv type="3"><word name="subrequest" /></tlv>
-				<tlv type="1"><data name="success" /></tlv>
+				<tlv type="1" name="success" />
 			</tlvchain>
 			<tlvchain>
 				<tlv type="8"><word name="error_code" /></tlv>

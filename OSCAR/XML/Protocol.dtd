@@ -32,9 +32,9 @@
 #
 # You can also have tlvchains and TLVs...
 #
-# A TLV with a single element inside of it will be suppressed on encoding if the key
-# of the inner element is not found.  This allows the creation of empty TLVs to be
-# controlled.
+# If you attach a name to a TLV, as opposed to elements within that TLV,
+# presence of that name in the data hash will correspond with presence of
+# that TLV in the TLV chain, without regard to the value of said TLV.
 #
 #
 # family=0 is a global fallback SNAC family.  That is:
@@ -95,4 +95,10 @@
 <!ATTLIST tlv
 	type CDATA #REQUIRED
 	subtype CDATA #IMPLIED <!-- For subtyped TLVs -->
+	<!--
+	     If the TLV has a name, as opposed to elements within the TLV having a name, 
+	     that key being present in the data will correspond to the existance of that
+	     TLV, without regard to its value
+	-->
+	name CDATA #IMPLIED
 >
