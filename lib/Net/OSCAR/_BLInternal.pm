@@ -210,7 +210,7 @@ sub BLI_to_NO($) {
 				$entry->{comment} = $comment;
 				$entry->{alias} = $alias;
 				$entry->{data} = $item->{data};
-				$entry->{screenname} = Net::OSCAR::Screenname->new(\$item->{name});
+				$entry->{screenname} = Net::OSCAR::Screenname->new($item->{name});
 
 				push @ret, {type => MODBL_WHAT_BUDDY, action => MODBL_ACTION_ADD, group => $group, buddy => $item->{name}};
 			}
@@ -358,7 +358,7 @@ sub NO_to_BLI($) {
 			next unless $bid;
 			init_entry($bli, 0, $gid, $bid);
 			my $blibud = $bli->{0}->{$gid}->{$bid};
-			$blibud->{name} = $buddy;
+			$blibud->{name} = "$buddy"; # Make sure to get strinfied version of Screenname
 
 			$blibud->{data} = tlv();
 			while(my ($key, $value) = each(%{$bud->{data}})) {

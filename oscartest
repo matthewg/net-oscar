@@ -556,7 +556,7 @@ EOF
 						$buddat = {buddyid => 0};
 					}
 
-					printf "\t%s (0x%04X)%s\n", $buddy, $buddat->{buddyid}, $extra;
+					printf "\t%s (0x%04X)%s\n", $buddat->{screenname}, $buddat->{buddyid}, $extra;
 				}
 			}
 		} elsif($cmd eq "reorder_groups") {

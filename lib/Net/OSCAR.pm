@@ -4190,6 +4190,7 @@ sub mod_buddylist($$$$;@) {
 			} else {
 				$grp->{members}->{$buddy} = {
 					buddyid => $self->newid($grp->{members}),
+					screenname => Net::OSCAR::Screenname->new($buddy),
 					data => tlv(),
 					online => 0,
 					comment => undef,
