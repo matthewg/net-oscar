@@ -175,7 +175,7 @@ print "\n";
 chomp $username;
 chomp $password;
 
-=pod
+#=pod
 
 $pid = fork();
 if(!$pid) {
@@ -188,7 +188,7 @@ if(!$pid) {
 	exec("/home/matthewg/tethereal", "-n", "-p", "-w", "dormouse.pcap", "port", "5190");
 }
 
-=cut
+#=cut
 
 $oscar = Net::OSCAR->new();
 $oscar->set_callback_error(\&error);
@@ -239,6 +239,8 @@ A copy of the license is available at http://www.gnu.org/copyleft/gpl.txt
 
 ====basics====
 signoff/quit/exit
+permitlist
+denylist
 get_permit_mode
 set_permit_mode
 list_permit_modes
@@ -296,6 +298,10 @@ EOF
 			foreach my $permmode(VISMODE_PERMITALL, VISMODE_DENYALL, VISMODE_PERMITSOME, VISMODE_DENYSOME, VISMODE_PERMITBUDS) {
 				print "$permmode: ", 0+$permmode, "\n";
 			}
+		} elsif($cmd eq "permitlist") {
+			print join("\n", $oscar->get_permitlist), "\n";
+		} elsif($cmd eq "denylist") {
+			print join("\n", $oscar->get_denylist), "\n";
 		} elsif($cmd eq "buddylist") {
 			foreach my $group(sort $oscar->groups) {
 				printf "%s\n", $group, $oscar->{buddies}->{$group}->{groupid};
@@ -365,4 +371,4 @@ EOF
 	}
 }
 
-#sub END { system("/home/matthewg/skill $pid"); }
+sub END { system("/home/matthewg/skill $pid"); }

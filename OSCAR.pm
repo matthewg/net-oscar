@@ -106,9 +106,10 @@ cookie to use to connect with the BOS (Basic OSCAR Services) server.
 
 C<Net::OSCAR> proceeds to disconnect from the login server and connect to the
 BOS server.  The two go through a handshaking process which includes the
-server sending us our buddylist.  The buddylist includes our normal
-buddies as well as two special groups - the C<permit> and C<deny> groups.
-These groups, along with our visibility setting, determine who can
+server sending us our buddylist.
+
+C<Net::OSCAR> supports privacy controls.  Our visibility setting, along
+with the contents of the permit and deny lists, determines who can
 contact us.  Visibility can be set to permit or deny everyone, permit only
 those on the permit list, deny only those on the deny list, or permit
 everyone on our buddylist.
@@ -155,11 +156,8 @@ sub new($) {
 
 	$self->{timeout} = 0.01;
 
-	$self->{buddies}->{permit}->{groupid} = 0xFFFF;
-	$self->{buddies}->{deny}->{groupid} = 0xFFFF;
-
-	$self->{buddies}->{permit}->{members} = $self->bltie();
-	$self->{buddies}->{deny}->{members} = $self->bltie();
+	$self->{permit} = $self->bltie();
+	$self->{deny} = $self->bltie();
 
 	return $self;
 }
@@ -375,7 +373,6 @@ sub findgroup($$) {
 
 	$self->debug_printf("findgroup 0x%04X", $groupid);
 	while(($group, $currgroup) = each(%{$self->{buddies}})) {
-		next if $group eq "permit" or $group eq "deny";
 		$self->debug_printf("\t$group == 0x%04X", $currgroup->{groupid});
 		next unless exists($currgroup->{groupid}) and $groupid == $currgroup->{groupid};
 		$thegroup = $group;
@@ -391,8 +388,7 @@ sub findgroup($$) {
 
 Returns the name of the group that BUDDY is in, or undef if
 BUDDY could not be found in any group.  If BUDDY is in multiple
-groups, will return the first one we find.  Note that this
-method skips the permit and deny groups.
+groups, will return the first one we find.
 
 =cut
 
@@ -402,7 +398,6 @@ sub findbuddy($$) {
 
 	#$self->debug_print("findbuddy $buddy");
 	foreach my $group(keys %{$self->{buddies}}) {
-		next if $group eq "permit" or $group eq "deny";
 		#$self->debug_print("\t$buddy? ", join(",", keys %{$self->{buddies}->{$group}->{members}}));
 		return $group if $self->{buddies}->{$group}->{members}->{$buddy};
 	}
@@ -411,10 +406,10 @@ sub findbuddy($$) {
 
 sub newid($;$) {
 	my($self, $group) = @_;
-	my $id;
+	my $id = 0;
 
 	if($group) {
-		do { $id = ++$self->{nextid}->{$group}; } while(grep { $_->{buddyid} == $id } values %{$self->{buddies}->{$group}->{members}});
+		do { ++$id; } while(grep { $_->{buddyid} == $id } values %$group);
 	} else {
 		do { $id = ++$self->{nextid}->{__GROUPID__}; } while($self->findgroup($id));
 	}
@@ -440,12 +435,22 @@ See L<add_permit>.
 
 See L<add_permit>.
 
+=item get_permitlist
+
+Returns a list of all members of the permit list.
+
+=item get_denylist
+
+Returns a list of all members of the deny list.
+
 =cut
 
-sub add_permit($@) { shift->add_buddy("permit", @_); }
-sub add_deny($@) { shift->add_buddy("deny", @_); }
-sub remove_permit($@) { shift->remove_buddy("permit", @_); }
-sub remove_deny($@) { shift->remove_buddy("deny", @_); }
+sub add_permit($@) { shift->mod_permit(MODBL_ACTION_ADD, "permit", @_); }
+sub add_deny($@) { shift->mod_permit(MODBL_ACTION_ADD, "deny", @_); }
+sub remove_permit($@) { shift->mod_permit(MODBL_ACTION_DEL, "permit", @_); }
+sub remove_deny($@) { shift->mod_permit(MODBL_ACTION_DEL, "deny", @_); }
+sub get_permitlist($) { return keys %{shift->{permit}}; }
+sub get_denylist(@) { return keys %{shift->{deny}}; }
 
 =pod
 
@@ -529,6 +534,47 @@ sub set_visibility($$) {
 	);
 }
 
+sub mod_permit($$$@) {
+	my($self, $action, $group, @buddies) = @_;
+	my $groupid;
+	my @ids;
+	my $subtype;
+	my $packet = "";
+
+	$subtype = 0x8 if $action == MODBL_ACTION_ADD;
+	$subtype = 0xA if $action == MODBL_ACTION_DEL;
+
+	if($group eq "permit") {
+		$groupid = GROUP_PERMIT;
+	} else {
+		$groupid = GROUP_DENY;
+	}
+
+	if($action == MODBL_ACTION_ADD) {
+		foreach my $buddy(@buddies) {
+			$self->{$group}->{$buddy}->{buddyid} = $self->newid($self->{group});
+		}
+	} else {
+		foreach my $buddy(@buddies) {
+			push @ids, $self->{$group}->{$buddy}->{buddyid};
+			delete $self->{$group}->{$buddy};
+		}
+	}
+
+	foreach my $buddy(@buddies) {
+		my $id;
+		if($action == MODBL_ACTION_DEL) {
+			$id = shift @ids;
+		} else {
+			$id = $self->{$group}->{$buddy}->{buddyid};
+		}
+		$packet = pack("na*", length($buddy), $buddy);
+		$packet .= pack("nnnn", 0, $id, $groupid, 0);
+	}
+	$self->{bos}->snac_put(family => 0x13, subtype => $subtype, data => $packet);
+	return;
+}
+
 sub mod_buddylist($$$$;@) {
 	my($self, $action, $what, $group, @buddies) = @_;
 	my $packet = "";
@@ -536,26 +582,15 @@ sub mod_buddylist($$$$;@) {
 	my $groupid = 0;
 	my $subtype;
 	my @ids;
-	my $isvis = 0;
 
 	$subtype = 0x8 if $action == MODBL_ACTION_ADD;
 	$subtype = 0xA if $action == MODBL_ACTION_DEL;
-
-	$isvis = 1 if $group eq "permit" or $group eq "deny";
-	return if $isvis and $what == MODBL_WHAT_GROUP; #Can't add/delete permit/deny
-	if($isvis) {
-		if($group eq "permit") {
-			$groupid = GROUP_PERMIT;
-		} else {
-			$groupid = GROUP_DENY;
-		}
-	}
 
 	@buddies = ($group) if $what == MODBL_WHAT_GROUP;
 
 	if($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_ADD) {
 		return if exists $self->{buddies}->{$group};
-		$self->{buddies}->{$group}->{groupid} = $groupid = $self->newid();;
+		$self->{buddies}->{$group}->{groupid} = $groupid = $self->newid();
 		$self->{buddies}->{$group}->{members} = $self->bltie();
 	} elsif($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_DEL) {
 		return unless exists $self->{buddies}->{$group};
@@ -565,35 +600,20 @@ sub mod_buddylist($$$$;@) {
 		$self->mod_buddylist(MODBL_ACTION_ADD, MODBL_WHAT_GROUP, $group) unless exists $self->{buddies}->{$group};
 		@buddies = grep {not exists $self->{buddies}->{$group}->{members}->{$_}} @buddies;
 		return unless @buddies;
-		$groupid = $self->{buddies}->{$group}->{groupid} unless $isvis;
+		$groupid = $self->{buddies}->{$group}->{groupid};
 		foreach my $buddy(@buddies) {
-			$self->{buddies}->{$group}->{members}->{$buddy}->{buddyid} = $self->newid($group);
+			$self->{buddies}->{$group}->{members}->{$buddy}->{buddyid} = $self->newid($self->{buddies}->{$group}->{members});
 		}
 	} elsif($what == MODBL_WHAT_BUDDY and $action == MODBL_ACTION_DEL) {
 		return unless exists $self->{buddies}->{$group};
 		@buddies = grep {exists $self->{buddies}->{$group}->{members}->{$_}} @buddies;
 		return unless @buddies;
-		$groupid = $self->{buddies}->{$group}->{groupid} unless $isvis;
+		$groupid = $self->{buddies}->{$group}->{groupid};
 		foreach my $buddy(@buddies) {
 			push @ids, $self->{buddies}->{$group}->{members}->{$buddy}->{buddyid};
 			delete $self->{buddies}->{$group}->{members}->{$buddy};
 		}
 		$self->mod_buddylist(MODBL_ACTION_DEL, MODBL_WHAT_GROUP, $group) unless scalar keys %{$self->{buddies}->{$group}->{members}};
-	}
-
-	if($isvis) {
-		foreach $buddy(@buddies) {
-			my $id;
-			if($action == MODBL_ACTION_DEL) {
-				$id = shift @ids;
-			} else {
-				$id = $self->{buddies}->{$group}->{members}->{$buddy}->{buddyid};
-			}
-			$packet = pack("na*", length($buddy), $buddy);
-			$packet .= pack("nnnn", 0, $id, $groupid, 0);
-		}
-		$self->{bos}->snac_put(family => 0x13, subtype => $subtype, data => $packet);
-		return;
 	}
 
 	$self->{bos}->snac_put(family => 0x13, subtype => 0x11) unless $self->{blmod}++;
@@ -1128,8 +1148,7 @@ Returns the user's current visibility setting.  See L<set_visibility>.
 
 =item groups
 
-Returns a list of groups in the user's buddylist.  This includes the permit
-and deny groups.
+Returns a list of groups in the user's buddylist.
 
 =item buddies (GROUP)
 

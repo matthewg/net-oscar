@@ -356,6 +356,7 @@ sub process_snac($$) {
 			my $group = "";
 			if($buddy->{pdflag}) {
 				($buddy->{pdflag} == GROUP_PERMIT) ? ($group = "permit") : ($group = "deny");
+				$session->{$group}->{$buddy->{name}} = { buddyid => $buddy->{buddid} };
 			} else {
 				if(!$buddy->{groupid}) {
 					my $xgroup = (sort grep { $_ ne "permit" and $_ ne "deny" } keys %{$session->{buddies}})[0];
@@ -363,14 +364,14 @@ sub process_snac($$) {
 				}
 				$group = $session->findgroup($buddy->{groupid});
 				#$session->debug_print("After findgroup, groups are: ", join(",", keys %{$session->{buddies}}));
+				next unless $group;
+				next if $session->{buddies}->{$group}->{members}->{$buddy->{name}};
+				$session->{buddies}->{$group}->{members} = $session->bltie() unless exists $session->{buddies}->{$group}->{members};
+				$session->{buddies}->{$group}->{members}->{$buddy->{name}} = {
+					online => 0,
+					buddyid => $buddy->{buddyid}
+				};
 			}
-			next unless $group;
-			next if $session->{buddies}->{$group}->{members}->{$buddy->{name}};
-			$session->{buddies}->{$group}->{members} = $session->bltie() unless exists $session->{buddies}->{$group}->{members};
-			$session->{buddies}->{$group}->{members}->{$buddy->{name}} = {
-				online => 0,
-				buddyid => $buddy->{buddyid}
-			};
 		}
 
 		$session->callback_signon_done();
