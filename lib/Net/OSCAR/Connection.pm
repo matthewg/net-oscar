@@ -358,4 +358,7 @@ sub ready($) {
 		));
 	}
 }
+
+sub session($) { return shift->{session}; }
+
 1;

@@ -2059,6 +2059,10 @@ should be non-zero if the connection is ready for the respective operations to b
 performed and zero otherwise.  If and only if there was a socket error with the
 connection, set C<HAS_ERROR> to non-zero.
 
+=item session
+
+Returns the C<Net::OSCAR> object associated with this C<Net::OSCAR::Connection>.
+
 =back
 
 =head1 HISTORY
