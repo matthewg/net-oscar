@@ -55,7 +55,7 @@ sub process_snac($$) {
 			0x0F => "en", # lang
 			0x4A => pack("C", 1),
 		);
-		$connection->snac_put(family => 0x17, subtype => 0x2, data => tlv_encode(%tlv));
+		$connection->snac_put(family => 0x17, subtype => 0x2, data => tlv_encode(\%tlv));
 	} elsif($conntype == CONNTYPE_LOGIN and $family == 0x17 and $subtype == 0x3) {
 		$connection->debug_print("Got authorization response.");
 

@@ -255,16 +255,17 @@ sub tlv_decode($;$) {
 sub tlv(@) {
 	my %tlv = ();
 	tie %tlv, "Net::OSCAR::TLV";
-	while(@_) { $tlv{shift} = shift; }
-	return tlv_encode(%tlv);
+	while(@_) { my($key, $value) = (shift, shift); $tlv{$key} = $value; }
+	return tlv_encode(\%tlv);
 }
 
-sub tlv_encode(\%) {
+sub tlv_encode($) {
 	my $tlv = shift;
 	my($buffer, $type, $value) = ("", 0, "");
 
 	confess "You must use a tied Net::OSCAR::TLV hash!" unless ref($tlv) eq "HASH" and tied(%$tlv)->isa("Net::OSCAR::TLV");
 	while (($type, $value) = each %$tlv) {
+		$value ||= "";
 		$buffer .= pack("nna*", $type, length($value), $value);
 
 	}

@@ -538,18 +538,18 @@ a chatroom.
 sub set_visibility($$;$) {
 	my($self, $vismode, $newgp) = @_;
 
-	$self->{vismode} = $vismode;
+	$self->{vismode} = $vismode if $vismode;
 	$newgp ||= 0xFFFFFFFF;
-	if(!$self->{groupperms}) { # Contents of subTLV 0xCB in TLV 0x02 in SNAC 0x0013/0x0006
+	if($self->{vismode} and !$self->{groupperms}) { # Contents of subTLV 0xCB in TLV 0x02 in SNAC 0x0013/0x0006
 		$self->{bos}->snac_put(family => 0x13, subtype => 0x08, data => pack("N", $newgp));
 		$self->{groupperms} = $newgp;
 	}
 	$self->{bos}->snac_put(family => 0x13, subtype => 0x9, data =>
 		pack("nnn a*", 0, 0, 2,
 			tlv(0x04 =>
-				tlv(0x0100 => $self->{profile}) .
-				tlv(0xCA => pack("C", $vismode)) .
-				tlv(0xCB => pack("N", $self->{groupperms})) .
+				(exists($self->{profile}) ? tlv(0x0100 => $self->{profile}) : "") .
+				(exists($self->{vismode}) ? tlv(0xCA => pack("C", $self->{vismode})) : "") .
+				(exists($self->{groupperms}) ? tlv(0xCB => pack("N", $self->{groupperms})) : "") .
 				tlv(%{$self->{appdata}})
 			)
 		)
@@ -1057,7 +1057,7 @@ sub set_info($$;$) {
 	$tlv{0x5} = $self->capabilities();
 
 	$self->debug_print("Setting user information.");
-	$self->{bos}->snac_put(family => 0x02, subtype => 0x04, data => tlv_encode(%tlv));
+	$self->{bos}->snac_put(family => 0x02, subtype => 0x04, data => tlv_encode(\%tlv));
 	$self->set_visibility($self->visibility);
 }
 
@@ -1109,7 +1109,7 @@ sub change_password($$$) {
 		0x12 => $currpass
 	);
 
-	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv_encode(%tlv));
+	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv_encode(\%tlv));
 }
 
 =pod
@@ -1285,6 +1285,7 @@ sub selector_filenos($) {
 	my($rin, $win) = ('', '');
 
 	foreach my $connection(@{shift->{connections}}) {
+		next unless $connection->{socket};
 		if($connection->{connected}) {
 			vec($rin, fileno $connection->{socket}, 1) = 1;
 		} else {
