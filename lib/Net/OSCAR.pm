@@ -1124,7 +1124,7 @@ sub confirm_account($) {
 		$self->{adminreq}->{0+ADMIN_TYPE_ACCOUNT_CONFIRM}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, protobit => "confirm account");
+	$self->svcdo(CONNTYPE_ADMIN, protobit => "confirm account request");
 }
 
 =pod

@@ -642,7 +642,12 @@
 		<data name="icon" length_prefix="word" />
 	</define>
 
-	<define name="confirm account" family="7" subtype="6" />
+	<define name="confirm account request" family="7" subtype="6" />
+	<define name="confirm account response" family="7" subtype="7">
+		<!-- If present and 19, indicates error, otherwise success -->
+		<word name="status" />
+	</define>
+
 	<define name="change account info" family="7" subtype="4">
 		<!-- Not all of these need to be present. -->
 		<tlvchain>

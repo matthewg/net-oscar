@@ -408,6 +408,14 @@ sub process_snac($$) {
 		}
 	} elsif($protobit eq "incoming chat IM") {
 		$session->callback_chat_im_in($data{sender}, $connection, $data{message});
+	} elsif($protobit eq "account confirm response") {
+		my $reqdesc = ADMIN_TYPE_ACCOUNT_CONFIRM;
+		delete $session->{adminreq}->{0+$reqdesc};
+		if($data{status} == 19) {
+			$session->callback_admin_error($reqdesc, "Your account could not be confirmed.");
+		} else {
+			$session->callback_admin_ok($reqdesc);
+		}
 	} elsif($protobit eq "admin request response") {
 		my $reqdesc = "";
 		$data{subrequest} ||= 0;
