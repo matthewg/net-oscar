@@ -172,6 +172,7 @@ sub process_snac($$) {
 	} elsif($protobit eq "BOS rights response") {
 		$session->set_info("");
 	} elsif($protobit eq "buddy status update") {
+		$data{screenname} = Net::OSCAR::Screenname->new($data{screenname});
 		$session->postprocess_userinfo(\%data);
 		my $screenname = $data{screenname};
 		$connection->log_print(OSCAR_DBG_DEBUG, "Incoming bogey - er, I mean buddy - $screenname");
