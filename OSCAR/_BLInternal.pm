@@ -102,11 +102,15 @@ sub BLI_to_NO($) {
 		$session->{appdata} = $typedata;
 
 		$session->set_info($session->{profile}) if exists($session->{profile});
+	} else {
+		# No permit info - we permit everyone
+		$session->{visibility} = VISMODE_PERMITALL;
+		$session->{groupperms} = 0xFFFFFFFF;
 	}
 
 	if(exists $bli->{5}) {
 		# Not yet implemented
-		($session->{showidle}) = unpack("N", $bli->{5}->{0}->{19719}->{data}->{0xC9});
+		($session->{showidle}) = unpack("N", $bli->{5}->{0}->{19719}->{data}->{0xC9} || pack("N", 1));
 	}
 
 	my @gids = unpack("n*", (exists($bli->{1}) and exists($bli->{1}->{0}) and exists($bli->{1}->{0}->{0}) and exists($bli->{1}->{0}->{0}->{data}->{0xC8})) ? $bli->{1}->{0}->{0}->{data}->{0xC8} : "");
@@ -161,6 +165,7 @@ sub BLI_to_NO($) {
 			$entry->{data} = $buddy->{data};
 		}
 	}
+
 	return 1;
 }
 
@@ -183,7 +188,7 @@ sub NO_to_BLI($) {
 	$vistype ||= 2;
 	$bli->{4}->{0}->{$vistype}->{data}->{0xCA} = pack("C", $session->{visibility} || VISMODE_PERMITALL);
 	$bli->{4}->{0}->{$vistype}->{data}->{0xCB} = pack("N", $session->{groupperms} || 0xFFFFFFFF);
-	$bli->{4}->{0}->{$vistype}->{data}->{0x0100} = $session->{profile} if exists($session->{profile});
+	$bli->{4}->{0}->{$vistype}->{data}->{0x0100} = $session->{profile} if $session->{profile};
 	foreach my $appdata(keys %{$session->{appdata}}) {
 		$bli->{4}->{0}->{$vistype}->{data}->{$appdata} = $session->{appdata}->{$appdata};
 	}
@@ -269,7 +274,15 @@ sub BLI_to_OSCAR($$) {
 					$modcount++;
 
 					push @snacqueue, $oscar->snac_encode(family => 0x13, subtype => 0xA, reqdata => {desc => "deleting ".(BUDTYPES)[$type]." $oldentry->{name}", type => $type, gid => $gid, bid => $bid}, data => 
-						pack("nnnnn", 0, $gid, $bid, $type, 0)
+						pack("na* nnn na*",
+							length($oldentry->{name}),
+							$oldentry->{name},
+							$gid,
+							$bid,
+							$type,
+							length($olddata),
+							$olddata
+						)
 					);
 				}
 			}
