@@ -30,6 +30,11 @@ sub typing_status($$$) {
 	print STDERR "We received typing status $status from $who.\n";
 }
 
+sub extended_status($$) {
+	my($oscar, $status) = @_;
+	print STDERR "Our extended status is $status.\n";
+}
+
 sub rate_alert($$$) {
 	my($oscar, $level, $clear, $window) = @_;
 
@@ -169,6 +174,9 @@ EOF
 =================================
 Buddy info for $screenname
 ---------------------------------
+EOF
+print "Extended Status: $buddat->{extended_status}\n" if exists($buddat->{extended_status});
+print <<EOF;
 Flags: $extra
 On Since: $onsince
 Evil Level: $buddat->{evil}%
@@ -217,7 +225,7 @@ if($loglevel > 10) {
 	}
 }
 
-$oscar = Net::OSCAR->new();
+$oscar = Net::OSCAR->new(capabilities => [qw(typing_status extended_status)]);
 $oscar->set_callback_error(\&error);
 $oscar->set_callback_buddy_in(\&buddy_in);
 $oscar->set_callback_buddy_out(\&buddy_out);
@@ -236,14 +244,15 @@ $oscar->set_callback_admin_error(\&admin_error);
 $oscar->set_callback_admin_ok(\&admin_ok);
 $oscar->set_callback_rate_alert(\&rate_alert);
 $oscar->set_callback_typing_status(\&typing_status);
+$oscar->set_callback_extended_status(\&extended_status);
 $oscar->set_callback_signon_done(\&signon_done);
 $oscar->set_callback_auth_challenge(\&auth_challenge);
 $oscar->set_callback_im_ok(\&im_ok);
 $oscar->loglevel($loglevel);
 if($domd5) {
-	$oscar->signon(screenname => $username, password => undef, typing_status => 1);
+	$oscar->signon(screenname => $username, password => undef, capabilities => [qw(typing_status extended_status)]);
 } else {
-	$oscar->signon(screenname => $username, password => $password, typing_status => 1);
+	$oscar->signon(screenname => $username, password => $password, capabilies => [qw(typing_status extended_status)]);
 }
 
 my $inline = "";
@@ -299,6 +308,7 @@ chat_send chat_number message
 ====misc====
 set_profile profile
 set_away awaymsg
+set_extended_status statusmsg
 get_dir screenname
 set_dir [info]
 format_screenname screenname
@@ -376,6 +386,7 @@ EOF
 						$extra .= " [FREE]" if $buddat->{free};
 						$extra .= " [AWAY]" if $buddat->{away};
 						$extra .= " {".$buddat->{comment}."}" if defined $buddat->{comment};
+						$extra .= " (".$buddat->{extended_status}.")" if defined $buddat->{extended_status};
 					} else {
 						$buddat = {buddyid => 0};
 					}
@@ -414,6 +425,8 @@ EOF
 			$oscar->commit_buddylist;
 		} elsif($cmd eq "set_away") {
 			$oscar->set_away(join(" ", @params));
+		} elsif($cmd eq "set_extended_status") {
+			$oscar->set_extended_status(join(" ", @params));
 		} elsif($cmd eq "get_dir") {
 			print "Not implemented.\n";
 		} elsif($cmd eq "set_dir") {
@@ -461,4 +474,3 @@ EOF
 	}
 }
 
-sub END { system("/home/matthewg/skill $pid") if $loglevel > 10; }

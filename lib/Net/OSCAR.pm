@@ -157,23 +157,68 @@ require Exporter;
 
 =pod
 
-=item new
+=item new ([capabilities => CAPABILITIES])
 
-Creates a new C<Net::OSCAR> object.
+Creates a new C<Net::OSCAR> object.  You may optionally
+pass a hash to set some parameters for the object.
+
+=over 4
+
+=item capabilities
+
+A listref of optional features that your client supports.
+Valid capabilities are:
+
+=over 4
+
+=item extended_status
+
+iChat-style extended status messages
+
+=item buddy_icons
+
+=item file_transfer
+
+=item typing_status
+
+Typing status notification
+
+=back
+
+=back
+
+	$oscar = Net::OSCAR->new(capabilties => [qw(extended_status typing_status)]);
 
 =cut
 
 sub new($) {
 	my $class = ref($_[0]) || $_[0] || "Net::OSCAR";
 	shift;
+
+	my(%parameters) = @_;
+	if(my($badparam) = grep { $_ ne "capabilities" } keys %parameters) {
+		croak "Invalid parameter '$badparam' passed to Net::OSCAR::new.";
+	}
+	if($parameters{capabilities}) {
+		if(my($badcap) = grep { $_ ne "extended_status" and $_ ne "buddy_icons" and $_ ne "file_transfer" and $_ ne "typing_status" } @{$parameters{capabilities}}) {
+			croak "Invalid capability '$badcap' passed to Net::OSCAR::new.";
+		}
+	}
+
 	my $self = { };
 	bless $self, $class;
+
 	$self->{LOGLEVEL} = 0;
 	$self->{SNDEBUG} = 0;
 	$self->{description} = "OSCAR session";
 	$self->{userinfo} = bltie;
 
 	$self->{timeout} = 0.01;
+	$self->{capabilities} = {};
+
+	if($parameters{capabilities}) {
+		$self->{capabilities}->{$_} = 1 foreach @{$parameters{capabilities}};
+	}
 
 	return $self;
 }
@@ -218,12 +263,6 @@ here are the valid keys:
 Screenname and password are mandatory.  The other keys are optional.
 In the special case of password being present but undefined, the
 auth_challenge callback will be used - see L<"auth_challenge"> for details.
-
-=item typing_status
-
-Set this key if your client supports typing status notification.
-This will cause your client to receive these messages from other
-users.
 
 =item host
 
@@ -294,10 +333,10 @@ sub signon($@) {
 	$args{port} ||= 5190;
 
 
-	($self->{screenname}, $password, $host, $self->{port}, $self->{typing_status},
+	($self->{screenname}, $password, $host, $self->{port},
 		$self->{proxy_type}, $self->{proxy_host}, $self->{proxy_port},
 		$self->{proxy_username}, $self->{proxy_password}) =
-			delete @args{qw(screenname password host port typing_status proxy_type proxy_host proxy_port proxy_username proxy_password)};
+			delete @args{qw(screenname password host port proxy_type proxy_host proxy_port proxy_username proxy_password)};
 
 	$self->{svcdata} = \%args;
 
@@ -945,6 +984,20 @@ sub extract_userinfo($$) {
 	($retval->{idle}) = unpack("n", $tlv->{4}) if exists($tlv->{4});
 	($retval->{capabilities}) = $tlv->{0xD} if exists($tlv->{0xD});
 
+	# Extended status information (iChat)
+	if(exists($tlv->{0x1D})) {
+		my $statinfo = $tlv->{0x1D};
+		while($statinfo) {
+			my($subtype, $number, $length) = unpack("nCC", substr($statinfo, 0, 4, ""));
+			my($subdata) = substr($statinfo, 0, $length, "");
+
+			if($subtype == 0x02) {
+				my($msglen) = unpack("n", substr($subdata, 0, 2, ""));
+				$retval->{extended_status} = substr($subdata, 0, $msglen, "");
+			}
+		}
+	}
+
 	substr($data, 0, $chainlen) = "";
 
 	if($data) {
@@ -1024,7 +1077,7 @@ sub send_im($$$;$) {
 		$packet .= tlv(3 => ""); #request server confirmation
 	}
 
-	my $flags2 = $self->{typing_status} ? 0xB : 0;
+	my $flags2 = $self->{capabilities}->{typing_status} ? 0xB : 0;
 	$self->{bos}->snac_put(reqid => $reqid, reqdata => $to, family => 0x4, subtype => 0x6, data => $packet, flags2 => $flags2);
 	return $reqid;
 }
@@ -1062,7 +1115,8 @@ composing a message (but isn't actively typing at the moment.)
 sub send_typing_status($$$) {
 	my($self, $recipient, $status) = @_;
 
-	return unless exists $self->{userinfo}->{$recipient} and $self->{userinfo}->{$recipient}->{typingstatus};
+	croak "This client does not support typing status notifications." unless $self->{capabilities}->{typing_status};
+	return unless exists $self->{userinfo}->{$recipient} and $self->{userinfo}->{$recipient}->{typing_status};
 
 	$self->{bos}->snac_put(family => 0x4, subtype => 0x14, data =>
 		pack("NNnCa*", 0, 0, 1, length($recipient), $recipient) . pack("n", $status)
@@ -1107,7 +1161,7 @@ sub im_parse($$) {
 
 	# Copying gAIM/libfaim is *so* much easier than understanding stuff.
 	if($channel == 1) {
-		my $typingstatus = 0;
+		my $typing_status = 0;
 
 		substr($data, 0, $tlvlen) = "";
 		$self->log_print(OSCAR_DBG_DEBUG, "Decoding ICBM secondary TLV.");
@@ -1127,9 +1181,9 @@ sub im_parse($$) {
 		# Sender supports typing status notification
 		$self->{userinfo}->{$from} ||= {};
 		if(exists($tlv->{0xB})) {
-			$self->{userinfo}->{$from}->{typingstatus} = 1;
+			$self->{userinfo}->{$from}->{typing_status} = 1;
 		} else {
-			delete $self->{userinfo}->{$from}->{typingstatus};
+			delete $self->{userinfo}->{$from}->{typing_status};
 		}
 
 		if($tlv->{3}) { # server ack requested
@@ -1201,7 +1255,7 @@ sub capabilities($) {
 
 =item set_away (MESSAGE)
 
-Set's the users away message, also marking them as being away.
+Sets the user's away message, also marking them as being away.
 If the message is undef or the empty string, the user will be
 marked as no longer being away.
 
@@ -1211,6 +1265,34 @@ sub set_away($$) {
 	my($self, $awaymsg) = @_;
 	return must_be_on($self) unless $self->{is_on};
 	shift->set_info(undef, $awaymsg);
+}
+
+=pod
+
+=item set_extended_status (MESSAGE)
+
+Sets the user's extended status message.  This requires the
+C<Net::OSCAR> object to have been created with the C<extended_status>
+capability.  Currently, the only clients which support extended
+status messages are Net::OSCAR, Gaim, and iChat.  If the message
+is undef or the empty string, the user's extended status
+message will be cleared.
+
+=cut
+
+sub set_extended_status($$) {
+	my($self, $status) = @_;
+	croak "This client does not support extended status messages." unless $self->{capabilities}->{extended_status};
+
+	my %tlv;
+	tie %tlv, "Net::OSCAR::TLV";
+
+	$status ||= "";
+	my $message = pack("na*n", length($status), $status, 0);
+	$tlv{0x1D} = pack("nCCa*", 2, 4, length($status) + 4, $message);
+
+	$self->log_print(OSCAR_DBG_NOTICE, "Setting extended status.");
+	$self->{bos}->snac_put(family => 0x01, subtype => 0x1E, data => tlv_encode(\%tlv));
 }
 
 =pod
@@ -1576,6 +1658,12 @@ worry about the fact that it's case and whitespace insensitive when comparing it
 A user-defined comment associated with the buddy.  See L<"set_buddy_comment">.
 Note that this key will be present but undefined if there is no comment.
 
+=item extended_status
+
+The user's extended status message, if one is set, will be in this key.
+This requires that you set the C<extended_status> capability when
+creating the C<Net::OSCAR> object.
+
 =item trial
 
 The user's account has trial status.
@@ -1600,7 +1688,7 @@ The user is an administrator.
 
 The user is using a mobile device.
 
-=item typingstatus
+=item typing_status
 
 The user is known to support typing status notification.  We only find this out if they send us an IM.
 
@@ -1799,10 +1887,15 @@ Called when a buddy has signed off (or added us to their deny list.)
 
 Called when someone leaves a chatroom.
 
-=item typing_status (OSCAR, WHO, STATUS)
+=item typing_status (OSCAR, SCREENNAME, STATUS)
 
 Called when someone has sent us a typing status notification message.
 See L<send_typing_status> for a description of the different statuses.
+
+=item extended_status (OSCAR, STATUS)
+
+Called when the user's extended status changes.  This will normally
+be sent in response to a successful L<set_extended_status> call.
 
 =item im_ok (OSCAR, TO, REQID)
 
@@ -1963,6 +2056,7 @@ sub callback_rate_alert(@) { do_callback("rate_alert", @_); }
 sub callback_signon_done(@) { do_callback("signon_done", @_); }
 sub callback_log(@) { do_callback("log", @_); }
 sub callback_typing_status(@) { do_callback("typing_status", @_); }
+sub callback_extended_status(@) { do_callback("extended_status", @_); }
 sub callback_im_ok(@) { do_callback("im_ok", @_); }
 sub callback_connection_changed(@) { do_callback("connection_changed", @_); }
 sub callback_auth_challenge(@) { do_callback("auth_challenge", @_); }
@@ -1986,7 +2080,14 @@ sub set_callback_admin_ok($\&) { set_callback("admin_ok", @_); }
 sub set_callback_rate_alert($\&) { set_callback("rate_alert", @_); }
 sub set_callback_signon_done($\&) { set_callback("signon_done", @_); }
 sub set_callback_log($\&) { set_callback("log", @_); }
-sub set_callback_typing_status($\&) { set_callback("typing_status", @_); }
+sub set_callback_typing_status($\&) {
+	croak "This client does not support typing status notification." unless $_[0]->{capabilities}->{typing_status};
+	set_callback("typing_status", @_);
+}
+sub set_callback_extended_status($\&) {
+	croak "This client does not support extended status messages." unless $_[0]->{capabilities}->{extended_status};
+	set_callback("extended_status", @_);
+}
 sub set_callback_im_ok($\&) { set_callback("im_ok", @_); }
 sub set_callback_connection_changed($\&) { set_callback("connection_changed", @_); }
 sub set_callback_auth_challenge($\&) { set_callback("auth_challenge", @_); }

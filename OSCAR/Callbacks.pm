@@ -12,11 +12,15 @@ use Net::OSCAR::Buddylist;
 use Net::OSCAR::_BLInternal;
 use Net::OSCAR::OldPerl;
 
-sub capabilities() {
+sub capabilities($) {
+	my $session = shift;
+
 	my $caps;
 
-	#AIM_CAPS_CHAT
-	$caps .= pack("C*", map{hex($_)} split(/[ \t\n]+/, "0x74 0x8F 0x24 0x20 0x62 0x87 0x11 0xD1 0x82 0x22 0x44 0x45 0x53 0x54 0x00 0x00"));
+	$caps = OSCAR_CAPS()->{chat}->{value} . OSCAR_CAPS()->{interoperate}->{value};
+	$caps .= OSCAR_CAPS()->{extstatus}->{value} if $session->{capabilities}->{extended_status};
+	$caps .= OSCAR_CAPS()->{buddyicon}->{value} if $session->{capabilities}->{buddy_icons};
+	$caps .= OSCAR_CAPS()->{getfile}->{value} . OSCAR_CAPS()->{sendfile}->{value} if $session->{capabilities}->{file_transfer};
 
 	return $caps;
 }
@@ -130,6 +134,15 @@ sub process_snac($$) {
 
 			$session->callback_chat_joined($connection->name, $connection) unless $connection->{sent_joined}++;
 		}
+	} elsif($family == 0x1 and $subtype == 0x21) {
+		$connection->log_print(OSCAR_DBG_DEBUG, "Got extended information message.");
+
+		$connection->log_print(OSCAR_DBG_DEBUG, hexdump($data));
+		my($infotype, $flags, $len) = unpack("nCC", substr($data, 0, 4, ""));
+		if($infotype == 2) {
+			my($message) = unpack("n/a*", $data);
+			$session->callback_extended_status($message);
+		}
 	} elsif($subtype == 0x1) {
 		$subtype = $reqid >> 16;
 		my $error = "";
@@ -224,11 +237,11 @@ sub process_snac($$) {
 
 		if($connection->{conntype} != CONNTYPE_BOS) {
 			$connection->snac_put(family => 0x1, subtype => 0x17, data =>
-				pack("n*", 1, 3, $connection->{conntype}, 1)
+				pack("n*", $connection->{conntype}, 1, 1, 3)
 			);
 		} else {
 			$connection->snac_put(family => 0x1, subtype => 0x17, data =>
-				pack("n*", 1, 3, 0x13, 1, 2, 1, 3, 1, 4, 1, 6, 1, 8, 1, 9, 1, 0xA, 1, 0xB, 1, 0xC, 1)
+				pack("n*", 0x15, 1, 0x13, 4, 0xC, 1, 0xB, 1, 0xA, 1, 9, 1, 8, 1, 6, 1, 4, 1, 3, 1, 2, 1, 1, 3)
 			);
 		}
 
@@ -511,7 +524,7 @@ sub got_buddylist($$) {
 	$session->set_info("") unless $session->profile;
 
 	my $icbm_parm = 0x3;
-	$icbm_parm |= 0xB if $session->{typing_status};
+	$icbm_parm |= 0xB if $session->{capabilities}->{typing_status};
 
 	$connection->log_print(OSCAR_DBG_DEBUG, "Adding ICBM parameters.");
 	$connection->snac_put(family => 0x4, subtype => 0x2, data =>
