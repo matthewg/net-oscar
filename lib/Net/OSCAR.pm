@@ -286,22 +286,8 @@ SOCKS proxying or the C<LWP::UserAgent> module installed for HTTP proxying.
 
 =back
 
-There are some other data that can be passed to this method.
-These data are used to sign on to an OSCAR-using service other than the default of
-AOL Instant Messenger, such as ICQ.  You should not attempt to specify
-these data directly - instead, use one of the following constants:
-
-=over 4
-
-=item OSCAR_SVC_AIM
-
-=item OSCAR_SVC_ICQ
-
-=back
-
-Example of signing on to ICQ:
-
-	$oscar->signon(screenname => "123456", password => "password", OSCAR_SVC_ICQ);
+If the screenname is all-numeric, it will automatically be treated
+as an ICQ UIN instead of an AIM screenname.
 
 =cut
 
@@ -323,6 +309,7 @@ sub signon($@) {
 	}
 
 	my %defaults = OSCAR_SVC_AIM;
+	%defaults = OSCAR_SVC_ICQ if $args{screenname} =~ /^\d+$/;
 	foreach my $key(keys %defaults) {
 		$args{$key} ||= $defaults{$key};
 	}
