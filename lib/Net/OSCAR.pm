@@ -258,6 +258,7 @@ sub addconn($$$$$) {
 sub delconn($$) {
 	my($self, $connection) = @_;
 
+	return unless $self->{connections};
 	for(my $i = scalar @{$self->{connections}} - 1; $i >= 0; $i--) {
 		next unless !$connection->{socket} or (fileno $connection->{socket} == fileno $self->{connections}->[$i]->{socket});
 		next unless $connection->{conntype} == $self->{connections}->[$i]->{conntype}; # Just in case fileno is undef.
