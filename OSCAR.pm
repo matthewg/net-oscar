@@ -1430,6 +1430,11 @@ as an automatic reply, perhaps because you have an away message set.
 
 Leave the chatroom.
 
+=item url
+
+Returns the URL for the chatroom.  Use this to associate a chat invitation
+with the chat_joined that C<Net::OSCAR> sends when you've join the chatroom.
+
 =back
 
 =head1 Net::AIM Compatibility

@@ -68,5 +68,6 @@ sub chat_send($$;$$) {
 }
 
 sub part($) { shift->disconnect(); }	
+sub url($) { shift->{url}; }
 
 1;
