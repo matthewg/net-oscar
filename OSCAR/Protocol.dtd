@@ -39,6 +39,7 @@
 	short (yes|no) #DEFAULT no <!-- A 'short' TLV is type/num/length/value, where num and length are both bytes.  It's used in extended status. -->
 	count_prefix (byte|word|dword) #IMPLIED
 	length_prefix (byte|word|dword) #IMPLIED
+	prefix_order (network|vax) #DEFAULT network
 >
 
 <!ELEMENT tlv (ref|byte|word|dword|data|tlvchain)+>

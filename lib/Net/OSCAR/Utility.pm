@@ -39,6 +39,7 @@ use Digest::MD5;
 use XML::Parser;
 
 use Net::OSCAR::TLV;
+use Net::OSCAR::Common qw(:loglevels);
 use Net::OSCAR::OldPerl;
 use Carp;
 require Exporter;
@@ -101,7 +102,8 @@ sub _xmldump {
 #		value: If present, default value of this datum.
 #		name: If present, name in parameter list that this datum gets.
 
-sub _protopack($@) {
+sub _protopack($$@) {
+	my $oscar = shift;
 	my $template = shift;
 
 	if(wantarray) { # Unpack
@@ -111,7 +113,7 @@ sub _protopack($@) {
 		foreach my $datum (@$packet) {
 			if($datum->{type} eq "num") {
 				if($datum->{name}) {
-					($data->{$datum->{name}}) = unpack($datum->{packlet}, substr($packet, 0, $datum->{len}, ""));
+					($data{$datum->{name}}) = unpack($datum->{packlet}, substr($packet, 0, $datum->{len}, ""));
 				} else {
 					substr($packet, 0, $datum->{len}) = "";
 				}
@@ -119,12 +121,12 @@ sub _protopack($@) {
 				if($datum->{packlet}) {
 					my(%tmp) = _protopack([{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, name => "len"}], substr($packet, 0, $datum->{len}, ""));
 					if($datum->{name}) {
-						$data->{$datum->{name}} = substr($packet, 0, $tmp{len}, "");
+						$data{$datum->{name}} = substr($packet, 0, $tmp{len}, "");
 					} else {
 						substr($packet, 0, $tmp{len}) = "";
 					}
 				} elsif($datum->{name}) {
-					$data->{$datum->{name}} = $packet;
+					$data{$datum->{name}} = $packet;
 				}
 			} elsif($datum->{type} eq "tlvchain") {
 				my($tlvpacket, $tlvmax, $tlvcount) = ($packet, 0, 0);
@@ -138,12 +140,12 @@ sub _protopack($@) {
 					}
 				}
 
-				my $tlvmap = tlv;
+				my $tlvmap = tlv();
 				if($datum->{short}) {
-					$tlvmap->{$_->{num}} = tlv foreach (@{$datum->{items}});
+					$tlvmap->{$_->{num}} = tlv() foreach (@{$datum->{items}});
 					$tlvmap->{$_->{num}}->{$_->{shortno}} = $_ foreach (@{$datum->{utems}});
 				} else {
-					$tlvmap->{$_->{num}} = $_ foreach (@{$datum->{items}};
+					$tlvmap->{$_->{num}} = $_ foreach (@{$datum->{items}});
 				}
 				while($tlvpacket and ($tlvmax and $tlvcount < $tlvmax)) {
 					my($type, $length, $shortno, $value);
@@ -179,10 +181,13 @@ sub _protopack($@) {
 			}
 		}
 
+		$oscar->log_print(OSCAR_DBG_DEBUG, "Decoded:\n", join("\n", map { "\t$_ => $data{$_}" } keys %data));
 		return %data;
 	} else { # Pack
 		my %data = @_;
 		my $packet = "";
+
+		$oscar->log_print(OSCAR_DBG_DEBUG, "Encoding:\n", join("\n", map { "\t$_ => $data{$_}" } keys %data));
 
 		foreach my $datum (@$packet) {
 			my $value = $data{$datum->{name}} || $datum->{value};
@@ -193,15 +198,38 @@ sub _protopack($@) {
 			} elsif($datum->{type} eq "data") {
 				if($datum->{packlet}) {
 					my $prefix = _protopack([{type => "num", packlet => $datum->{packlet}, len => $datum->{len}}], $value);
-					$packet .= $prefix.
+					$packet .= $prefix;
 				}
 				$packet .= $value;
 			} elsif($datum->{type} eq "tlvchain") {
-				my($tlvpacket, $tlvcount) = ($packet, 0);
+				my($tlvpacket, $tlvcount) = ("", 0);
 
 				foreach (@{$datum->{items}}) {
-					
+					$tlvcount++;
+					my $tmp = _protopack([$_], %data);
+					if($datum->{short}) {
+						$tlvpacket .= _protopack([
+							{type => "num", packlet => "n", len => 2, value => $_->{num}},
+							{type => "data", packlet => "n", len => 2, value => $tmp},
+						]);
+					} else {
+						$tlvpacket .= _protpack([
+							{type => "num", packlet => "n", len => 2, value => $_->{num}},
+							{type => "num", packlet => "C", len => 1, value => $_->{shortno}},
+							{type => "data", packlet => "C", len => 1, value => $tmp},
+						]);
+					}
 				}
+
+				if($datum->{prefix}) {
+					if($datum->{prefix} eq "count") {
+						$packet .= _protopack([{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, value => $tlvcount}]);
+					} else {
+						$packet .= _protopack([{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, value => length($tlvpacket)}]);
+					}
+				}
+
+				$packet .= $tlvpacket;
 			}
 		}
 
@@ -209,104 +237,94 @@ sub _protopack($@) {
 	}
 }
 
-sub protoparse($) {
-	my $wanted = shift;
+sub _num_to_packlen($$) {
+	my($type, $order) = @_;
+
+	if($type eq "byte") {
+		return ("C", 1);
+	} elsif($type eq "word") {
+		if($order eq "vax") {
+			return ("v", 2);
+		} else {
+			return ("n", 2);
+		}
+	} elsif($type eq "dword") {
+		if($order eq "vax") {
+			return ("V", 4);
+		} else {
+			return ("N", 4);
+		}
+	}
+
+	croak "Invalid num type: $type";
+}
+
+sub _xmlnode_to_template($$) {
+	my($tag, $value) = @_;
+
+	my $attrs = shift @$value;
+
+	my $datum = {};
+	$datum->{name} = $attrs->{name} if $attrs->{name};
+	$datum->{value} = $value->[1] if @$value;
+	if($tag eq "ref") {
+		unshift @$xml, @{$xmlmap{$value->[0]->{name}}};
+		next;
+	} elsif($tag eq "byte" or $tag eq "word" or $tag eq "dword") {
+		my($packlet, $len) = _num_to_packlen($tag, $attrs->{order});
+		$datum->{type} = "num";
+		$datum->{packlet} = $packlet;
+		$datum->{len} = $len;
+		$datum->{name} = $attrs->{name} if $attrs->{name};
+		$datum->{value} = $value->[1] if @$value;
+	} elsif($tag eq "data") {
+		$datum->{type} = "data";
+		if($attrs->{length_prefix}) {
+			my($packlet, $len) = _num_to_packlen($tag, $attrs->{order});
+			$datum->{packlet} = $packlet;
+			$datum->{len} = $len;
+		}
+	} elsif($tag eq "tlvchain") {
+		if($attrs->{count_prefix} or $attrs->{length_prefix}) {
+			my($packlet, $len) = _num_to_packlen($attrs->{count_prefix} || $attrs->{length_prefix}, $attrs->{prefix_order});
+			$datum->{packlet} = $packlet;
+			$datum->{len} = $len;
+			$datum->{prefix} = $attrs->{count_prefix} ? "count" : "length";
+		}
+
+		$datum->{short} = 1 if $attrs->{short} eq "yes";
+		$datum->{items} = [];
+
+		while(@$value) {
+			my($tlvtag, $tlvval) = splice(@$value, 0, 2);
+			next if $tlvtag eq "0";
+
+			push @{$datum->{items}}, _xmlnode_to_template($tlvtag, $tlvval);
+		}
+	}
+
+	return $datum;
+}
+
+sub protoparse($$) {
+	my ($oscar, $wanted) = @_;
 	my $xml = $xmlmap{shift} or croak "Couldn't find requested protocol element '$wanted'.";
 
 	my $attrs = shift @$xml;
-	my $channel = $attrs->{channel};
-	my $family = $attrs->{family};
-	my $subtype = $attrs->{subtype};
 
-	my $packcode = 'my $packet = ""; my %data = @_; my $num = 0;' . "\n";
-	my $unpackcode = 'my $packet = shift; my %data = (); my $num = 0;' . "\n";
+	my @template = ();
 
 	while(@$xml) {
 		my $tag = shift @$xml;
 		my $value = shift @$xml;
-		$attrs = shift @$value;
 		next if $tag eq "0";
-
-		my $name = $attrs->{name};
-		if($tag eq "ref") {
-			unshift @$xml, @{$xmlmap{$value->[0]->{name}}};
-			next;
-		} elsif($tag eq "byte" or $tag eq "word" or $tag eq "dword") {
-			my $data = "";
-			$data = $value->[1] if @$value;
-			$data ||= '$data{'.$name.'}';
-
-			my($p, $u) = _num_to_code($tag, $attrs->{order}, $name, $data);
-			$packcode .= $p;
-			$unpackcode .= $u;
-		} elsif($tag eq "data") {
-			my $data = "";
-			$data = $value->[1] if @$value;
-			$data ||= '$data{'.$name.'}';
-
-			croak "data outside of tlv must have length prefix!" unless $attrs->{length_prefix};
-			$packcode .= '$data{_data_len} = length('.$data.'); ';
-			my($p, $u) = _num_to_code($attrs->{length_prefix}, $attrs->{prefix_order}, '_data_len', $data);
-			$packcode .= $p;
-			$unpackcode .= $u;
-
-			$packcode .= '$packet .= '.$data.";\n";
-			if($name) {
-				$unpackcode .= '$data{'.$name.'} = substr($packet, 0, $data{_data_len}, "");' . "\n";
-			} else {
-				$unpackcode .= 'substr($packet, 0, $data{_data_len}) = "";' . "\n";
-			}
-		} elsif($tag eq "tlvchain") {
-			if($attrs->{count_prefix}) {
-				$packcode .= 'my $tlv = tlv();'
-				my $u;
-				(undef, $u) = _num_to_code($attrs->{count_prefix}, "network", '_tlv_len', "");
-				$unpackcode .= $u;
-				$unpackcode .= 'my $tlv_count = $data{_tlv_len};';
-				$unpackcode .= 'while($packet) {' . "\n";
-			} elsif($attrs->{length_prefix}) {
-				
-			} else {
-			}
-
-			while(@$data) {
-				my($tlvtag, $tlvval) = splice(@$data, 0, 2);
-				next if $tlvtag eq "0";
-
-				
-			}
-		}
+		push @template, _xmlnode_to_template($tag, $value);
 	}
 
-=cut
-
-=pod
-
-<!ELEMENT tlvchain (tlv*)>
-<!ATTLIST tlvchain
-	name CDATA #IMPLIED
-	short (yes|no) #DEFAULT no <!-- A 'short' TLV is type/num/length/value, where num and length are both bytes.  It's used in extended status. -->
-	count_prefix (byte|word|dword) #IMPLIED
-	length_prefix (byte|word|dword) #IMPLIED
->
-
-<!ELEMENT tlv (ref|byte|word|dword|data|tlvchain|if)+>
-<!ATTLIST tlv
-	name CDATA #IMPLIED
-	num CDATA #REQUIRED
-	num2 CDATA #IMPLIED
->
-
-<!ELEMENT if (condition+)>
-<!ELEMENT condition (ref|byte|word|dword|data|tlvchain|if)+>
-<!ATTLIST condition
-	test CDATA #REQUIRED
->
-
+	return sub { _protopack($oscar, \@template, @_); };
 }
 
-=cut
-	
+
 
 sub tlv(;@) {
 	my %tlv = ();
