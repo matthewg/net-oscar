@@ -96,7 +96,7 @@ sub unpack($$) {
 		## Okay, we have our input data -- act on it
 
 		if($datum->{type} eq "num") {
-			for(my $i = 0; $input and ($count == -1 or $i < $count); $i++) {
+			for(my $i = 0; ($input ne "") and ($count == -1 or $i < $count); $i++) {
 				push @results, unpack($datum->{packlet}, substr($input, 0, $datum->{len}, ""));
 			}
 		} elsif($datum->{type} eq "data" or $datum->{type} eq "ref") {
@@ -414,7 +414,7 @@ sub pack($%) {
 					my $tmp = $self->new($tlv->{items})->pack(%data);
 
 					# If TLV has no name and only one element, do special handling for "present but empty" value.
-					if($tmp) {
+					if($tmp ne "") {
 						$tlvdata = [$tmp];
 					} elsif(@{$tlv->{items}} == 1 and $tlv->{items}->[0]->{name} and exists($data{$tlv->{items}->[0]->{name}})) {
 						$tlvdata = [""];

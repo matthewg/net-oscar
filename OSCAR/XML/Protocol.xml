@@ -74,6 +74,15 @@
 
 	<define name="service request" family="1" subtype="4">
 		<word name="type" />
+
+		<!-- Chat extra -->
+		<tlvchain>
+			<tlv type="1" name="chat">
+				<word name="exchange" />
+				<data length_prefix="byte" name="url" />
+				<word>0</word>
+			</tlv>
+		</tlvchain>
 	</define>
 	<define name="error" family="-1" subtype="1">
 		<word name="errno" />
@@ -426,7 +435,7 @@
 					<!-- Proposal message -->
 					<tlv type="12"><data name="invitation_msg" /></tlv>
 					<tlv type="13"><data name="charset">us-ascii</data></tlv>
-					<tlv type="14"><data name="language">0</data></tlv>
+					<tlv type="14"><byte name="language">48</byte></tlv>
 
 					<!-- See 'rendezvous service-specific data' -->
 					<tlv type="10001"><data name="svcdata" /></tlv>
@@ -458,15 +467,10 @@
 	<!-- Chat -->
 
 	<define name="chat invitation accept" family="13" subtype="4">
-		<data name="url" />
-	</define>
-	<define name="chat invitation decline" family="13" subtype="11">
-		<data length="8" name="cookie" />
-		<word>2</word>
-		<data name="sender" length_prefix="byte" />
-		<word>3</word>
-		<word>2</word>
-		<word>1</word>
+		<word name="exchange">4</word>
+		<data length_prefix="byte" name="url" />
+		<word>0</word>
+		<byte>2</byte>
 	</define>
 
 	<define name="chat navigator rights request" family="13" subtype="2" />
@@ -485,15 +489,15 @@
 			<tlv type="209"><word name="max_msg_len" /></tlv>
 			<tlv type="211"><data name="name" /></tlv>
 			<tlv type="214"><data name="charset">us-ascii</data></tlv>
-			<tlv type="215"><data name="language">en</data></tlv>
-			<tlv type="219"><data name="encoding">text/x-aolrtf</data></tlv>
+			<tlv type="215" default_generate="yes"><data name="language">en</data></tlv>
+			<tlv type="219"><data name="encoding" /></tlv>
 		</tlvchain>
 	</define>
 	<define name="chat room info">
 		<word name="exchange" />
 		<data length_prefix="byte" name="url">create</data>
 		<word name="instance">65535</word>
-		<byte name="detail_level">3</byte>
+		<byte name="detail_level">1</byte>
 		<ref name="chat data" />
 	</define>
 		<word />
@@ -529,17 +533,6 @@
 		</tlvchain>
 	</define>
 
-
-	<define name="chat service request" family="1" subtype="4">
-		<word name="service_type" />
-		<tlvchain>
-			<tlv type="1">
-				<word name="exchange" />
-				<data length_prefix="byte" name="url" />
-				<word>0</word>
-			</tlv>
-		</tlvchain>
-	</define>
 
 	<define name="chat room status" family="14" subtype="2">
 		<ref name="chat room info" />
@@ -759,7 +752,8 @@
 	<!-- Rendezvous service-specific data -->
 	<define name="chat invite rendezvous data">
 		<word name="exchange">4</word>
-		<data name="url" />
+		<data length_prefix="byte" name="url" />
+		<word>0</word>
 	</define>
 	<define name="file transfer rendezvous data">
 		<!-- 1 if only sending a single file, otherwise 2 -->

@@ -95,6 +95,7 @@ sub process_snac($$) {
 			}
 
 			$session->{services}->{$conntype} = $connection;
+			$connection->ready();
 
 			if($session->{svcqueues}->{$conntype}) {
 				foreach my $proto_item(@{$session->{svcqueues}->{$conntype}}) {
@@ -102,7 +103,6 @@ sub process_snac($$) {
 				}
 			}
 
-			$connection->ready();
 			delete $session->{svcqueues}->{$conntype};
 		}
 	} elsif($protobit eq "incoming extended information") {
@@ -297,9 +297,12 @@ sub process_snac($$) {
 				      @{$session->{connections}}
 				) {
 					# Extract chat ID from char URL
+					$rv->{chat_url} = $svcdata{url};
 					$svcdata{url} =~ /-.*?-(.*?)(\0*)$/;
 					my $chat = $1;
 					$chat =~ s/%([0-9A-Z]{1,2})/chr(hex($1))/eig;
+					$rv->{name} = $chat;
+					$rv->{exchange} = $svcdata{exchange};
 
 					$session->callback_chat_invite($sender, $data{invitation_msg}, $chat, $svcdata{url});
 				}
@@ -419,10 +422,12 @@ sub process_snac($$) {
 
 			$session->{chats}->{$reqid} = $room;
 
-			$session->svcdo(CONNTYPE_BOS, protobit => "chat service request", reqid => $reqid, protodata => {
-				service_type => CONNTYPE_CHAT,
-				exchange => $room->{exchange},
-				url => $room->{url}
+			$session->svcdo(CONNTYPE_BOS, protobit => "service request", reqid => $reqid, protodata => {
+				type => CONNTYPE_CHAT,
+				chat => {
+					exchange => $room->{exchange},
+					url => $room->{url}
+				}
 			});
 		}
 	} elsif($protobit eq "chat room status") {

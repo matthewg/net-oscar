@@ -14,6 +14,11 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		data => {x => 42},
 		template => "just_byte",
 	},{
+		binary => "0",
+		data => {x => ord("0")},
+		template => "just_byte",
+		name => "zero string byte"
+	},{
 		binary => pack("n", 1984),
 		data => {x => 1984},
 		template => "just_word"
@@ -87,6 +92,11 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		binary => pack("nn", 1, 0),
 		data => {x => ""},
 		template => "data_tlv"
+	#},{
+	#	binary => pack("nnC", 1, 1, "0"),
+	#	data => {x => "0"},
+	#	template => "data_tlv",
+	#	name => "zero string data tlv"
 	},{
 		binary => pack("nnn", 1, 2, 0),
 		data => {x => ""},

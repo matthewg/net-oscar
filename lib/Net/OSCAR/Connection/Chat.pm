@@ -18,6 +18,7 @@ use vars qw(@ISA $VERSION);
 use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::Constants;
 use Net::OSCAR::Utility;
+use Net::OSCAR::XML;
 @ISA = qw(Net::OSCAR::Connection);
 
 sub invite($$;$) {
@@ -30,17 +31,19 @@ sub invite($$;$) {
 		exchange => $self->{exchange},
 		url => $self->{url}
 	);
+
+	my $cookie = randchars(8);
 	my %rvdata = (
 		capability => OSCAR_CAPS()->{chat}->{value},
 		charset => "us-ascii",
-		cookie => randchars(8),
+		cookie => $cookie,
 		invitation_msg => $message,
 		push_pull => 1,
 		status => 0,
 		svcdata => $svcdata
 	);
 
-        return $self->{session}->send_message($who, 2, protoparse($self, "rendezvous IM")->pack(%rvdata));
+        return $self->{session}->send_message($who, 2, protoparse($self, "rendezvous IM")->pack(%rvdata), 0, $cookie);
 }
 
 sub chat_send($$;$$) {

@@ -1406,40 +1406,53 @@ sub chat_join($$;$) {
 
 =pod
 
-=item chat_accept (CHAT)
+=item chat_accept (CHATURL)
 
 Use this to accept an invitation to join a chatroom.
 
-=item chat_decline (CHAT)
+=item chat_decline (CHATURL)
 
 Use this to decline an invitation to join a chatroom.
 
 =cut
 
 sub chat_accept($$) {
-	my($self, $chat) = @_;
+	my($self, $url) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	delete $self->{chatinvites}->{$chat};
-	$self->log_print(OSCAR_DBG_NOTICE, "Accepting chat invite for $chat.");
+	$self->log_print(OSCAR_DBG_NOTICE, "Accepting chat invite for $url.");
+	my($rv) = grep { $_->{chat_url} eq $url } values %{$self->{rv_proposals}};
+	return unless $rv;
+
 	$self->svcdo(CONNTYPE_CHATNAV, protobit => "chat invitation accept", protodata => {
-		url => $chat
+		exchange => $rv->{exchange},
+		url => $url
+	});
+
+
+	my $reqid = pack("n", 4);
+	$reqid .= randchars(2);
+	($reqid) = unpack("N", $reqid);
+
+	$self->{chats}->{$reqid} = $rv;
+	$self->svcdo(CONNTYPE_BOS, protobit => "service request", reqid => $reqid, protodata => {
+		type => CONNTYPE_CHAT,
+		chat => {
+			exchange => $rv->{exchange},
+			url => $url
+		}
 	});
 }
 
 sub chat_decline($$) {
-	my($self, $chat) = @_;
+	my($self, $url) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	my($invite) = delete $self->{chatinvites}->{$chat} or do {
-		$self->log_print(OSCAR_DBG_WARN, "Chat invite for $chat doesn't exist, so we can't decline it.");
-		return;
-	};
-	$self->log_print(OSCAR_DBG_NOTICE, "Declining chat invite for $chat.");
-	$self->svcdo(CONNTYPE_BOS, protobit => "chat invitation decline", protodata => {
-		cookie => $invite->{cookie},
-		sender => $invite->{sender}
-	});
+	$self->log_print(OSCAR_DBG_NOTICE, "Declining chat invite for $url.");
+	my($rv) = grep { $_->{chat_url} eq $url } values %{$self->{rv_proposals}};
+	return unless $rv;
+
+	$self->rendezvous_reject($rv->{cookie});
 }
 
 =pod
@@ -2633,6 +2646,52 @@ For optimum performance, use the L<"connection_changed"> callback.
 
 =item *
 
+1.900, 2004-08-17
+
+=over 4
+
+=item *
+
+Wrote new XML-based protocol back-end with reasonably comprehensive test-suite.
+Numerous protocol changes; we now emulate AOL's version 5.5 client.
+
+=item *
+
+Rewrote snacsnatcher, an OSCAR protocol analysis tool
+
+=item *
+
+Reorganized documentation
+
+=item *
+
+ICQ meta-info support: get_icq_info method, buddy_icq_info callback
+
+=item *
+
+Stealth mode support: is_stealth and set_stealth methods, stealth_changed callback, stealth signon key
+
+=item *
+
+More flexible unknown SNAC handling: snac_unknown callback
+
+=item *
+
+Application can give Net::OSCAR the MD5-hashed password instead of the cleartext password
+(pass_is_hashed signon key).  This is useful if your application is storing user passwords.
+
+=item *
+
+Inability to set blocking on Win32 is no longer fatal.  Silly platform.
+
+=item *
+
+Fixed chat functionality.
+
+=back
+
+=item *
+
 1.11, 2004-02-13
 
 =over 4
@@ -3569,11 +3628,11 @@ sub svcdo($$%) {
 	}
 }
 
-sub svcreq($$) {
-        my($self, $svctype) = @_;
+sub svcreq($$;@) {
+        my($self, $svctype, @extradata) = @_;
 
         $self->log_print(OSCAR_DBG_INFO, "Sending service request for servicetype $svctype.");
-        $self->svcdo(CONNTYPE_BOS, protobit => "service request", protodata => {type => $svctype});
+        $self->svcdo(CONNTYPE_BOS, protobit => "service request", protodata => {type => $svctype, @extradata});
 }
 
 sub crapout($$$;$) {
