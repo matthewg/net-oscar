@@ -545,7 +545,7 @@ sub set_visibility($$;$) {
 		$self->{groupperms} = $newgp;
 	}
 	$self->{bos}->snac_put(family => 0x13, subtype => 0x9, data =>
-		pack("nnn a*", 0, 0, 2,
+		pack("nnn a*", 0, 0, 0,
 			tlv(0x04 =>
 				(exists($self->{profile}) ? tlv(0x0100 => $self->{profile}) : "") .
 				(exists($self->{vismode}) ? tlv(0xCA => pack("C", $self->{vismode})) : "") .
