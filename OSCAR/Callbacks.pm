@@ -115,7 +115,7 @@ sub process_snac($$) {
 			}
 		} elsif(exists($data{resend_checksum})) {
 			$connection->log_print(OSCAR_DBG_INFO, "Got icon resend request!");
-			$session->set_icon($session->{icon});
+			$session->set_icon($session->{icon}) if $session->{icon};
 		} elsif(exists($data{status_message})) {
 			$session->callback_extended_status($data{status_message});
 		} else {
