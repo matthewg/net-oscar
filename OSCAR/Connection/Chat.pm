@@ -1,4 +1,10 @@
-package Net::OSCAR::Chat;
+=pod
+
+Net::OSCAR::Connection::Chat -- OSCAR chat connections
+
+=cut
+
+package Net::OSCAR::Connection::Chat;
 
 
 $VERSION = '0.62';

@@ -146,13 +146,13 @@ use Digest::MD5 qw(md5);
 use Socket;
 use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::Connection;
+use Net::OSCAR::Connection::Chat;
 use Net::OSCAR::Connection::Direct;
 use Net::OSCAR::Connection::Direct::Listener;
 use Net::OSCAR::Callbacks;
 use Net::OSCAR::TLV;
 use Net::OSCAR::Buddylist;
 use Net::OSCAR::Screenname;
-use Net::OSCAR::Chat;
 use Net::OSCAR::_BLInternal;
 use Net::OSCAR::OldPerl;
 
@@ -469,7 +469,7 @@ sub addconn($@) {
 	my $connection;
 	my $conntype = $data{conntype};
 	if($conntype == CONNTYPE_CHAT) {
-		$connection = Net::OSCAR::Chat->new(%data);
+		$connection = Net::OSCAR::Connection::Chat->new(%data);
 	} elsif($conntype == CONNTYPE_DIRECT_IN) {
 		$connection = Net::OSCAR::Connection::Direct::Listener->new(%data);
 	} elsif($conntype == CONNTYPE_DIRECT_OUT) {
@@ -2056,7 +2056,7 @@ sub set_buddy_alias($$$;$) {
 =item chat_invite (CHAT, MESSAGE, WHO)
 
 Deprecated.  Provided for compatibility with C<Net::AIM>.
-Use the appropriate method of the C<Net::OSCAR::Chat> object
+Use the appropriate method of the C<Net::OSCAR::Connection::Chat> object
 instead.
 
 =cut
@@ -2072,13 +2072,13 @@ sub chat_invite($$$@) {
 =item chat_leave (CHAT)
 
 Deprecated.  Provided for compatibility with C<Net::AIM>.
-Use the appropriate method of the C<Net::OSCAR::Chat> object
+Use the appropriate method of the C<Net::OSCAR::Connection::Chat> object
 instead.
 
 =item chat_send (CHAT, MESSAGE)
 
 Deprecated.  Provided for compatibility with C<Net::AIM>.
-Use the appropriate method of the C<Net::OSCAR::Chat> object
+Use the appropriate method of the C<Net::OSCAR::Connection::Chat> object
 instead.
 
 =cut
@@ -2185,7 +2185,7 @@ This is called when a user's buddy icon is successfully downloaded from the serv
 
 =item chat_closed (OSCAR, CHAT, ERROR)
 
-Your connection to CHAT (a C<Net::OSCAR::Chat> object) was severed due to ERROR.
+Your connection to CHAT (a C<Net::OSCAR::Connection::Chat> object) was severed due to ERROR.
 
 =item buddy_in (OSCAR, SCREENNAME, GROUP, BUDDY DATA)
 
@@ -2259,12 +2259,12 @@ NOREFLECT parameter in L<chat_send>.
 
 Called when someone invites us into a chatroom.  MESSAGE is the message
 that they specified on the invitation.  CHAT is the name of the chatroom.
-CHATURL is a chat URL and not a C<Net::OSCAR::Chat> object.  CHATURL can
+CHATURL is a chat URL and not a C<Net::OSCAR::Connection::Chat> object.  CHATURL can
 be passed to the L<chat_accept> method to accept the invitation.
 
 =item chat_joined (OSCAR, CHATNAME, CHAT)
 
-Called when you enter a chatroom.  CHAT is the C<Net::OSCAR::Chat>
+Called when you enter a chatroom.  CHAT is the C<Net::OSCAR::Connection::Chat>
 object for the chatroom.
 
 =item evil (OSCAR, NEWEVIL[, FROM])
@@ -2469,8 +2469,8 @@ sub set_callback_register_timer($\&) { set_callback("register_timer", @_); }
 =head1 CHATS
 
 Aside from the methods listed here, there are a couple of methods of the
-C<Net::OSCAR::Chat> object that are important for implementing chat
-functionality.  C<Net::OSCAR::Chat> is a descendent of C<Net::OSCAR::Connection>.
+C<Net::OSCAR::Connection::Chat> object that are important for implementing chat
+functionality.  C<Net::OSCAR::Connection::Chat> is a descendent of C<Net::OSCAR::Connection>.
 
 =over 4
 
