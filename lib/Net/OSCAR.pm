@@ -803,6 +803,18 @@ sub send_im($$$;$) {
 	return 1;
 }
 
+=pod
+
+=item buddyhash
+
+Returns a reference to a tied hash which automatically normalizes its keys upon a fetch.
+Use this for hashes whose keys are AIM screennames since AIM screennames with different
+capitalization and spacing are considered equivalent.
+
+=cut
+
+sub buddyhash($) { shift->bltie(); }
+
 sub bltie($) {
 	my $self = shift;
 	my %bl;
