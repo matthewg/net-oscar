@@ -29,7 +29,7 @@ See C<perlmodinstall> for details.
 
 =head1 DEPENDENCIES
 
-This modules requies C<Digest::MD5> and C<Scalar::Util>.
+This modules requires C<Digest::MD5> and C<Scalar::Util>.
 
 =head1 ABSTRACT
 
