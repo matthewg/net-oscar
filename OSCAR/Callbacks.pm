@@ -67,18 +67,18 @@ sub process_snac($$) {
 			$session->crapout($connection, "Invalid password.") if $error == 0x05;
 			$session->crapout($connection, "You've been connecting too frequently.") if $error == 0x18;
 			$session->crapout($connection, "Unknown error $error: $tlv{0x04}.");
+		} else {
+			$connection->debug_print("Login OK - connecting to BOS");
+			$connection->disconnect;
+			$session->{screenname} = $tlv{0x01};
+			$session->{email} = $tlv{0x11};
+			$session->addconn(
+				$tlv{0x6},
+				CONNTYPE_BOS,
+				"BOS",
+				$tlv{0x05}
+			);
 		}
-
-		$connection->debug_print("Login OK - connecting to BOS");
-		$connection->disconnect;
-		$session->{screenname} = $tlv{0x01};
-		$session->{email} = $tlv{0x11};
-		$session->addconn(
-			$tlv{0x6},
-			CONNTYPE_BOS,
-			"BOS",
-			$tlv{0x05}
-		);
 
 	} elsif($family == 0x1 and $subtype == 0x7) {
 		$connection->debug_print("Got Rate Info Resp.");
