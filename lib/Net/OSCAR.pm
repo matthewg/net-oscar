@@ -290,7 +290,7 @@ sub DESTROY {
 	foreach my $connection(@{$self->{connections}}) {
 		next unless $connection->{socket} and not $connection->{sockerr};
 		$connection->flap_put("", FLAP_CHAN_CLOSE);
-		$connection->{socket}->close;
+		close $connection->{socket} if $connection->{socket};
 	}
 }
 
@@ -364,6 +364,7 @@ sub do_one_loop($) {
 	my($rin, $win, $ein) = ('', '', '');
 
 	foreach my $connection(@{$self->{connections}}) {
+		next unless exists($connection->{socket});
 		if($connection->{connected}) {
 			vec($rin, fileno $connection->{socket}, 1) = 1;
 		} else {
@@ -1472,6 +1473,10 @@ Called when a buddy has signed off (or added us to their deny list.)
 
 Called when someone leaves a chatroom.
 
+=item im_ok (OSCAR, TO)
+
+Called when an IM to C<TO> is successfully sent.
+
 =item im_in (OSCAR, FROM, MESSAGE[, AWAY])
 
 Called when someone sends you an instant message.  If the AWAY parameter
@@ -1587,6 +1592,7 @@ sub callback_admin_ok(@) { do_callback("admin_ok", @_); }
 sub callback_rate_alert(@) { do_callback("rate_alert", @_); }
 sub callback_signon_done(@) { do_callback("signon_done", @_); }
 sub callback_log(@) { do_callback("log", @_); }
+sub callback_im_ok(@) { do_callback("im_ok", @_); }
 
 sub set_callback_error($\&) { set_callback("error", @_); }
 sub set_callback_buddy_in($\&) { set_callback("buddy_in", @_); }
@@ -1607,6 +1613,7 @@ sub set_callback_admin_ok($\&) { set_callback("admin_ok", @_); }
 sub set_callback_rate_alert($\&) { set_callback("rate_alert", @_); }
 sub set_callback_signon_done($\&) { set_callback("signon_done", @_); }
 sub set_callback_log($\&) { set_callback("log", @_); }
+sub set_callback_im_ok($\&) { set_callback("im_ok", @_); }
 
 =pod
 
@@ -1766,6 +1773,66 @@ you use the string comparison operators (eq, ne, cmp, etc.)
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+0.09, 2001-10-01
+
+2001-09-23  Matthew Sachs  <matthewg@allevil>
+
+	* /home/cvs/net-oscar/OSCAR/Callbacks.pm, /home/cvs/net-oscar/OSCAR/Connection.pm:
+	Crash fixes
+
+2001-09-21  Matthew Sachs  <matthewg@allevil>
+
+	* /home/cvs/net-oscar/OSCAR.pm: rename_group fix
+
+	* /home/cvs/net-oscar/OSCAR/Callbacks.pm:
+	Fix for buddy_in callback and data
+
+	* /home/cvs/net-oscar/OSCAR/Connection.pm:
+	Better error handling when we can't resolve a host
+
+	* /home/cvs/net-oscar/OSCAR.pm: Typo fix
+
+2001-09-20  Matthew Sachs  <matthewg@allevil>
+
+	* /home/cvs/net-oscar/OSCAR/_BLInternal.pm, /home/cvs/net-oscar/OSCAR.pm:
+	Added rename_group, should fix "Couldn't get group name" error
+
+	* /home/cvs/net-oscar/OSCAR/Callbacks.pm:
+	Fixed really annoying typo in a log_print call.
+
+	* /home/cvs/net-oscar/OSCAR/Callbacks.pm: Stupid typo fix
+
+	* /home/cvs/net-oscar/OSCAR/Common.pm:
+	Nope, had it right the first time
+
+	* /home/cvs/net-oscar/OSCAR/Common.pm:
+	Whoops, lower loglevels are more important
+
+	* /home/cvs/net-oscar/OSCAR/_BLInternal.pm, /home/cvs/net-oscar/OSCAR/Callbacks.pm, /home/cvs/net-oscar/OSCAR/Chat.pm, /home/cvs/net-oscar/OSCAR/Common.pm, /home/cvs/net-oscar/OSCAR/Connection.pm, /home/cvs/net-oscar/OSCAR.pm, /home/cvs/net-oscar/oscartest:
+	Vastly improved logging infrastructure - debug_print(f) replaced with log_print(f).
+	debug_print callback is now called log and has an extra parameter.
+
+2001-09-19  Matthew Sachs  <matthewg@allevil>
+
+	* /home/cvs/net-oscar/Changes, /home/cvs/net-oscar/MANIFEST:
+	Fixed MANIFEST - we don't actually use Changes
+
+2001-09-10  Matthew Sachs  <matthewg@allevil>
+
+	* /home/cvs/net-oscar/OSCAR/_BLInternal.pm:
+	Looks like we need to change BLI_AUTOVIV
+
+	* /home/cvs/net-oscar/OSCAR/TLV.pm:
+	TLV can't use Common - Common uses TLV!  That shouldn't break, but I guess it does.
+
+	* /home/cvs/net-oscar/OSCAR/_BLInternal.pm, /home/cvs/net-oscar/OSCAR/Common.pm, /home/cvs/net-oscar/OSCAR/TLV.pm:
+	blinternal now automagically enforces the proper structure (the right things
+	become Net::OSCAR::TLV tied hashes and the name and data keys are automatically
+	created) upon vivification.  So, you can do $bli->{0}->{1}->{2}->{data}->{0x3} = "foo"
+	without worrying if 0, 1, 2, or data have been tied.  Should close bug #47.
 
 =item *
 

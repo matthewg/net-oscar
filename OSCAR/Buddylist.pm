@@ -35,6 +35,7 @@ sub TIEHASH {
 
 sub FETCH {
 	my($self, $key) = @_;
+	return undef unless $key;
 	$self->{DATA}->{$self->{nonorm} ? $key : normalize($key)};
 }
 

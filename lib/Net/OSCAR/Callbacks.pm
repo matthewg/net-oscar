@@ -266,6 +266,7 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got IM ack $reqid.");
 		my($reqid) = unpack("xxxx N", $data);
 		delete $session->{cookies}->{$reqid};
+		$session->callback_im_ok($reqdata);
 	} elsif($family == 0x1 and $subtype == 0x1F) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got memory request.");
 	} elsif($family == 0x13 and $subtype == 0x3) {

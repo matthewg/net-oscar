@@ -166,7 +166,7 @@ sub randchars($) {
 sub log_print($$@) {
 	my($obj, $level) = (shift, shift);
 	my $session = exists($obj->{session}) ? $obj->{session} : $obj;
-	return unless $session->{LOGLEVEL} >= $level;
+	return unless defined($session->{LOGLEVEL}) and $session->{LOGLEVEL} >= $level;
 
 	my $message = "";
 	$message .= $obj->{description}. ": " if $obj->{description};
@@ -234,7 +234,7 @@ sub hexdump($) {
 sub normalize($) {
 	my $temp = shift;
 	$temp =~ tr/ //d if $temp;
-	return lc($temp);
+	return $temp ? lc($temp) : "";
 }
 
 sub tlv_decode($;$) {
