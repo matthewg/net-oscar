@@ -268,9 +268,9 @@ $oscar->set_callback_auth_challenge(\&auth_challenge);
 $oscar->set_callback_im_ok(\&im_ok);
 $oscar->loglevel($loglevel);
 if($domd5) {
-	$oscar->signon(screenname => $username, password => undef, capabilities => [qw(typing_status extended_status)]);
+	$oscar->signon(screenname => $username, password => undef);
 } else {
-	$oscar->signon(screenname => $username, password => $password, capabilies => [qw(typing_status extended_status)]);
+	$oscar->signon(screenname => $username, password => $password);
 }
 
 my $inline = "";
