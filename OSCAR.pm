@@ -289,6 +289,22 @@ sub delconn($$) {
 	return 0;
 }
 
+=pod
+
+=item findconn FILENO
+
+Finds the connection that is using the specified file number, or undef
+if the connection could not be found.  Returns a C<Net::OSCAR::Connection>
+object.
+
+=cut
+
+sub findconn($$) {
+	my($self, $target) = @_;
+	my($conn) = grep { fileno($_->{socket}) == $target } @{$self->{connections}};
+	return $conn;
+}
+
 sub DESTROY {
 	my $self = shift;
 
