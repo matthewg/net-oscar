@@ -5,7 +5,7 @@ $REVISION = '$Revision$';
 
 =head1 NAME
 
-Net::OSCAR - Implementation of AOL's OSCAR protocol for instant messaging
+Net::OSCAR - Implementation of AOL's OSCAR protocol for instant messaging (for interacting with AIM a.k.a. AOL IM a.k.a. AOL Instant Messenger - and ICQ, too!)
 
 =head1 SYNOPSIS
 
