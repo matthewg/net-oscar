@@ -188,12 +188,10 @@ sub _protopack($$;@) {
 						(%tmp) = protoparse($oscar, $datum->{name})->(\$subpacket);
 						push @results, \%tmp;
 					} else {
-						if($datum->{name}) {
-							if(@{$datum->{items}}) {
-								push @results, \%tmp;
-							} else {
-								push @results, $subpacket;
-							}
+						if(@{$datum->{items}}) {
+							push @results, \%tmp;
+						} elsif($datum->{name}) {
+							push @results, $subpacket;
 						}
 					}
 
@@ -216,6 +214,11 @@ sub _protopack($$;@) {
 						$data{$_} = $results[0]->{$_} foreach keys %{$results[0]};
 					} else {
 						$data{$datum->{name}} = $results[0];
+					}
+				} elsif(@results) {
+					foreach my $result(@results) {
+						next unless ref($result);
+						$data{$_} = $result->{$_} foreach keys %$result;
 					}
 				}
 			} elsif($datum->{type} eq "tlvchain") {
@@ -250,7 +253,11 @@ sub _protopack($$;@) {
 					} else {
 						($type, $length) = unpack("nn", substr($tlvpacket, 0, 4, ""));
 					}
-					$value = substr($tlvpacket, 0, $length, "");
+					if($length) {
+						$value = substr($tlvpacket, 0, $length, "");
+					} else {
+						$value = "";
+					}
 
 					if($datum->{subtyped}) {
 						if(!exists($tlvmap->{$type}->{$subtype}) and exists($tlvmap->{$type}->{-1})) {
@@ -270,17 +277,26 @@ sub _protopack($$;@) {
 						while(my($subtype, $subval) = each %$val) {
 							next unless $subval->{type};
 
-							if(defined($subval->{data})) {
+							if(exists($subval->{data})) {
 								my(%tmp) = _protopack($oscar, [$subval], $subval->{data});
 								$data{$_} = $tmp{$_} foreach keys %tmp;
 							}
 						}
 					} else {
-						next unless $val->{type};
-
-						if(defined($val->{data})) {
-							my(%tmp) = _protopack($oscar, [$val], $val->{data});
-							$data{$_} = $tmp{$_} foreach keys %tmp;
+						if(exists($val->{data})) {
+							# Consider:
+							#   <tlv type="1"><data name="foo" /></tlv>
+							# when TLV 1 is present but empty.
+							# In this case, we want to set key foo.
+							# The protoparse won't do it, so we override here
+							# for that special case of a TLV containing a single data item.
+							#
+							if(!$val->{data} and $val->{type} eq "data" and @{$val->{items}} == 1) {
+								$data{$val->{items}->[0]->{name}} = "";
+							} else {
+								my(%tmp) = _protopack($oscar, [$val], $val->{data});
+								$data{$_} = $tmp{$_} foreach keys %tmp;
+							}
 						}
 					}
 				}
@@ -474,41 +490,47 @@ sub _xmlnode_to_template($$) {
 
 		$datum->{items} = [];
 
-		while(@$value) {
-			my($subtag, $subval) = splice(@$value, 0, 2);
-			next if $subtag eq "0";
+		# In TLV chains, the structure is:
+		# 	<tlvchain>
+		# 		<tlv><SUBDATA /><SUBDATA /></tlv>
+		# 	</tlvchain>
+		# However, in data, we have:
+		#	<data>
+		#		<SUBDATA /><SUBDATA />
+		#	</data>
+		# So, here we break out that inner level for TLV chains.
+		#
+		if($tag eq "tlvchain") {
+			my($subtag, $subval);
 
-			my $item;
+			while(@$value) {
+				my($tlvtag, $tlvval) = splice(@$value, 0, 2);
+				next if $tlvtag ne "tlv";
+				my $tlvattrs = shift @$tlvval;
 
-			# In TLV chains, the structure is:
-			# 	<tlvchain>
-			# 		<tlv><SUBDATA /><SUBDATA /></tlv>
-			# 	</tlvchain>
-			# However, in data, we have:
-			#	<data>
-			#		<SUBDATA /><SUBDATA />
-			#	</data>
-			# So, here we break out that inner level for TLV chains.
-			#
-			if($tag eq "tlvchain") {
-				my $attrs = shift @$subval;
+				my $item = {};
+				$item->{type} = "data";
+				$item->{name} = $tlvattrs->{name} if $tlvattrs->{name};
+				$item->{num} = $tlvattrs->{type};
+				$item->{subtype} = $tlvattrs->{subtype} if $tlvattrs->{subtype};
+				$item->{items} = [];
 
-				my($innertag, $innerval) = ("0", "");
-				while($innertag eq "0") {
-					($innertag, $innerval) = splice(@$subval, 0, 2);
+				while(@$tlvval) {
+					my($subtag, $subval) = splice(@$tlvval, 0, 2);
+					next if $subtag eq "0";
+					my $tlvitem = _xmlnode_to_template($subtag, $subval);
+
+					push @{$item->{items}}, $tlvitem;
 				}
-				$item = _xmlnode_to_template($innertag, $innerval);
 
-				# In TLV chains, the 'name' is on the enclosing tlv layer.
-				# Plus we have the 'num' attribute to worry about.
-				$item->{name} = $attrs->{name} if $attrs->{name};
-				$item->{num} = $attrs->{type};
-				$item->{subtype} = $attrs->{subtype} if $attrs->{subtype};
-			} else {
-				$item = _xmlnode_to_template($subtag, $subval);
+				push @{$datum->{items}}, $item;
 			}
-
-			push @{$datum->{items}}, $item;
+		} else {
+			while(@$value) {
+				my($subtag, $subval) = splice(@$value, 0, 2);
+				my $item = _xmlnode_to_template($subtag, $subval);
+				push @{$datum->{items}}, $item;
+			}
 		}
 	}
 
