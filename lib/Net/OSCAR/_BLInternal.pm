@@ -1,5 +1,6 @@
 package Net::OSCAR::_BLInternal;
 
+use strict;
 use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::OldPerl;
 
@@ -225,7 +226,7 @@ sub BLI_to_OSCAR($$) {
 	my $oldbli = $session->{blinternal};
 	my $oscar = $session->{bos};
 	my $modcount = 0;
-	my @snacqueue = ();
+	my (@adds, @modifies, @deletes);
 
 	$oscar->snac_put(family => 0x13, subtype => 0x11); # Begin BL mods
 
@@ -251,19 +252,20 @@ sub BLI_to_OSCAR($$) {
 						$delete = 1;
 					} else {
 						$session->log_print(OSCAR_DBG_DEBUG, "Modifying.");
-						$modcount++;
 
-						push @snacqueue, $oscar->snac_encode(family => 0x13, subtype => 0x9, reqdata => {desc => "modifying ".(BUDTYPES)[$type]." $newentry->{name}", type => $type, gid => $gid, bid => $bid}, data =>
-							pack("na* nnn na*",
-								length($newentry->{name}),
-								$newentry->{name},
-								$gid,
-								$bid,
-								$type,
-								length($newdata),
-								$newdata
-							)
-						);
+						push @modifies, {
+							reqdata => {desc => "modifying ".(BUDTYPES)[$type]." $newentry->{name}", type => $type, gid => $gid, bid => $bid},
+							data =>
+								pack("na* nnn na*",
+									length($newentry->{name}),
+									$newentry->{name},
+									$gid,
+									$bid,
+									$type,
+									length($newdata),
+									$newdata
+								)
+						};
 					}
 				} else {
 					$delete = 1;
@@ -271,19 +273,20 @@ sub BLI_to_OSCAR($$) {
 
 				if($delete) {
 					$session->log_print(OSCAR_DBG_DEBUG, "Deleting.");
-					$modcount++;
 
-					push @snacqueue, $oscar->snac_encode(family => 0x13, subtype => 0xA, reqdata => {desc => "deleting ".(BUDTYPES)[$type]." $oldentry->{name}", type => $type, gid => $gid, bid => $bid}, data => 
-						pack("na* nnn na*",
-							length($oldentry->{name}),
-							$oldentry->{name},
-							$gid,
-							$bid,
-							$type,
-							length($olddata),
-							$olddata
-						)
-					);
+					push @deletes, {
+						reqdata => {desc => "deleting ".(BUDTYPES)[$type]." $oldentry->{name}", type => $type, gid => $gid, bid => $bid},
+						data => 
+							pack("na* nnn na*",
+								length($oldentry->{name}),
+								$oldentry->{name},
+								$gid,
+								$bid,
+								$type,
+								length($olddata),
+								$olddata
+							)
+					};
 				}
 			}
 		}
@@ -298,31 +301,72 @@ sub BLI_to_OSCAR($$) {
 				my $data = tlv_encode($entry->{data});
 
 				$session->log_printf(OSCAR_DBG_DEBUG, "New BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $entry->{name}, $type, $gid, $bid, length($data), hexdump($data));
-				$modcount++;
 
-				push @snacqueue, $oscar->snac_encode(family => 0x13, subtype => 0x8, reqdata => {desc => "adding ".(BUDTYPES)[$type]." $entry->{name}", type => $type, gid => $gid, bid => $bid}, data =>
-					pack("na* nnn na*",
-						length($entry->{name}),
-						$entry->{name},
-						$gid,
-						$bid,
-						$type,
-						length($data),
-						$data
-					)
-				);
+				push @adds, {
+					reqdata => {desc => "adding ".(BUDTYPES)[$type]." $entry->{name}", type => $type, gid => $gid, bid => $bid},
+					data =>
+						pack("na* nnn na*",
+							length($entry->{name}),
+							$entry->{name},
+							$gid,
+							$bid,
+							$type,
+							length($data),
+							$data
+						)
+				};
 			}
 		}
 	}
 
-	push @snacqueue, $oscar->snac_encode(family => 0x13, subtype => 0x12); # End BL mods
+	# Actually send the changes.  Don't send more than 7K in a single SNAC.
+	# FLAP size limit is 8K, but that includes headers - good to have a safety margin
+	foreach my $type(0x8, 0x9, 0xA) {
+		my $changelist;
+		if($type == 0x8) {
+			$changelist = \@adds;
+		} elsif($type == 0x9) {
+			$changelist = \@modifies;
+		} else {
+			$changelist = \@deletes;
+		}
+
+		my($packet, @reqdata, @packets);
+		foreach my $change(@$changelist) {
+			$packet .= $change->{data};
+			push @reqdata, $change->{reqdata};
+
+			if(length($packet) > 7*1024) {
+				push @packets, {
+					data => $packet,
+					reqdata => [@reqdata],
+				};
+				$packet = "";
+				@reqdata = ();
+			}
+		}
+		if($packet) {
+			push @packets, {
+				data => $packet,
+				reqdata => [@reqdata],
+			};
+		}
+		$modcount += @packets;
+
+		foreach my $packet(@packets) {
+			$oscar->snac_put(
+				family => 0x13,
+				subtype => $type,
+				reqdata => $packet->{reqdata},
+				data => $packet->{data}
+			);
+		}
+	}
+
+	$oscar->snac_put(family => 0x13, subtype => 0x12); # End BL mods
 
 	$session->{blold} = $oldbli;
 	$session->{blinternal} = $newbli;
-
-	$oscar->flap_put(shift @snacqueue);
-
-	$session->{snacqueue} = \@snacqueue;
 
 	# OSCAR doesn't send an 0x13/0xE if we don't actually modify anything.
 	$session->callback_buddylist_ok() unless $modcount;

@@ -290,27 +290,32 @@ sub process_snac($$) {
 	} elsif($family == 0x13 and $subtype == 0x0E) {
 		$session->{budmods}--;
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got blmod ack ($session->{budmods} left).");
-		my($error) = unpack("n", $data);
-		if($error != 0) {
-			$session->{buderrors} = 1;
-			my($type, $gid, $bid) = ($reqdata->{type}, $reqdata->{gid}, $reqdata->{bid});
-			if(exists($session->{blold}->{$type}) and exists($session->{blold}->{$type}->{$gid}) and exists($session->{blold}->{$type}->{$gid}->{$bid})) {
-				$session->{blinternal}->{$type}->{$gid}->{$bid} = $session->{blold}->{$type}->{$gid}->{$bid};
-			} else {
-				delete $session->{blinternal}->{$type} unless exists($session->{blold}->{$type});
-				delete $session->{blinternal}->{$type}->{$gid} unless exists($session->{blold}->{$type}) and exists($session->{blold}->{$type}->{$gid});
-				delete $session->{blinternal}->{$type}->{$gid}->{$bid} unless exists($session->{blold}->{$type}) and exists($session->{blold}->{$type}->{$gid}) and exists($session->{blold}->{$type}->{$gid}->{$bid});
+		my(@errors) = unpack("n*", $data);
+
+		# If this is the last packet and there are/were no problems, send bl_ok
+		$session->callback_buddylist_ok() unless $session->{budmods} > 0 or $session->{buderrors} or grep { $_ } @errors;
+
+		my @reqdata = @$reqdata;
+		foreach my $error(@errors) {
+			my($errdata) = shift @reqdata;
+			if($error != 0) {
+				$session->{buderrors} = 1;
+				my($type, $gid, $bid) = ($errdata->{type}, $errdata->{gid}, $errdata->{bid});
+				if(exists($session->{blold}->{$type}) and exists($session->{blold}->{$type}->{$gid}) and exists($session->{blold}->{$type}->{$gid}->{$bid})) {
+					$session->{blinternal}->{$type}->{$gid}->{$bid} = $session->{blold}->{$type}->{$gid}->{$bid};
+				} else {
+					delete $session->{blinternal}->{$type} unless exists($session->{blold}->{$type});
+					delete $session->{blinternal}->{$type}->{$gid} unless exists($session->{blold}->{$type}) and exists($session->{blold}->{$type}->{$gid});
+					delete $session->{blinternal}->{$type}->{$gid}->{$bid} unless exists($session->{blold}->{$type}) and exists($session->{blold}->{$type}->{$gid}) and exists($session->{blold}->{$type}->{$gid}->{$bid});
+				}
+				$session->callback_buddylist_error($error, $errdata->{desc});
 			}
-			$session->callback_buddylist_error($error, $reqdata->{desc});
-		} else {
-			$session->callback_buddylist_ok() unless $session->{budmods} > 0;
 		}
+
 		if($session->{budmods} == 0) {
 			Net::OSCAR::_BLInternal::BLI_to_NO($session) if $session->{buderrors};
 			delete $session->{qw(blold buderrors)};
 		}
-
-		$connection->flap_put(shift @{$session->{snacqueue}});
 	} elsif($family == 0x13 and $subtype == 0x0F) {
 		if($session->{gotbl}) {
 			delete $session->{gotbl};
