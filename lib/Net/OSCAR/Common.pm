@@ -43,7 +43,7 @@ require Exporter;
 		FLAP_CHAN_NEWCONN FLAP_CHAN_SNAC FLAP_CHAN_ERR FLAP_CHAN_CLOSE
 		CONNTYPE_LOGIN CONNTYPE_BOS CONNTYPE_ADMIN CONNTYPE_CHAT CONNTYPE_CHATNAV
 		MODBL_ACTION_ADD MODBL_ACTION_DEL MODBL_WHAT_BUDDY MODBL_WHAT_GROUP MODBL_WHAT_PERMIT MODBL_WHAT_DENY
-		GROUP_PERMIT GROUP_DENY GROUPPERM_OSCAR GROUPPERM_AOL
+		GROUPPERM_OSCAR GROUPPERM_AOL
 		ENCODING
 		ERRORS
 		randchars debug_print debug_printf hexdump normalize tlv_decode tlv_encode tlv send_error
@@ -88,9 +88,6 @@ use constant VISMODE_DENYALL    => dualvar(0x2, "deny all");
 use constant VISMODE_PERMITSOME => dualvar(0x3, "permit some");
 use constant VISMODE_DENYSOME   => dualvar(0x4, "deny some");
 use constant VISMODE_PERMITBUDS => dualvar(0x5, "permit buddies");
-
-use constant GROUP_PERMIT => 0x0002;
-use constant GROUP_DENY   => 0x0003;
 
 use constant RATE_CLEAR => dualvar(1, "clear");
 use constant RATE_ALERT => dualvar(2, "alert");
