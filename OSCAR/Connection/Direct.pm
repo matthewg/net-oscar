@@ -57,6 +57,7 @@ sub listen($$) {
 		$self->{rv}->{ft_state} = "listening";
 	}
 
+	binmode($self->{socket}) or return $self->{session}->crapout("Couldn't set binmode: $!");
 	return 1;
 }
 

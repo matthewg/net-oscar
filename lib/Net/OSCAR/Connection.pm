@@ -48,6 +48,8 @@ sub new($@) {
 	$self->{state} ||= "write";
 	$self->{paused} = 0;
 	$self->{families} = {};
+	$self->{buffsize} = 65535;
+	$self->{buffer} = "";
 
 	$self->connect($self->{peer}) if exists($self->{peer});
 
@@ -169,11 +171,19 @@ sub flap_put($;$$) {
 sub read($$) {
 	my($self, $len) = @_;
 
-	$self->{buffsize} ||= $len;
-	$self->{buffer} ||= "";
+	my $buffsize = $self->{buffsize};
+	$buffsize = $len if $len > $buffsize;
+
+	if(length($self->{buffer}) >= $len) {
+		my $ret = substr($self->{buffer}, 0, $len, "");
+		$self->log_print_cond(OSCAR_DBG_PACKETS, sub { "Got '", hexdump($ret), "'" });
+		return $ret;
+	}
 
 	my $buffer = "";
-	my $nchars = sysread($self->{socket}, $buffer, $self->{buffsize} - length($self->{buffer}));
+	my $nchars = sysread($self->{socket}, $buffer, $buffsize - length($self->{buffer}));
+	$self->{buffer} .= $buffer;
+
 	if(!defined($nchars)) {
 		return "" if $! == EAGAIN;
 		$self->log_print(OSCAR_DBG_NOTICE, "Couldn't read from socket: $!");
@@ -185,16 +195,12 @@ sub read($$) {
 		$self->{sockerr} = 1;
 		$self->disconnect();
 		return undef;
-	} else {
-		$self->log_print_cond(OSCAR_DBG_PACKETS, sub { "Got '", hexdump($buffer), "'" });
-		$self->{buffer} .= $buffer;
-	}
-
-	if(length($self->{buffer}) < $self->{buffsize}) {
+	} elsif(length($self->{buffer}) < $len) {
 		return "";
 	} else {
-		delete $self->{buffsize};
-		return delete $self->{buffer};
+		my $ret = substr($self->{buffer}, 0, $len, "");
+		$self->log_print_cond(OSCAR_DBG_PACKETS, sub { "Got '", hexdump($ret), "'" });
+		return $ret;
 	}
 }
 
@@ -206,18 +212,32 @@ sub flap_get($) {
 
 	if(!$self->{buff_gotflap}) {
 		my $header = $self->read(6);
-		return $header unless $header;
+		if(!defined($header)) {
+			return undef;
+		} elsif($header eq "") {
+			return "";
+		}
 
 		$self->{buff_gotflap} = 1;
-		(undef, $self->{channel}, undef, $self->{buffsize}) = unpack("CCnn", $header);
+		(undef, $self->{channel}, undef, $self->{flap_size}) =
+			unpack("CCnn", $header);
 	}
 
-	my $data = $self->read($self->{buffsize});
-	return $data unless $data;
+	if($self->{flap_size} > 0) {
+		my $data = $self->read($self->{flap_size});
+		if(!defined($data)) {
+			return undef;
+		} elsif($data eq "") {
+			return "";
+		}
 
-	$self->log_print_cond(OSCAR_DBG_PACKETS, sub { "Got ", hexdump($self->{buffer}) });
-	delete $self->{buff_gotflap};
-	return $data;
+		$self->log_print_cond(OSCAR_DBG_PACKETS, sub { "Got ", hexdump($data) });
+		delete $self->{buff_gotflap};
+		return $data;
+	} else {
+		delete $self->{buff_gotflap};
+		return "";
+	}
 }
 
 sub snac_encode($%) {
@@ -380,13 +400,14 @@ sub connect($$) {
 		$self->{connected} = 0;
 	}
 
+	binmode($self->{socket}) or return $self->{session}->crapout($self, "Couldn't set binmode: $!");
 	return 1;
 }
 
 sub get_filehandle($) { shift->{socket}; }
 
 # $read/$write tell us if select indicated readiness to read and/or write
-# Dittor for $error
+# Ditto for $error
 sub process_one($;$$$) {
 	my($self, $read, $write, $error) = @_;
 	my $snac;
@@ -449,28 +470,30 @@ sub process_one($;$$$) {
 			);
 		}
 		$self->log_print(OSCAR_DBG_DEBUG, "SNAC time.");
-		return $self->{ready} = 1;
+		$self->{ready} = 1;
 	} elsif($read) {
-		if(!$self->{session}->{svcdata}->{hashlogin}) {
-			$snac = $self->snac_get() or return 0;
-			return Net::OSCAR::Callbacks::process_snac($self, $snac);
-		} else {
-			my $data = $self->flap_get() or return 0;
-			$snac = {data => $data, reqid => 0, family => 0x17, subtype => 0x3};
-			if($self->{channel} == FLAP_CHAN_CLOSE) {
-				$self->{conntype} = CONNTYPE_LOGIN;
-				$self->{family} = 0x17;
-				$self->{subtype} = 0x3;
-				$self->{data} = $data;
-				$self->{reqid} = 0;
-				$self->{reqdata}->[0x17]->{pack("N", 0)} = "";
-				return Net::OSCAR::Callbacks::process_snac($self, $snac);
+		while(1) {
+			if(!$self->{session}->{svcdata}->{hashlogin}) {
+				$snac = $self->snac_get() or return 0;
+				Net::OSCAR::Callbacks::process_snac($self, $snac);
 			} else {
-				my $snac = $self->snac_decode($data);
-				if($snac) {
-					return Net::OSCAR::Callbacks::process_snac($self, $snac);
+				my $data = $self->flap_get() or return 0;
+				$snac = {data => $data, reqid => 0, family => 0x17, subtype => 0x3};
+				if($self->{channel} == FLAP_CHAN_CLOSE) {
+					$self->{conntype} = CONNTYPE_LOGIN;
+					$self->{family} = 0x17;
+					$self->{subtype} = 0x3;
+					$self->{data} = $data;
+					$self->{reqid} = 0;
+					$self->{reqdata}->[0x17]->{pack("N", 0)} = "";
+					Net::OSCAR::Callbacks::process_snac($self, $snac);
 				} else {
-					return 0;
+					my $snac = $self->snac_decode($data);
+					if($snac) {
+						Net::OSCAR::Callbacks::process_snac($self, $snac);
+					} else {
+						return 0;
+					}
 				}
 			}
 		}
