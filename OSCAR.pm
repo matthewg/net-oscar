@@ -2903,7 +2903,7 @@ POE.  E<lt>http://poe.perl.org/E<gt>
 AOL, for creating the AOL Instant Messenger service, even though they aren't terribly helpful to
 developers of third-party clients.
 
-Apple Software for help with mac.com support.
+Apple Computer for help with mac.com support.
 
 =head1 LEGAL
 
@@ -2912,9 +2912,9 @@ This program is free software; you can redistribute it and/or modify it under th
 same terms as Perl itself.  B<AOL> and B<AMERICA ONLINE> are registered trademarks
 owned by America Online, Inc.  The B<INSTANT MESSENGER> mark is owned by America
 Online, Inc.  B<ICQ> is a trademark and/or servicemark of ICQ.  C<Net::OSCAR> is not
-endorsed by, or affiliated with, America Online, Inc or ICQ.  B<iChat> and B<Apple Software>
-are reigstered trademarks of Apple Software, Inc.  C<Net::OSCAR> is not endorsed by,
-or affiliated with, Apple Software, Inc or iChat.
+endorsed by, or affiliated with, America Online, Inc or ICQ.  B<iChat> and B<Apple Computer>
+are reigstered trademarks of Apple Computer, Inc.  C<Net::OSCAR> is not endorsed by,
+or affiliated with, Apple Computer, Inc or iChat.
 
 =cut
 
