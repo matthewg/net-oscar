@@ -144,7 +144,9 @@ sub _protopack($$;@) {
 					push @results, unpack($datum->{packlet}, substr($packet, 0, $datum->{len}, ""));
 				}
 
-				($data{$datum->{name}}) = $datum->{count} ? \@results : $results[0];
+				if($datum->{name}) {
+					($data{$datum->{name}}) = $datum->{count} ? \@results : $results[0];
+				}
 			} elsif($datum->{type} eq "data" or $datum->{type} eq "ref") {
 				my $count = $datum->{count} || 1;
 				my @results;
@@ -194,6 +196,15 @@ sub _protopack($$;@) {
 							}
 						}
 					}
+
+
+					# If we didn't have an explicit length on this datum,
+					# we couldn't take the right amount off of $packet,
+					# so we took everything.  Now, put anything leftover
+					# back.
+					if(!$datum->{length} and !$datum->{packlet}) {
+						$packet = $subpacket;
+					}
 				}
 
 				if($datum->{name}) {
@@ -212,7 +223,7 @@ sub _protopack($$;@) {
 
 				# Process prefixes
 				if($datum->{prefix}) {
-					my(%tmp) = _protopack($oscar, [{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, name => "len"}], substr($packet, 0, $datum->{len}, ""));
+					my(%tmp) = _protopack($oscar, [{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, name => "len"}], substr($tlvpacket, 0, $datum->{len}, ""));
 					if($datum->{prefix} eq "count") {
 						$tlvmax = $tmp{len};
 					} else {
@@ -273,6 +284,8 @@ sub _protopack($$;@) {
 						}
 					}
 				}
+
+				$packet = $tlvpacket;
 			}
 		}
 
