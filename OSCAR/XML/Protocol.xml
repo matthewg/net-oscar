@@ -182,7 +182,11 @@
 	<define name="locate rights request" family="2" subtype="2" />
 	<define name="locate rights response" family="2" subtype="3" />
 	<define name="buddy rights request" family="3" subtype="2" />
-	<define name="buddy rights response" family="3" subtype="3" />
+	<define name="buddy rights response" family="3" subtype="3">
+		<tlvchain>
+			<tlv type="1"><word name="maxbuddies" /></tlv>
+		</tlvchain>
+	</define>
 	<define name="IM parameter request" family="4" subtype="4" />
 	<define name="IM parameter response" family="4" subtype="5" />
 	<define name="BOS rights request" family="9" subtype="2" />

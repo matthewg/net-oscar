@@ -105,6 +105,15 @@ sub process_snac($$) {
 
 			delete $session->{svcqueues}->{$conntype};
 		}
+	} elsif($protobit eq "buddy rights response") {
+		# Maximum number of buddies is minimum of this and the "buddylist 3 response" value
+		if($session->{bl_limits}->{buddies}) {
+			if($data{maxbuddies} < $session->{bl_limits}->{buddies}) {
+				$session->{bl_limits}->{buddies} = $data{maxbuddies};
+			}
+		} else {
+			$session->{bl_limits}->{buddies} = $data{maxbuddies};
+		}
 	} elsif($protobit eq "incoming extended information") {
 		if(exists($data{upload_checksum})) {
 			# OSCAR will send the upload request again on the icon connection.
@@ -370,12 +379,19 @@ sub process_snac($$) {
 		$session->callback_im_ok($reqdata, $reqid);
 	} elsif($protobit eq "buddylist 3 response") {
 		$session->{gotbl} = 1;
-		$session->{bl_limits} = {
-			buddies => $data{maximums}->[0],
-			groups => $data{maximums}->[1],
-			permits => $data{maximums}->[2],
-			denies => $data{maximums}->[3]
-		};
+
+		$session->{bl_limits}->{groups} = $data{maximums}->[1];
+		$session->{bl_limits}->{permits} = $data{maximums}->[2];
+		$session->{bl_limits}->{denies} = $data{maximums}->[3];
+
+		# Buddy limit is minimum of this and the buddy rights response value
+		if($session->{bl_limits}->{buddies}) {
+			if($data{maximums}->[0] < $session->{bl_limits}->{buddies}) {
+				$session->{bl_limits}->{buddies} = $data{maximums}->[0];
+			}
+		} else {
+			$session->{bl_limits}->{buddies} = $data{maximums}->[0];
+		}
 	} elsif($protobit eq "buddylist") {
 		$session->{blarray} ||= [];
 		substr($data{data}, 0, 3) = "";
