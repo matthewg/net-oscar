@@ -364,6 +364,7 @@ sub protoparse($$) {
 # Map a "protobit" (XML <define name="foo">) to SNAC (family, subtype)
 sub protobit_to_snacfam($) {
 	my $protobit = shift;
+	confess "Unknown protobit $protobit" unless $xmlmap{$protobit};
 	return ($xmlmap{$protobit}->{family}, $xmlmap{$protobit}->{subtype});
 }
 

@@ -59,13 +59,15 @@ sub flap_encode($$;$) {
 	my ($self, $msg, $channel) = @_;
 
 	$channel ||= FLAP_CHAN_SNAC;
-	return pack("CCnna*", 0x2A, $channel, ++$self->{seqno}, length($msg), $msg);
+	return pack("CCnn", 0x2A, $channel, ++$self->{seqno}, length($msg)) . $msg;
 }
 
 sub flap_put($;$$) {
 	my($self, $msg, $channel) = @_;
 	my $emsg;
 	my $had_outbuff = 0;
+
+	$channel ||= FLAP_CHAN_SNAC;
 
 	return unless $self->{socket} and CORE::fileno($self->{socket}) and getpeername($self->{socket}); # and !$self->{socket}->error;
 
@@ -163,12 +165,14 @@ sub snac_encode($%) {
 	$snac{reqid} ||= ($snac{subtype}<<16) | (unpack("n", randchars(2)))[0];
 	$self->{reqdata}->[$snac{family}]->{pack("N", $snac{reqid})} = $snac{reqdata} if $snac{reqdata};
 
+	#print "===\n", hexdump($snac{data}), "\n===\n";
+	#print hexdump(pack("a*", $snac{data})), "\n===\n";
 	return pack("nnCCN", $snac{family}, $snac{subtype}, $snac{flags1}, $snac{flags2}, $snac{reqid}) . $snac{data};
 }
 
 sub snac_put($%) {
 	my($self, %snac) = @_;
-	$snac{channel} ||= FLAP_CHAN_SNAC;
+	$snac{channel} ||= 0+FLAP_CHAN_SNAC;
 	$self->flap_put($self->snac_encode(%snac), $snac{channel});
 }
 
