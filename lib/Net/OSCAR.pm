@@ -488,16 +488,22 @@ Returns a list of all members of the deny list.
 
 =cut
 
-sub commit_buddylist($) { Net::OSCAR::_BLInternal::NO_to_BLI(shift); }
+sub commit_buddylist($) {
+	my($self) = shift;
+	return must_be_on($self) unless $self->{is_on};
+	Net::OSCAR::_BLInternal::NO_to_BLI($self);
+}
 
 sub reorder_groups($@) {
 	my $self = shift;
+	return must_be_on($self) unless $self->{is_on};
 	my @groups = @_;
 	tied(%{$self->{buddies}})->setorder(@groups);
 }
 
 sub reorder_buddies($$@) {
 	my $self = shift;
+	return must_be_on($self) unless $self->{is_on};
 	my $group = shift;
 	my @buddies = @_;
 	tied(%{$self->{buddies}->{$group}->{members}})->setorder(@buddies);
@@ -529,6 +535,7 @@ See L<add_buddy>.
 
 sub rename_group($$$) {
 	my($self, $oldgroup, $newgroup) = @_;
+	return must_be_on($self) unless $self->{is_on};
 	return send_error($self, $self->{bos}, 0, "That group does not exist", 0) unless exists $self->{buddies}->{$oldgroup};
 	$self->{buddies}->{$newgroup} = $self->{buddies}->{$oldgroup};
 	delete $self->{buddies}->{$oldgroup};
@@ -597,6 +604,7 @@ Call L<"commit_buddylist"> for the change to take effect.
 sub set_visibility($$) {
 	my($self, $vismode) = @_;
 
+	return must_be_on($self) unless $self->{is_on};
 	$self->{vismode} = $vismode;
 }
 
@@ -627,6 +635,7 @@ sub set_group_permissions($@) {
 	my($self, @perms) = @_;
 	my $perms = 0xFFFFFF00;
 
+	return must_be_on($self) unless $self->{is_on};
 	foreach my $perm (@perms) { $perms |= $perm; }
 	$self->{groupperms} = $perms;
 }
@@ -693,6 +702,7 @@ sub get_app_data($;$$) {
 sub mod_permit($$$@) {
 	my($self, $action, $group, @buddies) = @_;
 
+	return must_be_on($self) unless $self->{is_on};
 	if($action == MODBL_ACTION_ADD) {
 		foreach my $buddy(@buddies) {
 			$self->{$group}->{$buddy}->{buddyid} = $self->newid($self->{group});
@@ -706,6 +716,7 @@ sub mod_permit($$$@) {
 
 sub mod_buddylist($$$$;@) {
 	my($self, $action, $what, $group, @buddies) = @_;
+	return must_be_on($self) unless $self->{is_on};
 
 	@buddies = ($group) if $what == MODBL_WHAT_GROUP;
 
@@ -799,12 +810,14 @@ their profile.
 
 sub get_info($$) {
 	my($self, $screenname) = @_;
+	return must_be_on($self) unless $self->{is_on};
 
 	$self->{bos}->snac_put(reqdata => $screenname, family => 0x2, subtype => 0x5, data => pack("nCa*", 1, length($screenname), $screenname));
 }
 
 sub get_away($$) {
 	my($self, $screenname) = @_;
+	return must_be_on($self) unless $self->{is_on};
 
 	$self->{bos}->snac_put(reqdata => $screenname, family => 0x2, subtype => 0x5, data => pack("nCa*", 3, length($screenname), $screenname));
 }
@@ -822,6 +835,7 @@ contact you when you are away - you must perform this yourself if you want it do
 
 sub send_im($$$;$) {
 	my($self, $to, $msg, $away) = @_;
+	return must_be_on($self) unless $self->{is_on};
 	my $packet = "";
 	my $reqid = 0;
 
@@ -941,6 +955,7 @@ like send you an instant message.
 
 sub evil($$;$) {
 	my($self, $who, $anon) = @_;
+	return must_be_on($self) unless $self->{is_on};
 
 	$self->{bos}->snac_put(reqdata => $who, family => 0x04, subtype => 0x08, data =>
 		pack("n C a*", ($anon ? 1 : 0), length($who), $who)
@@ -968,7 +983,11 @@ marked as no longer being away.
 
 =cut
 
-sub set_away($$) { shift->set_info(undef, shift); }
+sub set_away($$) {
+	my($self, $awaymsg) = @_;
+	return must_be_on($self) unless $self->{is_on};
+	shift->set_info(undef, $awaymsg);
+}
 
 =pod
 
@@ -1036,6 +1055,7 @@ Changes the user's password.
 
 sub change_password($$$) {
 	my($self, $currpass, $newpass) = @_;
+	return must_be_on($self) unless $self->{is_on};
 
 	if($self->{adminreq}->{ADMIN_TYPE_PASSWORD_CHANGE}++) {
 		$self->callback_admin_error(ADMIN_TYPE_PASSWORD_CHANGE, ADMIN_ERROR_REQPENDING);
@@ -1065,6 +1085,7 @@ information is requested.
 
 sub confirm_account($) {
 	my($self) = shift;
+	return must_be_on($self) unless $self->{is_on};
 
 	if($self->{adminreq}->{ADMIN_TYPE_ACCOUNT_CONFIRM}++) {
 		$self->callback_admin_error(ADMIN_TYPE_ACCOUNT_CONFIRM, ADMIN_ERROR_REQPENDING);
@@ -1090,6 +1111,7 @@ user forgets it.
 
 sub change_email($$) {
 	my($self, $newmail) = @_;
+	return must_be_on($self) unless $self->{is_on};
 
 	if($self->{adminreq}->{ADMIN_TYPE_EMAIL_CHANGE}++) {
 		$self->callback_admin_error(ADMIN_TYPE_EMAIL_CHANGE, ADMIN_ERROR_REQPENDING);
@@ -1110,6 +1132,7 @@ case may be changed and spaces may be inserted or deleted.
 
 sub format_screenname($$) {
 	my($self, $newname) = @_;
+	return must_be_on($self) unless $self->{is_on};
 
 	if($self->{adminreq}->{ADMIN_TYPE_SCREENNAME_FORMAT}++) {
 		$self->callback_admin_error(ADMIN_TYPE_SCREENNAME_FORMAT, ADMIN_ERROR_REQPENDING);
@@ -1131,6 +1154,7 @@ for that.
 
 sub chat_join($$; $) {
 	my($self, $name, $exchange) = @_;
+	return must_be_on($self) unless $self->{is_on};
 	$exchange ||= 4;
 
 	$self->log_print(OSCAR_DBG_INFO, "Creating chatroom $name ($exchange).");
@@ -1158,6 +1182,7 @@ Use this to decline an invitation to join a chatroom.
 
 sub chat_accept($$) {
 	my($self, $chat) = @_;
+	return must_be_on($self) unless $self->{is_on};
 
 	delete $self->{chatinvites}->{$chat};
 	$self->log_print(OSCAR_DBG_NOTICE, "Accepting chat invite for $chat.");
@@ -1168,6 +1193,7 @@ sub chat_accept($$) {
 
 sub chat_decline($$) {
 	my($self, $chat) = @_;
+	return must_be_on($self) unless $self->{is_on};
 
 	my($invite) = delete $self->{chatinvites}->{$chat} or do {
 		$self->log_print(OSCAR_DBG_WARN, "Chat invite for $chat doesn't exist, so we can't decline it.");
@@ -1188,6 +1214,11 @@ sub crapout($$$) {
 	$self->signoff();
 }
 
+sub must_be_on($) {
+	my $self = shift;
+	send_error($self, $self->{bos}, 0, "You have not finished signing on.", 0);
+}
+
 =pod
 
 =item set_idle (TIME)
@@ -1201,6 +1232,7 @@ the user as being idle.
 
 sub set_idle($$) {
 	my($self, $time) = @_;
+	return must_be_on($self) unless $self->{is_on};
 	$self->{bos}->snac_put(family => 0x1, subtype => 0x11, data => pack("N", $time));
 }
 
@@ -1372,6 +1404,7 @@ deleted.
 
 sub set_buddy_comment($$$;$) {
 	my($self, $group, $buddy, $comment) = @_;
+	return must_be_on($self) unless $self->{is_on};
 	$self->{buddies}->{$group}->{members}->{$buddy}->{comment} = $comment;
 }
 
@@ -1387,6 +1420,7 @@ instead.
 
 sub chat_invite($$$@) {
 	my($self, $chat, $msg, @who) = @_;
+	return must_be_on($self) unless $self->{is_on};
 	foreach my $who(@who) { $chat->{connection}->invite($who, $msg); }
 }
 

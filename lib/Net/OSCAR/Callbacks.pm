@@ -290,6 +290,7 @@ sub process_snac($$) {
 
 		$connection->ready();
 
+		$session->{is_on} = 1;
 		$session->callback_signon_done() unless $session->{sent_done}++;
 
 		$connection->snac_put(family => 0x2, subtype => 0xB, data => pack("Ca*", length(normalize($session->screenname)), normalize($session->screenname)));
