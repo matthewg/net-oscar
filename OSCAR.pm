@@ -95,6 +95,7 @@ When you sign on with the OSCAR service, you are establishing an OSCAR session.
 
 =cut
 
+use v5.6.1;
 use strict;
 use vars qw($VERSION $REVISION @ISA @EXPORT_OK %EXPORT_TAGS);
 use Carp;
@@ -1258,7 +1259,6 @@ sub file_send($$@) {
 		capability => OSCAR_CAPS()->{filexfer}->{value},
 		cookie => $cookie,
 		invitation_msg => $message,
-		language => "en",
 		push_pull => 1,
 		status => 0,
 		client_1_ip => $self->{ip},
