@@ -7,7 +7,7 @@ sub {
 my $blist;
 
 my $visdata = tlv_encode(tlv(
-	0xCA => 0+VISMODE_PERMITALL,
+	0xCA => 0,
 	0xCB => 0xFFFFFFFF,
 ));
 $blist = "xxx";

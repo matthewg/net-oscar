@@ -179,7 +179,6 @@ sub _xmlnode_to_template($$) {
 	$datum->{name} = $attrs->{name} if $attrs->{name};
 	$datum->{value} = "" if $attrs->{default_generate} and $attrs->{default_generate} ne "no";
 	$datum->{value} = $value->[1] if @$value and $value->[1] =~ /\S/;
-	$datum->{items} = [];
 
 	$datum->{count} = $attrs->{count} if $attrs->{count};
 	if($attrs->{count_prefix} || $attrs->{length_prefix}) {
@@ -236,6 +235,7 @@ sub _xmlnode_to_template($$) {
 			}
 
 			my $item = _xmlnode_to_template($subtag, $subval);
+			$datum->{items} ||= [];
 			push @{$datum->{items}}, $item;
 		}
 	} elsif($tag eq "tlvchain") {
@@ -266,6 +266,7 @@ sub _xmlnode_to_template($$) {
 
 				push @{$item->{items}}, $tlvitem;
 			}
+
 
 			push @{$datum->{items}}, $item;
 		}

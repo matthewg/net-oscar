@@ -268,8 +268,8 @@ is_deeply(
 is_deeply(
 	[protoparse($oscar, "ref")],
 	[
-		{type => 'ref', name => "ref_foo", items => []},
-		{type => 'ref', name => "ref_bar", items => []}
+		{type => 'ref', name => "ref_foo"},
+		{type => 'ref', name => "ref_bar"}
 	],
 	"references"
 );

@@ -105,7 +105,7 @@ sub unpack($$) {
 			}
 		} elsif($datum->{type} eq "data" or $datum->{type} eq "ref") {
 			# If we just have simple, no preset length, no subitems, raw data, it can't have a repeat count, since the first repetition will gobble up everything
-			assert($datum->{type} ne "data" or @{$datum->{items}} or defined($size) or $count == 1 or $datum->{null_terminated});
+			assert($datum->{type} ne "data" or ($datum->{items} and @{$datum->{items}}) or defined($size) or $count == 1 or $datum->{null_terminated});
 
 			# We want:
 			#	<data length_prefix="num" />
@@ -142,7 +142,7 @@ sub unpack($$) {
 						$subinput =~ s/$pad*$//;
 					}
 
-					if(@{$datum->{items}}) {
+					if($datum->{items} and @{$datum->{items}}) {
 						assert(!$datum->{null_terminated});
 						(%tmp) = $self->new($datum->{items})->unpack(\$subinput);
 						$input = $subinput unless $datum->{len};
