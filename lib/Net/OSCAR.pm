@@ -277,7 +277,6 @@ sub signon($@) {
 
 	$self->{svcdata} = \%args;
 	$self->{bos} = $self->addconn($password, CONNTYPE_LOGIN, "login", $host);
-	push @{$self->{connections}}, $self->{bos};
 }
 
 =pod
@@ -348,7 +347,6 @@ sub addconn($$$$$) {
 		$self->{chatnav} = 1;
 	}
 	push @{$self->{connections}}, $connection;
-	#print STDERR "After adding connection: ", Data::Dumper::Dumper($self->{connections}), "\n";
 	$self->callback_connection_changed($connection, "write");
 	return $connection;
 }
@@ -359,8 +357,7 @@ sub delconn($$) {
 	return unless $self->{connections};
 	$self->callback_connection_changed($connection, "deleted");
 	for(my $i = scalar @{$self->{connections}} - 1; $i >= 0; $i--) {
-		next unless !$connection->{socket} or (fileno $connection->{socket} == fileno $self->{connections}->[$i]->{socket});
-		next unless $connection->{conntype} == $self->{connections}->[$i]->{conntype}; # Just in case fileno is undef.
+		next unless $self->{connections}->[$i] == $connection;
 		$connection->log_print(OSCAR_DBG_NOTICE, "Closing.");
 		splice @{$self->{connections}}, $i, 1;
 		if(!$connection->{sockerr}) {
