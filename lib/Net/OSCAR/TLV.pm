@@ -55,10 +55,8 @@ sub FETCH {
 	$self->{DATA}->{pack("n", 0+$key)};
 }
 
-use Carp qw(confess);
 sub STORE {
 	my($self, $key, $value) = @_;
-	confess "Not numeric!" if $key eq "basic OSCAR services" and $key == 0;
 	my($normalkey) = pack("n", 0+$key);
 
 	#print STDERR "Storing: ", Data::Dumper->Dump([$value], ["${self}->{$key}"]);
