@@ -665,7 +665,7 @@ sub modgroups($) {
 			%tlv = (0x01 => $self->{bos}->tlv_encode(\%subtlv));
 			$packet .= $self->{bos}->tlv_encode(\%tlv);
 		} else {
-			$packet .= pack("n*", 0, 0, 0, 1, 2*scalar keys %{$self->{buddies}}, 0xC8, 4, pack("n*", map { $_->{groupid} } values %{$self->{buddies}}));
+			$packet .= pack("n*", 0, 0, 0, 1, 2*scalar keys %{$self->{buddies}}, 0xC8, 4, map { $_->{groupid} } values %{$self->{buddies}});
 		}
 
 		$self->{bos}->snac_put(family => 0x13, subtype => 0x09, data => $packet);
