@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = '1.99';
+$VERSION = '1.999';
 $REVISION = '$Revision$';
 
 =pod
@@ -2663,6 +2663,35 @@ For optimum performance, use the L<"connection_changed"> callback.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+1.901, 2004-08-24
+
+=over 4
+
+2004-08-24  Matthew Sachs  <matthewg@sachsvax>
+
+=item *
+
+Lots of buddylist-handling bug fixes; should fix intermittent buddylist modification errors
+and errors only seen when modifying certain screennames; Roy C. rocks.
+
+=item *
+
+We now require Perl 5.6.1.
+
+=item *
+
+Workaround for bug in Perl pre-5.8.4 which manifested as a "'basic OSCAR services' isn't numeric"
+warning followed by the program freezing.
+
+=item *
+
+Fixed a potential memory leak which could impact programs which create many transient Net::OSCAR
+objects.
+
+=back
 
 =item *
 
