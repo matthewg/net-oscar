@@ -1402,6 +1402,11 @@ Returns the email address currently assigned to the user's account.
 
 Returns the user's current screenname, including all capitalization and spacing.
 
+=item is_on
+
+Returns true if the user is signed on to the OSCAR service.  Otherwise,
+returns false.
+
 =cut
 
 sub visibility($) { return shift->{visibility}; }
@@ -1420,6 +1425,7 @@ sub buddy($$;$) {
 }
 sub email($) { return shift->{email}; }
 sub screenname($) { return shift->{screenname}; }
+sub is_on($) { return shift->{is_on}; }
 
 =pod
 
