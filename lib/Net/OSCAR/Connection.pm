@@ -232,6 +232,8 @@ sub connect($$) {
 	return 1;
 }
 
+sub get_filehandle($) { shift->{socket}; }
+
 sub process_one($) {
 	my $self = shift;
 	my $snac;
@@ -242,7 +244,8 @@ sub process_one($) {
 	if(!$self->{connected}) {
 		$self->log_print(OSCAR_DBG_NOTICE, "Connected.");
 		$self->{connected} = 1;
-		$self->set_blocking(1);
+		#$self->set_blocking(1);
+		$self->{session}->callback_connection_changed($self, "read");
 		return 1;
 	} elsif(!$self->{ready}) {
 		$self->log_print(OSCAR_DBG_DEBUG, "Getting connack.");

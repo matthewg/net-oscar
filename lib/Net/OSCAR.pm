@@ -252,6 +252,7 @@ sub addconn($$$$$) {
 	}
 	push @{$self->{connections}}, $connection;
 	#print STDERR "After adding connection: ", Data::Dumper::Dumper($self->{connections}), "\n";
+	$self->callback_connection_changed($connection, "write");
 	return $connection;
 }
 
@@ -281,6 +282,7 @@ sub delconn($$) {
 				$self->callback_chat_closed($connection, "Lost connection to chat");
 			}
 		}
+		$self->callback_connection_changed($connection, "delete");
 		delete $connection->{socket};
 		return 1;
 	}
@@ -1624,6 +1626,17 @@ Also note that this callback is only triggered for events whose level is greater
 than or equal to the loglevel for the OSCAR session.  The L<"loglevel"> method
 allows you to get or set the loglevel.
 
+=item connection_changed OSCAR CONNECTION STATUS
+
+Called when the status of a connection changes.  The status is C<"read"> if we
+should call C<process_one> on the connection when C<select> indicates that
+the connection is ready for reading, C<"write"> if we should call
+C<process_one> when the connection is ready for writing, or C<"delete"> if the
+connection has been deleted.
+
+Users of this callback may also be interested in the L<"get_filehandle">
+method of C<Net::OSCAR::Connection>.
+
 =cut
 
 sub do_callback($@) {
@@ -1653,6 +1666,7 @@ sub callback_rate_alert(@) { do_callback("rate_alert", @_); }
 sub callback_signon_done(@) { do_callback("signon_done", @_); }
 sub callback_log(@) { do_callback("log", @_); }
 sub callback_im_ok(@) { do_callback("im_ok", @_); }
+sub callback_connection_changed(@) { do_callback("connection_changed", @_); }
 
 sub set_callback_error($\&) { set_callback("error", @_); }
 sub set_callback_buddy_in($\&) { set_callback("buddy_in", @_); }
@@ -1674,6 +1688,7 @@ sub set_callback_rate_alert($\&) { set_callback("rate_alert", @_); }
 sub set_callback_signon_done($\&) { set_callback("signon_done", @_); }
 sub set_callback_log($\&) { set_callback("log", @_); }
 sub set_callback_im_ok($\&) { set_callback("im_ok", @_); }
+sub set_callback_connection_changed($\&) { set_callback("connection_changed", @_); }
 
 =pod
 
@@ -1831,6 +1846,20 @@ are case and whitespace insensitive, and if you do something like
 C<$buddy = new Net::OSCAR::Screenname "Matt Sachs"> instead of
 C<$buddy = "Matt Sachs">, this will be taken care of for you when
 you use the string comparison operators (eq, ne, cmp, etc.)
+
+C<Net::OSCAR::Connection>, the class used for connection objects,
+has a C<get_filehandle> method which returns the filehandle
+(in the current implementation, a globref created via C<gensym>/C<socket>)
+used for the connection.
+
+=over 4
+
+=item get_filehandle
+
+Returns the filehandle used for the connection.  Note that this is a method
+of C<Net::OSCAR::Connection>, not C<Net::OSCAR>.
+
+=back
 
 =head1 HISTORY
 
@@ -2118,6 +2147,9 @@ The gaim team - the source to their libfaim client was also very helpful.  E<lt>
 The users of aimirc for being reasonably patient while this module was developed.  E<lt>http://www.zevils.com/programs/aimirc/E<gt>
 
 Jayson Baker for some last-minute debugging help.
+
+Rocco Caputo for helping to work out the hooks that let use be used with
+POE.  E<lt>http://poe.perl.org/E<gt>
 
 AOL, for creating the AOL Instant Messenger service, even though they aren't terribly helpful to
 developers of third-party clients.
