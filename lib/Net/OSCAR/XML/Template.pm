@@ -98,6 +98,10 @@ sub unpack($$) {
 		if($datum->{type} eq "num") {
 			for(my $i = 0; ($input ne "") and ($count == -1 or $i < $count); $i++) {
 				push @results, unpack($datum->{packlet}, substr($input, 0, $datum->{len}, ""));
+
+				if(exists($datum->{enum_byval}) and exists($datum->{enum_byval}->{$results[-1]})) {
+					$results[-1] = $datum->{enum_byval}->{$results[-1]};
+				}
 			}
 		} elsif($datum->{type} eq "data" or $datum->{type} eq "ref") {
 			# If we just have simple, no preset length, no subitems, raw data, it can't have a repeat count, since the first repetition will gobble up everything
@@ -367,6 +371,9 @@ sub pack($%) {
 
 			for($count = 0; ($max_count == -1 or $count < $max_count) and @valarray; $count++) {
 				my $val = shift @valarray;
+				if(exists($datum->{enum_byname}) and exists($datum->{enum_byname}->{$val})) {
+					$val = $datum->{enum_byname}->{$val};
+				}
 
 				$output .= pack($datum->{packlet}, $val);
 			}

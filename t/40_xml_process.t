@@ -193,6 +193,14 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		binary => pack("nn", 3, 20),
 		data => {foo => 3, bar => 20},
 		template => "ref"
+	},{
+		binary => pack("n", 2),
+		data => {metasyntax => "bar"},
+		template => "enum"
+	},{
+		binary => pack("C", 1),
+		data => {icecream => "chocolate"},
+		template => "enum_default"
 	}
 );
 

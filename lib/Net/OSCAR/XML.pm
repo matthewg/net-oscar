@@ -147,6 +147,8 @@ sub _num_to_packlen($$) {
 #		If type = "num":
 #			packlet: Pack template letter (C, n, N, v, V)
 #			len: Length of datum, in bytes
+#			enum_byname: If this is an enum, map of names to values.
+#			enum_byval: If this is an enum, map of values to names.
 #		If type = "data":
 #			Arbitrary data
 #			If prefix isn't present, all available data will be gobbled.
@@ -190,14 +192,36 @@ sub _xmlnode_to_template($$) {
 
 	if($tag eq "ref") {
 		$datum->{type} = "ref";
-	} elsif($tag eq "byte" or $tag eq "word" or $tag eq "dword") {
+	} elsif($tag eq "byte" or $tag eq "word" or $tag eq "dword" or $tag eq "enum") {
 		$datum->{type} = "num";
+
+		my $enum = 0;
+		if($tag eq "enum") {
+			$tag = $attrs->{type};
+			$enum = 1;
+		}
 
 		my($packlet, $len) = _num_to_packlen($tag, $attrs->{order});
 		$datum->{packlet} = $packlet;
 		$datum->{len} = $len;
 
-		$datum->{value} = $value->[1] if @$value;
+		if($enum) {
+			$datum->{enum_byname} = {};
+			$datum->{enum_byval} = {};
+
+			while(@$value) {
+				my($subtag, $subval) = splice(@$value, 0, 2);
+				next if $subtag eq "0";
+
+				my $attrs = shift @$subval;
+				my($name, $value, $default) = ($attrs->{name}, $attrs->{value}, $attrs->{default});
+				$datum->{enum_byname}->{$name} = $value;
+				$datum->{enum_byval}->{$value} = $name;
+				$datum->{value} = $value if $default;
+			}
+		} else {
+			$datum->{value} = $value->[1] if @$value;
+		}
 	} elsif($tag eq "data") {
 		$datum->{type} = "data";
 		$datum->{len} = $attrs->{length} if $attrs->{length};

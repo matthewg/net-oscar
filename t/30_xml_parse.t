@@ -14,7 +14,7 @@ use strict;
 use lib "./blib/lib";
 no warnings;
 
-Test::More->import(tests => 29);
+Test::More->import(tests => 31);
 
 require_ok("Net::OSCAR");
 require_ok("Net::OSCAR::XML");
@@ -61,6 +61,8 @@ is_deeply([sort keys(%Net::OSCAR::XML::xmlmap)], [sort qw(
 		ref_bar
 		ref
 		snac
+		enum
+		enum_default
 	), "TLV", "subtyped_TLV"], "forward name mapping");
 
 is_deeply({%Net::OSCAR::XML::xml_revmap}, {1 => { 2 => "snac" }}, "reverse name mapping");
@@ -270,4 +272,23 @@ is_deeply(
 		{type => 'ref', name => "ref_bar", items => []}
 	],
 	"references"
+);
+
+is_deeply(
+	[protoparse($oscar, "enum")],
+	[
+		{len => 2, type => "num", packlet => "n", name => "metasyntax",
+			enum_byname => {foo => 1, bar => 2, baz => 3},
+			enum_byval => {1 => "foo", 2 => "bar", 3 => "baz"}}
+	],
+	"enum"
+);
+is_deeply(
+	[protoparse($oscar, "enum_default")],
+	[
+		{len => 1, type => "num", packlet => "C", name => "icecream", value => 2,
+			enum_byname => {chocolate => 1, vanilla => 2},
+			enum_byval => {1 => "chocolate", 2 => "vanilla"}}
+	],
+	"enum_default"
 );

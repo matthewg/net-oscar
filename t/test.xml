@@ -150,4 +150,19 @@
 
 	<!-- SNAC -->
 	<define name="snac" family="1" subtype="2"><data /></define>
+
+	<!-- enum -->
+	<define name="enum">
+		<enum type="word" name="metasyntax">
+			<edef name="foo" value="1" />
+			<edef name="bar" value="2" />
+			<edef name="baz" value="3" />
+		</enum>
+	</define>
+	<define name="enum_default">
+		<enum type="byte" name="icecream">
+			<edef name="chocolate" value="1" />
+			<edef name="vanilla" value="2" default="yes" />
+		</enum>
+	</define>
 </oscar>

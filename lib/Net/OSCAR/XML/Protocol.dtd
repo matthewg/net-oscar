@@ -20,6 +20,11 @@
 # Data can be null-terminated and padded.  The value for the pad attribute specifies
 # the octet value to use for padding.
 #
+# There are also enums, which are exactly like numeric types except the raw numeric
+# values gets translated into some other values, so if you have a message-type
+# word, you can have 1 => "foo", and you'll get a "foo" when decoding a 1 and a
+# 1 when encoding a "foo".
+#
 # Things that have, or can have, length prefixes, take an optional 'default_generate'
 # attribute.  If set to yes, this will give them a default value of "present but empty".
 #
@@ -49,7 +54,7 @@
 
 <!ELEMENT oscar (define)+>
 
-<!ELEMENT define (ref|byte|word|dword|data|tlvchain)+>
+<!ELEMENT define (ref|byte|word|dword|data|tlvchain|enum)+>
 <!ATTLIST define
 	name ID #REQUIRED
 	channel CDATA #IMPLIED
@@ -81,7 +86,7 @@
 	order (network|vax) #DEFAULT network
 	count CDATA #IMPLIED
 >
-<!ELEMENT data (ref|byte|word|dword|data|tlvchain)+>
+<!ELEMENT data (ref|byte|word|dword|data|tlvchain|enum)+>
 <!ATTLIST data
 	name CDATA #IMPLIED
 	prefix_order (network|vax) #DEFAULT network
@@ -92,7 +97,19 @@
 	null_terminated (yes|no) #DEFAULT no
 	pad CDATA #IMPLIED
 >
-
+<!ELEMENT enum (edef+)>
+<!ATTLIST enum
+	type (byte|word|dword) #REQUIRED
+	name CDATA #implied
+	order (network|vax) #DEFAULT network
+	count CDATA #implied
+>
+<!ELEMENT edef (EMPTY)>
+<!ATTLIST edef
+	default (yes|no) #DEFAULT no
+	name CDATA #REQUIRED
+	value CDATA #REQUIRED
+>
 <!ELEMENT tlvchain (tlv*)>
 <!ATTLIST tlvchain
 	subtyped (yes|no) #DEFAULT no <!-- A 'subtyped' TLV is type/subtype/length/value, where subtype and length are both bytes.  It's used in extended status. -->
@@ -103,7 +120,7 @@
 	default_generate (yes|no) #DEFAULT no
 >
 
-<!ELEMENT tlv (ref|byte|word|dword|data|tlvchain)+>
+<!ELEMENT tlv (ref|byte|word|dword|data|tlvchain|enum)+>
 <!ATTLIST tlv
 	type CDATA #REQUIRED
 	subtype CDATA #IMPLIED <!-- For subtyped TLVs -->

@@ -48,6 +48,12 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		template => "im_footer_test",
 		decode => 1,
 		name => "bad IM footer data"
+	},{
+		binary => pack("C", 2),
+		data => {},
+		template => "enum_default",
+		encode => 1,
+		name => "enum default value generation"
 	}
 );
 
