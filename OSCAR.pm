@@ -1509,7 +1509,7 @@ C<DESCRIPTION> is a nicely formatted description of the error.  C<ERROR> is an e
 If C<FATAL> is non-zero, the error was fatal and the connection to OSCAR has been
 closed.
 
-=item rate_alert (OSCAR, LEVEL, CLEAR, WINDOW)
+=item rate_alert (OSCAR, LEVEL, CLEAR, WINDOW, WORRISOME)
 
 This is called when you are sending commands to OSCAR too quickly.
 
@@ -1522,6 +1522,11 @@ about to be disconnected.
 CLEAR and WINDOW tell you the maximum speed you can send in order to maintain RATE_CLEAR standing.
 You must send no more than WINDOW commands in CLEAR milliseconds.  If you just want to keep it
 simple, you can just not send any commands for CLEAR milliseconds and you'll be fine.
+
+WORRISOME is nonzero if C<Net::OSCAR> thinks that the alert is anything worth
+worrying about.  Otherwise it is zero.  This is very rough, but it's a good way
+for the lazy to determine whether or not to bother passing the alert on to
+their users.
 
 =item buddylist_error (OSCAR, ERROR, WHAT)
 

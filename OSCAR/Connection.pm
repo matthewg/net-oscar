@@ -26,6 +26,7 @@ sub new($$$$$$) { # Think you got enough parameters there, Chester?
 	$self->{auth} = shift;
 	$self->{conntype} = shift;
 	$self->{description} = shift;
+	$self->{paused} = 0;
 	$self->connect(shift);
 
 	return $self;

@@ -243,19 +243,26 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Got rate change.");
 
 		my($group, $window, $clear, $alert, $limit, $disconnect, $current, $max) = unpack("xx n N*", $data);
-		my $rate = RATE_CLEAR;
+		my($rate, $worrisome);
 		if($current >= $clear) {
-			# We've been a good little boy.
+			$rate = RATE_CLEAR;
+			$worrisome = 0;
 		} elsif($current >= $alert) {
 			$rate = RATE_ALERT;
+			if($current - $limit < 250) {
+				$worrisome = 1;
+			} else {
+				$worrisome = 0;
+			}
 		} elsif($current >= $limit) {
 			$rate = RATE_LIMIT;
+			$worrisome = 1;
 		} else {
 			$rate = RATE_DISCONNECT;
+			$worrisome = 1;
 		}
 
-		$session->callback_rate_alert(RATE_ALERT, $clear, $window) unless $rate == RATE_CLEAR;
-
+		$session->callback_rate_alert($rate, $clear, $window, $worrisome);
 	} elsif($family == 0x1 and $subtype == 0x10) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got evil.");
 		my $enemy = undef;
