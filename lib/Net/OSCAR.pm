@@ -291,13 +291,13 @@ sub signon($@) {
 	# Note that this breaks if caller passes in both a host and a port using the old way.
 	# But hey, that's why it's deprecated!
 	if(@_ < 3) {
-		$args{screenname} = shift @_ or return $self->crapout($self->{services}->{CONNTYPE_BOS()}, "You must specify a username to sign on with!");
-		$args{password} = shift @_ or return $self->crapout($self->{services}->{CONNTYPE_BOS()}, "You must specify a password to sign on with!");;
+		$args{screenname} = shift @_ or return $self->crapout($self->{services}->{0+CONNTYPE_BOS}, "You must specify a username to sign on with!");
+		$args{password} = shift @_ or return $self->crapout($self->{services}->{0+CONNTYPE_BOS}, "You must specify a password to sign on with!");;
 		$args{host} = shift @_ if @_;
 		$args{port} = shift @_ if @_;
 	} else {
 		%args = @_;
-		return $self->crapout($self->{services}->{CONNTYPE_BOS()}, "You must specify a username and password to sign on with!") unless $args{screenname} and exists($args{password});
+		return $self->crapout($self->{services}->{0+CONNTYPE_BOS}, "You must specify a username and password to sign on with!") unless $args{screenname} and exists($args{password});
 	}
 
 	my %defaults = OSCAR_SVC_AIM;
@@ -305,7 +305,7 @@ sub signon($@) {
 	foreach my $key(keys %defaults) {
 		$args{$key} ||= $defaults{$key};
 	}
-	return $self->crapout($self->{services}->{CONNTYPE_BOS()}, "MD5 authentication not available for this service (you must define a password.)") if !defined($args{password}) and $args{hashlogin};
+	return $self->crapout($self->{services}->{0+CONNTYPE_BOS}, "MD5 authentication not available for this service (you must define a password.)") if !defined($args{password}) and $args{hashlogin};
 	$self->{screenname} = new Net::OSCAR::Screenname $args{screenname};
 
 	# We set BOS to the login connection so that our error handlers pick up errors on this connection as fatal.
@@ -339,7 +339,7 @@ sub signon($@) {
 		}
 	}
 
-	$self->{services}->{CONNTYPE_BOS()} = $self->addconn(auth => $password, conntype => CONNTYPE_LOGIN, description => "login", peer => $host);
+	$self->{services}->{0+CONNTYPE_BOS} = $self->addconn(auth => $password, conntype => CONNTYPE_LOGIN, description => "login", peer => $host);
 }
 
 =pod
@@ -466,7 +466,7 @@ See L<add_buddy>.
 sub rename_group($$$) {
 	my($self, $oldgroup, $newgroup) = @_;
 	return must_be_on($self) unless $self->{is_on};
-	return send_error($self, $self->{services}->{CONNTYPE_BOS()}, 0, "That group does not exist", 0) unless exists $self->{buddies}->{$oldgroup};
+	return send_error($self, $self->{services}->{0+CONNTYPE_BOS}, 0, "That group does not exist", 0) unless exists $self->{buddies}->{$oldgroup};
 	$self->{buddies}->{$newgroup} = $self->{buddies}->{$oldgroup};
 	delete $self->{buddies}->{$oldgroup};
 }
@@ -1025,7 +1025,7 @@ Use L<"get_info"> to retrieve another user's profile.
 sub set_info($$;$) {
 	my($self, $profile, $awaymsg) = @_;
 
-	return must_be_on($self) unless $self->{services}->{CONNTYPE_BOS()};
+	return must_be_on($self) unless $self->{services}->{0+CONNTYPE_BOS};
 	$self->log_print(OSCAR_DBG_NOTICE, "Setting user information.");
 
 	my %protodata;
@@ -3644,7 +3644,7 @@ sub crapout($$$;$) {
 
 sub must_be_on($) {
 	my $self = shift;
-	send_error($self, $self->{services}->{CONNTYPE_BOS()}, 0, "You have not finished signing on.", 0);
+	send_error($self, $self->{services}->{0+CONNTYPE_BOS}, 0, "You have not finished signing on.", 0);
 }
 
 
