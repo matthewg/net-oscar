@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = 0.58;
+$VERSION = 0.59;
 
 =head1 NAME
 
@@ -2040,6 +2040,26 @@ of C<Net::OSCAR::Connection>, not C<Net::OSCAR>.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+0.59, 2002-02-15
+
+=over 4
+
+=item *
+
+Protocol fixes - solves problem with AOL calling us an unauthorized client
+
+=item *
+
+Better handling of socket errors, especially when writing
+
+=item *
+
+Minor POD fixes
+
+=back
 
 =item *
 
