@@ -17,7 +17,7 @@ use Net::OSCAR::TLV;
 use Net::OSCAR::XML;
 
 use vars qw($VERSION $REVISION);
-$VERSION = '1.11';
+$VERSION = '1.901';
 $REVISION = '$Revision$';
 
 sub init_entry($$$$) {
@@ -32,9 +32,6 @@ sub init_entry($$$$) {
 
 sub blparse($$) {
 	my($session, $data) = @_;
-
-	# This stuff was figured out more through sheer perversity
-	# than by actually understanding what all the random bits do.
 
 	$session->{visibility} = VISMODE_PERMITALL; # If we don't have p/d data, this is default.
 
@@ -129,8 +126,10 @@ sub BLI_to_NO($) {
 		#$session->{presence_unknown} = 0x0077FFFF;
 	}
 
-	if(exists $bli->{0x14}) {
-		$session->{icon_md5sum} = $bli->{0x14}->{0}->{0x51F4}->{data}->{0xD5};
+	if(exists $bli->{0x14} and (my($iconbid) = keys %{$bli->{0x14}->{0}})) {
+		my $typedata = $bli->{0x14}->{0}->{$iconbid};
+		($session->{icon_md5sum}) = $typedata->{0xD5};
+		delete $typedata->{0xD5};
 	}
 
 	my @gids = unpack("n*", (exists($bli->{1}) and exists($bli->{1}->{0}) and exists($bli->{1}->{0}->{0}) and exists($bli->{1}->{0}->{0}->{data}->{0xC8})) ? $bli->{1}->{0}->{0}->{data}->{0xC8} : "");
@@ -201,6 +200,21 @@ sub NO_to_BLI($) {
 
 	my $bli = tlv();
 
+	# Copy old data
+	foreach my $type (keys %{$session->{blinternal}}) {
+		next if $type < 4 or $type == 0x14;
+		foreach my $gid (keys %{$session->{blinternal}->{$type}}) {
+			foreach my $bid (keys %{$session->{blinternal}->{$type}->{$gid}}) {
+				init_entry($bli, $type, $gid, $bid);
+				$bli->{$type}->{$gid}->{$bid}->{name} = $session->{blinternal}->{$type}->{$gid}->{$bid}->{name};
+				foreach my $data (keys %{$session->{blinternal}->{$type}->{$gid}->{$bid}->{data}}) {
+					$bli->{$type}->{$gid}->{$bid}->{data}->{$data} = $session->{blinternal}->{$type}->{$gid}->{$bid}->{data}->{$data};
+				}
+			}
+		}
+	}
+
+
 	foreach my $permit (keys %{$session->{permit}}) {
 		init_entry($bli, 2, 0, $session->{permit}->{$permit}->{buddyid});
 		$bli->{2}->{0}->{$session->{permit}->{$permit}->{buddyid}}->{name} = $permit;
@@ -235,13 +249,23 @@ sub NO_to_BLI($) {
 		init_entry($bli, 5, 0, $presencetype);
 		$bli->{5}->{0}->{$presencetype}->{data}->{0xC9} = pack("N", exists($session->{showidle}) ? $session->{showidle} : 0x0061E7FF);
 		$bli->{5}->{0}->{$presencetype}->{data}->{0xD6} = pack("N", exists($session->{presence_unknown}) ? $session->{presence_unknown} : 0x0077FFFF);
+
+		# Copy unknown data
+		$bli->{5}->{0}->{$presencetype}->{data}->{$_} = $session->{blinternal}->{5}->{0}->{$presencetype}->{data}->{$_}
+		   foreach grep { $_ != 0xC9 and $_ != 0xD6 } keys %{$session->{blinternal}->{5}->{0}->{$presencetype}->{data}};
 	}
 
 
 	if(exists($session->{icon_md5sum})) {
-		init_entry($bli, 0x14, 0, 0x51F4);
-		$bli->{0x14}->{0}->{0x51F4}->{name} = "1";
-		$bli->{0x14}->{0}->{0x51F4}->{data}->{0xD5} = $session->{icon_md5sum};
+		my $icontype;
+		$icontype = (keys %{$session->{blinternal}->{5}->{0}})[0] if exists($session->{blinternal}->{5}) and exists($session->{blinternal}->{5}->{0}) and scalar keys %{$session->{blinternal}->{5}->{0}};
+		$icontype ||= 0x51F4;
+		init_entry($bli, 0x14, 0, $icontype);
+		$bli->{0x14}->{0}->{$icontype}->{name} = "1";
+		$bli->{0x14}->{0}->{$icontype}->{data}->{0xD5} = $session->{icon_md5sum};
+
+		$bli->{0x14}->{0}->{$icontype}->{data}->{$_} = $session->{blinternal}->{0x14}->{0}->{$icontype}->{data}->{$_}
+		   foreach grep { $_ != 0xD5 } keys %{$session->{blinternal}->{0x14}->{0}->{$icontype}->{data}};
 	}
 
 	init_entry($bli, 1, 0, 0);
