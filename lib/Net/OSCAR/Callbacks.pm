@@ -283,8 +283,6 @@ sub process_snac($$) {
 
 		#$session->debug_print("Requesting chatnav.");
 		#$session->svcreq(CONNTYPE_CHATNAV);
-
-		$session->callback_signon_done();
 	} elsif($family == 0x13 and $subtype == 0x6) {
 		$connection->debug_print("Got buddylist 0x0006.");
 		my $tlvlen = 0;
@@ -391,6 +389,8 @@ sub process_snac($$) {
 				buddyid => $buddy->{buddyid}
 			};
 		}
+
+		$session->callback_signon_done();
 	} elsif($family == 0x13 and $subtype == 0x0E) {
 		$connection->debug_print("Got blmod ack.");
 		$session->modgroups();
