@@ -94,7 +94,7 @@ sub chat_im_in($$$$) {
 	print "$who in ".$chat->{name}.": $what\n";
 }
 
-sub chat_invite($$$$) {
+sub chat_invite($$$$$) {
 	shift;
 	my($from, $msg, $chat, $chaturl) = @_;
 	my $invnum = push @invites, $chaturl;
