@@ -59,82 +59,37 @@ sub blparse($$) {
 # Buddylist-Internal -> Net::OSCAR
 # Sets various $session hashkeys from blinternal.
 # That's what Brian Bli-to-no'd do. ;)
-#
-# Optionally, only process one type/GID/BID.
-# All three must be specified if any are.
-# This is used by Callbacks.pm when we get an 0x13/0x0E error.
 sub BLI_to_NO($;$$$) {
-	my($session, $dotype, $dogid, $dobid) = @_;
+	my($session) = @_;
 	my $bli = $session->{blinternal};
 
-	if(!defined($dotype)) {
-		delete $session->{buddies};
-		delete $session->{permit};
-		delete $session->{deny};
-		delete $session->{visibility};
-		delete $session->{groupperms};
-		delete $session->{profile};
-		delete $session->{appdata};
-		delete $session->{showidle};
+	delete $session->{buddies};
+	delete $session->{permit};
+	delete $session->{deny};
+	delete $session->{visibility};
+	delete $session->{groupperms};
+	delete $session->{profile};
+	delete $session->{appdata};
+	delete $session->{showidle};
 
-		$session->{buddies} = bltie(1);
-		$session->{permit} = bltie;
-		$session->{deny} = bltie;
-	} else {
-		if($dotype == 0) {
-			my $group = $session->findgroup($dogid);
-			if($group and !exists($session->{blold}->{0}->{$dogid})) {
-				delete $bli->{0}->{$dogid};
-				delete $session->{buddies}->{$group};
-				return 1;
-			}
-		} elsif($dotype == 1) {
-			my $group = $session->findgroup($dogid);
-			if($group) {
-				my $buddy = $session->findbuddy_byid($session->{buddies}->{$group}->{members}, $dobid);
-				if($buddy and !exists($session->{blold}->{1}->{$dogid}->{$dobid})) {
-					delete $bli->{1}->{$dogid}->{$dobid};
-					delete $session->{buddies}->{$group}->{members}->{$buddy};
-					return 1;
-				}
-			}
-		} elsif($dotype == 2) {
-				my $buddy = $session->findbuddy_byid($session->{permit}, $dobid);
-				if($buddy and !exists($session->{blold}->{2}->{$dogid}->{$dobid})) {
-					delete $bli->{2}->{$dogid}->{$dobid};
-					delete $session->{permit}->{$buddy};
-					return 1;
-				}
-		} elsif($dotype == 3) {
-				my $buddy = $session->findbuddy_byid($session->{deny}, $dobid);
-				if($buddy and !exists($session->{blold}->{3}->{$dogid}->{$dobid})) {
-					delete $bli->{3}->{$dogid}->{$dobid};
-					delete $session->{deny}->{$buddy};
-					return 1;
-				}
-		} elsif($dotype == 4) {
-			delete $session->{visibility};
-			delete $session->{groupperms};
-			delete $session->{profile};
-			delete $session->{appdata};
-		} elsif($dotype == 5) {
-			delete $session->{showidle};
-		}
-	}
+	$session->{buddies} = bltie(1);
+	$session->{permit} = bltie;
+	$session->{deny} = bltie;
 
-	if(exists $bli->{2} and (!defined($dotype) or $dotype == 2)) {
-		foreach my $bid(defined($dobid) ? ($dobid) : keys(%{$bli->{2}->{0}})) {
+
+	if(exists $bli->{2}) {
+		foreach my $bid(keys(%{$bli->{2}->{0}})) {
 			$session->{permit}->{$bli->{2}->{0}->{$bid}->{name}} = {buddyid => $bid};
 		}
 	}
 
-	if(exists $bli->{3} and (!defined($dotype) or $dotype == 3)) {
-		foreach my $bid(defined($dobid) ? ($dobid) : keys(%{$bli->{3}->{0}})) {
+	if(exists $bli->{3}) {
+		foreach my $bid(keys(%{$bli->{3}->{0}})) {
 			$session->{deny}->{$bli->{3}->{0}->{$bid}->{name}} = {buddyid => $bid};
 		}
 	}
 
-	if(exists $bli->{4} and (!defined($dotype) or $dotype == 4)) {
+	if(exists $bli->{4}) {
 		my $typedata = $bli->{4}->{0}->{(keys %{$bli->{4}->{0}})[0]}->{data};
 		($session->{visibility}) = unpack("C", $typedata->{0xCA}) if $typedata->{0xCA};
 
@@ -150,7 +105,7 @@ sub BLI_to_NO($;$$$) {
 		$session->set_info($session->{profile}) if exists($session->{profile});
 	}
 
-	if(exists $bli->{5} and (!defined($dotype) or $dotype == 5)) {
+	if(exists $bli->{5}) {
 		# Not yet implemented
 		($session->{showidle}) = unpack("N", $bli->{5}->{0}->{19719}->{data}->{0xC9});
 	}
@@ -165,21 +120,6 @@ sub BLI_to_NO($;$$$) {
 		$_ != 0
 	} keys %{exists($bli->{1}) ? $bli->{1} : {}}; # That we have a type 1 entry for
 
-	if(defined($dotype)) {
-		if($dotype == 0 and $dogid == 0) { # Reset group order
-			tied(%{$session->{buddies}})->setorder(
-				map {
-					$session->findgroup($_)
-				} @gids
-			);
-			@gids = ();
-		} elsif($dotype == 1 or $dotype == 0) { # We're doing a group/buddy
-			@bids = ($dobid);
-		} else { # We're doing something else
-			@bids = ();
-		}
-	}
-
 	foreach my $gid(@gids) {
 		my $group = $bli->{1}->{$gid}->{0}->{name};
 
@@ -190,11 +130,9 @@ sub BLI_to_NO($;$$$) {
 		$session->{buddies}->{$group} ||= {};
 		my $entry = $session->{buddies}->{$group};
 
-		if(!defined($dotype) or $dotype == 1) { #Don't do this if doing a bud
-			$entry->{groupid} = $gid;
-			$entry->{members} = bltie unless $entry->{members};
-			$entry->{data} = $bli->{1}->{$gid}->{0}->{data};
-		}
+		$entry->{groupid} = $gid;
+		$entry->{members} = bltie unless $entry->{members};
+		$entry->{data} = $bli->{1}->{$gid}->{0}->{data};
 
 		my @bids = unpack("n*", $bli->{1}->{$gid}->{0}->{data}->{0xC8} || "");
 		delete $bli->{1}->{$gid}->{0}->{data}->{0xC8};
@@ -205,21 +143,6 @@ sub BLI_to_NO($;$$$) {
 				$_ == $inbud
 			} @bids
 		} keys %{exists($bli->{0}->{$gid}) ? $bli->{0}->{$gid} : {}}; # That we have a type 0 entry for in this GID
-
-		if(defined($dotype)) {
-			if($dotype == 1) { # Reset buddy order
-				tied(%{$entry->{members}})->setorder(
-					map {
-						$session->findbuddy_byid($entry->{members}, $_)
-					} @bids
-				);
-				@bids = ();
-			} elsif($dotype == 0) { # We're doing a buddy
-				@bids = ($dobid);
-			} else { # We shouldn't even be here in this case, actually
-				@bids = ();
-			}
-		}
 
 		foreach my $bid(@bids) {
 			my $buddy = $bli->{0}->{$gid}->{$bid};

@@ -297,14 +297,23 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got blmod ack ($session->{budmods} left).");
 		my($error) = unpack("n", $data);
 		if($error != 0) {
+			$session->{buderrors} = 1;
 			my($type, $gid, $bid) = ($reqdata->{type}, $reqdata->{gid}, $reqdata->{bid});
-			$session->{blinternal}->{$type}->{$gid}->{$bid} = $session->{blold}->{$type}->{$gid}->{$bid} if exists($session->{blold}->{$type}->{$gid}) and exists($session->{blold}->{$type}->{$gid}->{$bid});
-			Net::OSCAR::_BLInternal::BLI_to_NO($session, $type, $gid, $bid);
+			if(exists($session->{blold}->{$type}) and exists($session->{blold}->{$type}->{$gid}) and exists($session->{blold}->{$type}->{$gid}->{$bid})) {
+				$session->{blinternal}->{$type}->{$gid}->{$bid} = $session->{blold}->{$type}->{$gid}->{$bid};
+			} else {
+				delete $session->{blinternal}->{$type} unless exists($session->{blold}->{$type});
+				delete $session->{blinternal}->{$type}->{$gid} unless exists($session->{blold}->{$type}) and exists($session->{blold}->{$type}->{$gid});
+				delete $session->{blinternal}->{$type}->{$gid}->{$bid} unless exists($session->{blold}->{$type}) and exists($session->{blold}->{$type}->{$gid}) and exists($session->{blold}->{$type}->{$gid}->{$bid});
+			}
 			$session->callback_buddylist_error($error, $reqdata->{desc});
 		} else {
 			$session->callback_buddylist_ok() unless $session->{budmods} > 0;
 		}
-		delete $session->{blold} unless $session->{budmods} > 0;
+		if($session->{budmods} == 0) {
+			Net::OSCAR::_BLInternal::BLI_to_NO($session) if $session->{buderrors};
+			delete $session->{qw(blold buderrors)};
+		}
 	} elsif($family == 0x1 and $subtype == 0x18) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got hostversions.");
 	} elsif($family == 0x1 and $subtype == 0x1F) {
