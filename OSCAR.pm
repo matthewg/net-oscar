@@ -1791,8 +1791,8 @@ allows you to get or set the loglevel.
 Called when the status of a connection changes.  The status is "read" if we
 should call C<process_one> on the connection when C<select> indicates that
 the connection is ready for reading, "write" if we should call
-C<process_one> when the connection is ready for writing, or "deleted" if the
-connection has been deleted.
+C<process_one> when the connection is ready for writing, "readwrite" if C<process_one>
+should be called in both cases, or "deleted" if the connection has been deleted.
 
 C<CONNECTION> is a C<Net::OSCAR::Connection> object.
 

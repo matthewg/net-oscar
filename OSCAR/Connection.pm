@@ -53,9 +53,11 @@ sub flap_encode($$;$) {
 sub flap_put($;$$) {
 	my($self, $msg, $channel) = @_;
 	my $emsg;
+	my $had_outbuff = 0;
 
 	return unless $self->{socket} and CORE::fileno($self->{socket}) and getpeername($self->{socket}); # and !$self->{socket}->error;
 
+	$had_outbuff = 1 if $self->{outbuff};
 	if($msg) {
 		$emsg = $self->flap_encode($msg, $channel);
 		$self->{outbuff} .= $emsg;
@@ -69,7 +71,12 @@ sub flap_put($;$$) {
 		return undef;
 	} else {
 		$emsg = substr($self->{outbuff}, 0, $nchars, "");
-		$self->log_print(OSCAR_DBG_NOTICE, "Couldn't do complete write - had to buffer ", length($self->{outbuff}), " bytes.") if $self->{outbuff};
+		if($self->{outbuff}) {
+			$self->log_print(OSCAR_DBG_NOTICE, "Couldn't do complete write - had to buffer ", length($self->{outbuff}), " bytes.");
+			$self->{session}->callback_connection_changed($self, "readwrite");
+		} elsif($had_outbuff) {
+			$self->{session}->callback_connection_changed($self, "read");
+		}
 		$self->log_print(OSCAR_DBG_PACKETS, "Put ", hexdump($emsg));
 	}
 }
