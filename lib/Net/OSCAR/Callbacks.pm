@@ -53,10 +53,10 @@ sub process_snac($$) {
 			$session->{screenname} = $tlv->{0x01};
 			$session->{email} = $tlv->{0x11};
 			$session->addconn(
-				$tlv->{0x6},
-				CONNTYPE_BOS,
-				"basic OSCAR service",
-				$tlv->{0x05}
+				auth => $tlv->{0x6},
+				conntype => CONNTYPE_BOS,
+				description => "basic OSCAR service",
+				peer => $tlv->{0x05}
 			);
 		}
 	} elsif($family == 0x1 and $subtype == 0x7) {
@@ -205,7 +205,7 @@ sub process_snac($$) {
 
 		$connection->log_print(OSCAR_DBG_NOTICE, "Got redirect for $svctype.");
 
-		my $newconn = $session->addconn($tlv->{0x6}, $svctype, $conntype, $tlv->{0x5});
+		my $newconn = $session->addconn(auth => $tlv->{0x6}, conntype => $svctype, description => $conntype, peer => $tlv->{0x5});
 		if($svctype == CONNTYPE_CHAT) {
 			$session->{chats}->{$reqid} = $newconn;
 			my($key, $val);

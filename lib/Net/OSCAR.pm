@@ -103,6 +103,7 @@ C<fileno($connection-E<gt>get_filehandle)> inside of the L<"connection_changed">
 and then calling C<@handles = $poll-E<gt>handles(POLLIN | POLLOUT | POLLERR | POLLHUP)>
 and walking through the handles.
 
+For optimum performance, use the L<"connection_changed"> and L<"register_timer"> callback.
 
 =head1 FUNCTIONALITY
 
@@ -159,7 +160,7 @@ require Exporter;
 
 =pod
 
-=item new ([capabilities => CAPABILITIES])
+=item new ([capabilities => CAPABILITIES, direct_connect_port => PORT])
 
 Creates a new C<Net::OSCAR> object.  You may optionally
 pass a hash to set some parameters for the object.
@@ -181,11 +182,21 @@ iChat-style extended status messages
 
 =item file_transfer
 
+=item file_sharing
+
 =item typing_status
 
 Typing status notification
 
 =back
+
+=item direct_connect_port
+
+Which port to listen on for direct-connects initiated by us.  If this is
+not set, we will allow the operating system to pick a port.
+You may wish to allow the user to set this so that they can
+set up their NAT device to forward packets to this port
+to the proper place.
 
 =back
 
@@ -197,18 +208,25 @@ sub new($) {
 	my $class = ref($_[0]) || $_[0] || "Net::OSCAR";
 	shift;
 
+	my $self = {
+		options => {
+			direct_connect_port => 0
+		}
+	};
+	bless $self, $class;
+
 	my(%parameters) = @_;
-	if(my($badparam) = grep { $_ ne "capabilities" } keys %parameters) {
+	if(my($badparam) = grep { $_ ne "capabilities" and $ne "direct_connect_port" } keys %parameters) {
 		croak "Invalid parameter '$badparam' passed to Net::OSCAR::new.";
 	}
 	if($parameters{capabilities}) {
-		if(my($badcap) = grep { $_ ne "extended_status" and $_ ne "buddy_icons" and $_ ne "file_transfer" and $_ ne "typing_status" } @{$parameters{capabilities}}) {
+		if(my($badcap) = grep { $_ ne "extended_status" and $_ ne "buddy_icons" and $_ ne "file_transfer" and $_ ne "file_sharing" and $_ ne "typing_status" } @{$parameters{capabilities}}) {
 			croak "Invalid capability '$badcap' passed to Net::OSCAR::new.";
 		}
 	}
-
-	my $self = { };
-	bless $self, $class;
+	if($parameters{direct_connect_port}) {
+		$self->{options}->{direct_connect_port} = $parameters{direct_connect_port};
+	}
 
 	$self->{LOGLEVEL} = 0;
 	$self->{SNDEBUG} = 0;
@@ -216,6 +234,7 @@ sub new($) {
 	$self->{userinfo} = bltie;
 	$self->{services} = tlv;
 	$self->{svcqueues} = tlv;
+	$self->{listener} = undef;
 
 	$self->{timeout} = 0.01;
 	$self->{capabilities} = {};
@@ -349,7 +368,7 @@ sub signon($@) {
 		}
 	}
 
-	$self->{services}->{CONNTYPE_BOS()} = $self->addconn($password, CONNTYPE_LOGIN, "login", $host);
+	$self->{services}->{CONNTYPE_BOS()} = $self->addconn(auth => $password, conntype => CONNTYPE_LOGIN, description => "login", peer => $host);
 }
 
 =pod
@@ -407,18 +426,31 @@ sub loglevel($;$$) {
 	$self->{SNDEBUG} = shift if @_;
 }
 
-sub addconn($$$$$) {
+sub addconn($@) {
 	my $self = shift;
-	my $conntype = $_[1];
+	my %data = @_;
 
-	my $connection = ($conntype == CONNTYPE_CHAT) ? Net::OSCAR::Chat->new($self, @_) : Net::OSCAR::Connection->new($self, @_);
+	$data{session} = $self;
+	my $connection;
+	my $conntype = $data{conntype};
+	if($conntype == CONNTYPE_CHAT) {
+		$connection = Net::OSCAR::Chat->new(%data);
+	} elsif($conntype = CONNTYPE_DIRECT_IN) {
+		$connection = Net::OSCAR::Direct::Listener->new(%data);
+	} elsif($conntype = CONNTYPE_DIRECT_OUT) {
+		$connection = Net::OSCAR::Direct->new(%data);
+	} else {
+		$connection = Net::OSCAR::Connection->new(%data);
+		# We set the connection to 1 to indicate that it is in progress but not ready for SNAC-sending yet.
+		$self->{services}->{$conntype} = 1 unless $conntype == CONNTYPE_CHAT;
+	}
 
-	# We set the connection to 1 to indicate that it is in progress but not ready for SNAC-sending yet.
-	$self->{services}->{$conntype} = 1 unless $conntype == CONNTYPE_CHAT;
-	$self->{services}->{$conntype} = $connection if $conntype == CONNTYPE_BOS;
+	if($conntype == CONNTYPE_BOS or $conntype == CONNTYPE_DIRECT_IN) {
+		$self->{services}->{$conntype} = $connection;
+	}
 
 	push @{$self->{connections}}, $connection;
-	$self->callback_connection_changed($connection, "write");
+	$self->callback_connection_changed($connection, $connection->{state});
 	return $connection;
 }
 
@@ -446,6 +478,8 @@ sub delconn($$) {
 				$self->callback_admin_error("all", ADMIN_ERROR_CONNREF, undef) if scalar(keys(%{$self->{adminreq}}));
 			} elsif($connection->{conntype} == CONNTYPE_CHAT) {
 				$self->callback_chat_closed($connection, "Lost connection to chat");
+			} else {
+				$self->log_print(OSCAR_DBG_NOTICE, "Closing connection ", $connection->{conntype});
 			}
 		}
 		delete $connection->{socket};
@@ -633,7 +667,8 @@ sub capabilities($) {
 	$caps = OSCAR_CAPS()->{chat}->{value} . OSCAR_CAPS()->{interoperate}->{value};
 	$caps .= OSCAR_CAPS()->{extstatus}->{value} if $self->{capabilities}->{extended_status};
 	$caps .= OSCAR_CAPS()->{buddyicon}->{value} if $self->{capabilities}->{buddy_icons};
-	$caps .= OSCAR_CAPS()->{sendfile}->{value} if $self->{capabilities}->{file_transfer};
+	$caps .= OSCAR_CAPS()->{filexfer}->{value} if $self->{capabilities}->{file_transfer};
+	$caps .= OSCAR_CAPS()->{fileshare}->{value} if $self->{capabilities}->{file_sharing};
 
 	return $caps;
 }
@@ -2226,7 +2261,17 @@ should be called in both cases, or "deleted" if the connection has been deleted.
 C<CONNECTION> is a C<Net::OSCAR::Connection> object.
 
 Users of this callback may also be interested in the L<"get_filehandle">
-method of C<Net::OSCAR::Connection>.
+method of C<Net::OSCAR::Connection>, and the L<"register_timer"> callback.
+
+=item register_timer (OSCAR, TIME, CODEREF, DATA)
+
+This will be called when Net::OSCAR wants to do something later.  Currently,
+this is used by C<Net::OSCAR::Connection::Direct::Listener> in order to close
+the listening socket after a certain period of inactivity.  C<TIME> is the
+B<minimum> time (in "seconds since Jan 1st, 1970" format) at which you should
+call C<CODEREF>.  You may call C<CODEREF> at your convenience, but no sooner
+than C<TIME>.  C<DATA> is a listref to pass to C<CODEREF>.
+To call the C<CODEREF>, you can do C<$coderef->(@$data);>.
 
 =cut
 

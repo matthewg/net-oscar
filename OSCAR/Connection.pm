@@ -22,19 +22,16 @@ if($^O eq "MSWin32") {
 	eval '*O_NONBLOCK = sub {0}; ';
 }
 
-sub new($$$$$$) { # Think you got enough parameters there, Chester?
-	my $class = ref($_[0]) || $_[0] || "Net::OSCAR::Connection";
-	shift;
-	my $self = { };
+sub new($@) {
+	my($class, %data) = @_;
+	$class = ref($class) || $class || "Net::OSCAR::Connection";
+	my $self = { %data };
 	bless $self, $class;
 	$self->{seqno} = 0;
-	$self->{session} = shift;
-	$self->{auth} = shift;
-	$self->{conntype} = shift;
-	$self->{description} = shift;
 	$self->{paused} = 0;
 	$self->{outbuff} = "";
-	$self->connect(shift);
+	$self->{state} ||= "write";
+	$self->connect($self->{peer}) if $self->{peer};
 
 	return $self;
 }
@@ -79,8 +76,10 @@ sub flap_put($;$$) {
 		$emsg = substr($self->{outbuff}, 0, $nchars, "");
 		if($self->{outbuff}) {
 			$self->log_print(OSCAR_DBG_NOTICE, "Couldn't do complete write - had to buffer ", length($self->{outbuff}), " bytes.");
+			$self->{state} = "readwrite";
 			$self->{session}->callback_connection_changed($self, "readwrite");
 		} elsif($had_outbuff) {
+			$self->{state} = "read";
 			$self->{session}->callback_connection_changed($self, "read");
 		}
 		$self->log_print(OSCAR_DBG_PACKETS, "Put ", hexdump($emsg));
@@ -321,6 +320,7 @@ sub process_one($;$$$) {
 	if($write && !$self->{connected}) {
 		$self->log_print(OSCAR_DBG_NOTICE, "Connected.");
 		$self->{connected} = 1;
+		$self->{state} = "read";
 		$self->{session}->callback_connection_changed($self, "read");
 		return 1;
 	} elsif($read && !$self->{ready}) {

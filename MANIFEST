@@ -17,3 +17,5 @@ OSCAR/Screenname.pm
 OSCAR/TLV.pm
 OSCAR/OldPerl.pm
 OSCAR/Proxy.pm
+OSCAR/Connection/Direct.pm
+OSCAR/Connection/Direct/Listener.pm

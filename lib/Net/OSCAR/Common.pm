@@ -56,7 +56,7 @@ require Exporter;
 		VISMODE_PERMITALL VISMODE_DENYALL VISMODE_PERMITSOME VISMODE_DENYSOME VISMODE_PERMITBUDS RATE_CLEAR RATE_ALERT RATE_LIMIT RATE_DISCONNECT
 		TYPINGSTATUS_STARTED TYPINGSTATUS_TYPING TYPINGSTATUS_FINISHED
 		FLAP_CHAN_NEWCONN FLAP_CHAN_SNAC FLAP_CHAN_ERR FLAP_CHAN_CLOSE
-		CONNTYPE_LOGIN CONNTYPE_BOS CONNTYPE_ADMIN CONNTYPE_CHAT CONNTYPE_CHATNAV CONNTYPE_ICON
+		CONNTYPE_LOGIN CONNTYPE_BOS CONNTYPE_ADMIN CONNTYPE_CHAT CONNTYPE_CHATNAV CONNTYPE_ICON CONNTYPE_DIRECT
 		MODBL_ACTION_ADD MODBL_ACTION_DEL MODBL_WHAT_BUDDY MODBL_WHAT_GROUP MODBL_WHAT_PERMIT MODBL_WHAT_DENY
 		GROUPPERM_OSCAR GROUPPERM_AOL OSCAR_SVC_AIM OSCAR_SVC_ICQ
 		OSCAR_CAPS OSCAR_CAPS_INVERSE OSCAR_TOOLDATA
@@ -113,6 +113,8 @@ use constant CONNTYPE_ADMIN => dualvar(0x7, "administrative service");
 use constant CONNTYPE_CHAT => dualvar(0xE, "chat connection");
 use constant CONNTYPE_CHATNAV => dualvar(0xD, "chat navigator");
 use constant CONNTYPE_ICON => dualvar(0x10, "icon service");
+use constant CONNTYPE_DIRECT_IN => dualvar(0xfe, "direct connect listener");
+use constant CONNTYPE_DIRECT_OUT => dualvar(0xff, "direct connect connection");
 
 use constant MODBL_ACTION_ADD => 0x1;
 use constant MODBL_ACTION_DEL => 0x2;
@@ -174,9 +176,9 @@ use constant OSCAR_CAPS => {
 		"0x09 0x46 0x00 0x00 0x4c 0x7f 0x11 0xd1 0x82 0x22 0x44 0x45 0x53 0x54 0x00 0x00"))},
 	buddyicon => {description => "buddy icons", value => pack("C*", map{hex($_)} split(/[ \t\n]+/,
 		"0x09 0x46 0x13 0x46 0x4c 0x7f 0x11 0xd1 0x82 0x22 0x44 0x45 0x53 0x54 0x00 0x00"))},
-	getfile => {description => "receiving file transfers", value => pack("C*", map{hex($_)} split(/[ \t\n]+/,
+	fileshare => {description => "file sharing", value => pack("C*", map{hex($_)} split(/[ \t\n]+/,
 		"0x09 0x46 0x13 0x48 0x4c 0x7f 0x11 0xd1 0x82 0x22 0x44 0x45 0x53 0x54 0x00 0x00"))},
-	sendfile => {description => "sending file transfers", value => pack("C*", map{hex($_)} split(/[ \t\n]+/,
+	filexfer => {description => "file transfers", value => pack("C*", map{hex($_)} split(/[ \t\n]+/,
 		"0x09 0x46 0x13 0x43 0x4c 0x7f 0x11 0xd1 0x82 0x22 0x44 0x45 0x53 0x54 0x00 0x00"))},
         secureim => {description => "encrypted IM", value => pack("C*", map{hex($_)} split(/[ \t\n,]+/,
 		"0x09, 0x46, 0x00, 0x01, 0x4c, 0x7f, 0x11, 0xd1, 0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00"))},
