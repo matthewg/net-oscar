@@ -275,11 +275,15 @@ sub process_snac($$) {
 		#$connection->snac_put(family => 0x13, subtype => 0x7);
 	} elsif($family == 0x13 and $subtype == 0x6) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got buddylist.");
-		delete $session->{gotbl};
+		if($snac->{flags2}) {
+			$connection->log_print(OSCAR_DBG_SIGNON, "Buddylist had flags2 == $snac->{flags2} - ignoring.");
+		} else {
+			delete $session->{gotbl};
 
-		return unless Net::OSCAR::_BLInternal::blparse($session, $data);
-		$connection->snac_put(family => 0x13, subtype => 0x7);
-		got_buddylist($session, $connection);
+			return unless Net::OSCAR::_BLInternal::blparse($session, $data);
+			$connection->snac_put(family => 0x13, subtype => 0x7);
+			got_buddylist($session, $connection);
+		}
 	} elsif($family == 0x13 and $subtype == 0x0E) {
 		$session->{budmods}--;
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got blmod ack ($session->{budmods} left).");
