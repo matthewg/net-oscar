@@ -137,46 +137,6 @@ sub snac_dump($$) {
 	return "family=".$snac->{family}." subtype=".$snac->{subtype};
 }
 
-sub tlv_decode($$;$) {
-	my($self, $tlv, $tlvcnt) = @_;
-	my($type, $len, $value, %retval);
-	my $currtlv = 0;
-	my $strpos = 0;
-
-	tie %retval, "Net::OSCAR::TLV";
-
-	while(length($tlv) >= 4 and (not $tlvcnt or $currtlv < $tlvcnt)) {
-		($type, $len) = unpack("nn", $tlv);
-		$len = 0x2 if $type == 0x13;
-		$strpos += 4;
-		substr($tlv, 0, 4) = "";
-		if($len) {
-			($value) = substr($tlv, 0, $len, "");
-		} else {
-			$value = "";
-		}
-		$strpos += $len;
-		$currtlv++ unless $type == 0;
-		$retval{$type} = $value;
-		$self->debug_print(sprintf "\t<TLV 0x%04X: %s", $type, hexdump($value));
-	}
-
-	return $tlvcnt ? (\%retval, $strpos) : \%retval;
-}
-
-sub tlv_encode($$) {
-	my($self, $tlv) = @_;
-	my($buffer, $type, $value) = ("", 0, "");
-
-	confess "You must use a tied Net::OSCAR::TLV hash!" unless ref($tlv) eq "HASH" and tied(%$tlv)->isa("Net::OSCAR::TLV");
-	while (($type, $value) = each %$tlv) {
-		$buffer .= pack("nna*", $type, length($value), $value);
-		$self->debug_print(sprintf "\t>TLV 0x%04X: %s", $type, hexdump($value));
-
-	}
-	return $buffer;
-}
-
 sub encode_password($$$) {
 	my($self, $password, $key) = @_;
 	my $md5 = Digest::MD5->new;
