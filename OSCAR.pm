@@ -665,6 +665,7 @@ sub extract_userinfo($$) {
 	my $tlvcnt;
 
 	($retval->{screenname}, $retval->{evil}, $tlvcnt) = unpack("C/a* n n", $data);
+	$retval->{evil} /= 10;
 	substr($data, 0, 5+length($retval->{screenname})) = "";
 	$self->debug_print("Decoding userinfo TLV with tlvcnt $tlvcnt.");
 

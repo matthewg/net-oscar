@@ -132,8 +132,6 @@ sub buddy_info($$$$) {
 	$extra .= " [FREE]" if $buddat->{free};
 	$extra .= " [AWAY]" if $buddat->{away};
 
-	$buddat->{evil} /= 10;
-
 	my $profile = "";
 	if($buddat->{awaymsg}) {
 		$profile = <<EOF
