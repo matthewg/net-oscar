@@ -263,7 +263,7 @@ sub process_snac($$) {
 
 		$session->callback_evil($newevil, $enemy->{screenname});
 	} elsif($family == 0x4 and $subtype == 0xC) {
-		$connection->log_print("Got IM ack $reqid.");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Got IM ack $reqid.");
 		my($reqid) = unpack("xxxx N", $data);
 		delete $session->{cookies}->{$reqid};
 	} elsif($family == 0x1 and $subtype == 0x1F) {
