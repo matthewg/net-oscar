@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = 0.09;
+$VERSION = 0.25;
 
 =head1 NAME
 
@@ -1885,6 +1885,66 @@ of C<Net::OSCAR::Connection>, not C<Net::OSCAR>.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+0.25, 2001-11-26
+
+=over 4
+
+=item *
+
+Net::OSCAR is now in beta!
+
+=item *
+
+We now work with perl 5.005 and even 5.004
+
+=item *
+
+Try to prevent weird Net::OSCAR::Screenname bug where perl gets stuck in Perl_sv_2bool
+
+=item *
+
+Fixed problems with setting visibility mode and adding to deny list (thanks, Philip)
+
+=item *
+
+Added some methods to allow us to be POE-ified
+
+=item *
+
+Added guards around a number of methods to prevent the user from trying to do stuff before s/he's finished signing on.
+
+=item *
+
+Fix *incredibly* stupid error in NO_to_BLI that ate group names
+
+=item *
+
+Fixed bad bug in log_printf
+
+=item *
+
+Buddylist error handling changes
+
+=item *
+
+Added chat_decline command
+
+=item *
+
+Signon, signoff fixes
+
+=item *
+
+Allow AOL screennames to sign on
+
+=item *
+
+flap_get crash fixes
+
+=back
 
 =item *
 

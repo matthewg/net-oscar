@@ -1,6 +1,6 @@
 package Net::OSCAR::Screenname;
 
-$VERSION = 0.09;
+$VERSION = 0.25;
 
 use strict;
 use vars qw($VERSION);
