@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-use Test::More tests => 25;
+use Test::More tests => 26;
 use File::Basename;
 use strict;
 use lib "./blib/lib";
@@ -20,6 +20,7 @@ is_deeply([sort keys(%Net::OSCAR::XML::xmlmap)], [sort qw(
 		just_data
 		fixed_value
 		fixed_value_data
+		null_terminated_data
 		length_prefix
 		vax_prefix
 		repeated_data
@@ -80,6 +81,11 @@ is_deeply(
 	[protoparse($oscar, "fixed_value_data")],
 	[{type => 'data', value => 'foo'}],
 	"fixed-value data"
+);
+is_deeply(
+	[protoparse($oscar, "null_terminated_data")],
+	[{type => 'data', value => 'foo', null_terminated => 1}],
+	"null-terminated data"
 );
 
 is_deeply(
@@ -158,6 +164,10 @@ is_deeply(
 				{type => 'num', len => 4, packlet => 'N', value => 1793},
 				{type => 'num', name => 'baz', len => 1, packlet => 'C'}
 			]
+		},{
+			type => 'data',
+			num => 2,
+			items => [{type => 'data', name => 'buzz'}]
 		}
 	]}],
 	"TLV chain, complex data"

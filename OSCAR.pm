@@ -2005,6 +2005,7 @@ This is normally 4 but can be 5 for certain chatrooms.
 ICQ support isn't nearly as well-tested as AIM support, and ICQ-specific
 features aren't being particularly actively developed.  Patches for ICQ-isms
 are welcome.  The initial patch enabling us to sign on to ICQ was provided by Sam Wong.
+See L<ICQ-SPECIFIC INFORMATION> below.
 
 =head1 CONSTANTS
 
@@ -2268,6 +2269,218 @@ Some keys; namely, C<typing_status> and C<icon_checksum>, may be available for p
 who the user has communicated with but who are not on the user's buddylist.
 
 =cut
+
+
+=pod
+
+=head1 ICQ-SPECIFIC INFORMATION
+
+=head2 METHODS
+
+=over 4
+
+=item get_icq_info (UIN)
+
+Requests ICQ-specific information.  See also the L<"icq_info"> callback.
+
+=cut
+
+sub get_icq_info($$) {
+	my($self, $uin) = @_;
+
+	$self->{icq_meta_info_cache} = {};
+	$self->svcdo(CONNTYPE_BOS, protobit => "ICQ meta request", protodata => {
+		our_uin => $self->{screenname},
+		type => 2000,
+		seqno => ++$self->{bos}->{icq_seqno},
+		typedata => protoparse($self, "ICQ meta info request")->pack(uin => $uin)
+	});
+}
+
+=pod
+
+=back
+
+=head2 CALLBACKS
+
+=over 4
+
+=item buddy_icq_info (OSCAR, UIN, ICQ DATA)
+
+The result of a L<"get_icq_info"> call.  Data is a hashref with the following keys, the value
+of each key is a either a hashref or undefined:
+
+=over 4
+
+=item basic
+
+=over 4 
+
+=item nickname
+
+=item firstname
+
+=item lastname
+
+=item email
+
+=item gmt_offset
+
+=item authorization
+
+=item web_aware
+
+=item direct_connect_permissions
+
+=item publish_primary_email
+
+=back
+
+=item home
+
+=over 4
+
+=item city
+
+=item state
+
+=item phone_num
+
+=item fax_num
+
+=item address
+
+=item cell_phone_num
+
+=item zip_code
+
+=item country_code
+
+=back
+
+=item office
+
+=over 4
+
+=item city
+
+=item state
+
+=item phone_num
+
+=item fax_num
+
+=item address
+
+=item zip_code
+
+=item country_code
+
+=item company
+
+=item department
+
+=item position
+
+=item occupation
+
+=item office_website
+
+=back
+
+=item background
+
+=over 4
+
+=item age
+
+=item gender
+
+=item homepage
+
+=item birth_year
+
+=item birth_month
+
+=item birth_day
+
+=item spoken_languages
+
+This key is a listref containing the langauges the user speaks.
+
+=item origin_city
+
+=item origin_state
+
+=item origin_country
+
+=item marital_status
+
+=back
+
+=item notes
+
+This key is a simple scalar.
+
+=item email_addresses
+
+This key is a listref, each element of which is a hashref with the following keys:
+
+=over 4
+
+=item publish
+
+=item address
+
+=back
+
+=item interests
+
+This key is a listref, each element of which is a hashref with the following keys:
+
+=over 4
+
+=item category
+
+=item interest
+
+=back
+
+=item past_affiliations
+
+This key is a listref, each element of which is a hashref with the following keys:
+
+=over 4
+
+=item category
+
+=item affiliation
+
+=back
+
+=item present_affiliations
+
+As per above.
+
+=item homepage
+
+=over 4
+
+=item category
+
+=item keywords
+
+=back
+
+=back
+
+=cut
+
+sub callback_buddy_icq_info(@) { do_callback("buddy_icq_info", @_); }
+sub set_callback_buddy_icq_info($\&) { set_callback("buddy_icq_info", @_); }
+
+
+=pod
 
 =head1 ADVANCED TOPICS
 

@@ -87,6 +87,7 @@
 	length CDATA #IMPLIED
 	count CDATA #IMPLIED
 	default_generate (yes|no) #DEFAULT no
+	null_terminated (yes|no) #DEFAULT no
 >
 
 <!ELEMENT tlvchain (tlv*)>

@@ -39,6 +39,10 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		data => {},
 		template => "fixed_value_data"
 	},{
+		binary => "foo" . chr(0),
+		data => {},
+		template => "null_terminated_data"
+	},{
 		binary => pack("na*", length("Cthulhu"), "Cthulhu"),
 		data => {x => "Cthulhu"},
 		template => "length_prefix"

@@ -658,5 +658,136 @@
 			<tlv type="18"><data name="oldpass" /></tlv>
 		</tlvchain>
 	</define>
+
+
+	<!-- ICQ -->
+
+	<define name="ICQ meta">
+		<tlvchain>
+			<tlv type="1">
+				<data length_prefix="word" prefix_order="vax" >
+					<dword name="our_uin" order="vax" />
+					<word name="type" order="vax" />
+					<word name="seqno" order="vax" />
+					<data name="typedata" />
+				</data>
+			</tlv>
+		</tlvchain>
+	</define>
+	<define name="ICQ meta request" family="21" subtype="2"><ref name="ICQ meta" /></define>
+	<define name="ICQ meta response" family="21" subtype="3"><ref name="ICQ meta" /></define>
+
+	<!-- Type 2000 -->
+	<define name="ICQ meta info request">
+		<word name="subtype" order="vax">1202</word>
+		<dword name="uin" order="vax" />
+	</define>
+
+
+	<!-- Type 2010 -->
+	<define name="ICQ meta info response">
+		<word name="subtype" order="vax" />
+
+		<!-- 10 == success -->
+		<byte name="status" />
+
+		<data name="response_data" />
+	</define>
+
+	<!-- Type 2010 subtypes -->
+
+	<!-- 200 -->
+	<define name="ICQ meta info response: basic">
+		<data name="nickname" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<data name="firstname" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<data name="lastname" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<data name="email" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+
+		<data name="home">
+			<data name="city" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+			<data name="state" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+			<data name="phone_num" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+			<data name="fax_num" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+			<data name="address" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+			<data name="cell_phone_num" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+			<data name="zip_code" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+			<word name="country_code" order="vax" />
+		</data>
+
+		<byte name="gmt_offset" />
+		<byte name="authorization" />
+		<byte name="web_aware" />
+		<byte name="direct_connect_permissions" />
+		<byte name="publish_primary_email" />
+	</define>
+	<!-- 210 -->
+	<define name="ICQ meta info response: office">
+		<data name="city" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<data name="state" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<data name="phone_num" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<data name="fax_num" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<data name="address" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<data name="zip_code" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<word name="country_code" order="vax" />
+
+		<data name="company" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<data name="department" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<data name="position" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<word name="occupation" order="vax" />
+		<data name="office_website" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+	</define>
+	<!-- 220 -->
+	<define name="ICQ meta info response: background">
+		<word name="age" order="vax" />
+		<byte name="gender" />
+		<data name="homepage" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<word name="birth_year" order="vax" />
+		<byte name="birth_month" />
+		<byte name="bith_day" />
+		<byte name="language_1" />
+		<byte name="language_2" />
+		<byte name="language_3" />
+		<word />
+		<data name="origin_city" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<data name="origin_state" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<word name="origin_country" order="vax" />
+		<byte name="marital_status" />
+	</define>
+	<!-- 230 -->
+	<define name="ICQ meta info response: notes">
+		<data name="notes" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+	</define>
+	<!-- 235 -->
+	<define name="ICQ meta info response: email">
+		<data count_prefix="byte" name="addresses">
+			<byte name="publish" />
+			<data name="address" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		</data>
+	</define>
+	<!-- 240 -->
+	<define name="ICQ meta info response: interests">
+		<data count_prefix="byte" name="interests">
+			<word name="category" order="vax" />
+			<data name="interest" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		</data>
+	</define>
+	<!-- 250 -->
+	<define name="ICQ meta info response: affiliations">
+		<data count_prefix="byte" name="past_affiliations">
+			<word name="category" order="vax" />
+			<data name="keyword" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		</data>
+		<data count_prefix="byte" name="affiliations">
+			<word name="category" order="vax" />
+			<data name="keyword" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		</data>
+	</define>
+	<!-- 270 -->
+	<define name="ICQ meta info response: homepage">
+		<byte name="enabled" />
+		<word name="category" order="vax" />
+		<data name="keywords" length_prefix="word" prefix_order="vax" null_terminated="yes" />
+		<byte />
+	</define>
 </oscar>
 

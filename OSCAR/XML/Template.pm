@@ -131,9 +131,12 @@ sub unpack($$) {
 					}
 
 					if(@{$datum->{items}}) {
+						assert(!$datum->{null_terminated});
 						(%tmp) = $self->new($datum->{items})->unpack(\$subinput);
 						$input = $subinput unless $datum->{len};
 					} else {
+						$subinput =~ s/\0$// if $datum->{null_terminated};
+
 						# The simple case -- raw <data />
 						push @results, $subinput if $datum->{name};
 					}
@@ -334,6 +337,8 @@ sub pack($%) {
 				} else {
 					$output .= $val if defined($val);
 				}
+
+				$output .= chr(0) if $datum->{null_terminated};
 			}
 		} elsif($datum->{type} eq "tlvchain") {
 			foreach my $tlv (@{$datum->{items}}) {

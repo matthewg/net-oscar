@@ -245,6 +245,10 @@ sub stealth_changed($$) {
 	print "Stealth state changed to $stealth_state.\n";
 }
 
+sub buddy_icq_info($$$) {
+	my($oscar, $uin, $info) = @_;
+	print "Got ICQ info for $uin: " . Data::Dumper::Dumper($info) . "\n";
+}
 
 my $loglevel = undef;
 my $do_md5 = 0;
@@ -302,6 +306,8 @@ $oscar->set_callback_signon_done(\&signon_done);
 $oscar->set_callback_auth_challenge(\&auth_challenge);
 $oscar->set_callback_im_ok(\&im_ok);
 $oscar->set_callback_stealth_changed(\&stealth_changed);
+$oscar->set_callback_buddy_icq_info(\&buddy_icq_info);
+
 $oscar->loglevel($loglevel) if defined($loglevel);
 if($do_md5) {
 	$oscar->signon(screenname => $screenname, password => undef, stealth => $stealth);
@@ -343,6 +349,7 @@ add/remove_permit/deny buddies
 send screenname msg
 ====buddies====
 info screenname
+icq_info screenname
 awaymsg screenname
 add_buddy group screennames
 remove_buddy group screennames
@@ -408,6 +415,9 @@ EOF
 		} elsif($cmd eq "info") {
 			print "Requesting buddy info...\n";
 			$oscar->get_info($params[0]);
+		} elsif($cmd eq "icq_info") {
+			print "Requesting ICQ info...\n";
+			$oscar->get_icq_info($params[0]);
 		} elsif($cmd eq "awaymsg") {
 			print "Requesting away message...\n";
 			$oscar->get_away($params[0]);

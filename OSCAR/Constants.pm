@@ -22,6 +22,8 @@ require Exporter;
 	MODBL_ACTION_ADD MODBL_ACTION_DEL MODBL_WHAT_BUDDY MODBL_WHAT_GROUP MODBL_WHAT_PERMIT MODBL_WHAT_DENY
 	OSCAR_CAPS OSCAR_CAPS_INVERSE OSCAR_TOOLDATA
 	GROUP_PERMIT GROUP_DENY BUDTYPES ERRORS
+
+	ICQ_META_INFO ICQ_META_INFO_INVERSE
 );
 
 
@@ -156,5 +158,18 @@ Unknown error 27
 Unknown error 28
 There have been too many recent signons from this address.  Please wait a few minutes and try again.
 EOF
+
+
+use constant ICQ_META_INFO => {
+	basic => 200,
+	office => 210,
+	background => 220,
+	notes => 230,
+	email => 235,
+	interests => 240,
+	affiliations => 250,
+	homepage => 270
+};
+use constant ICQ_META_INFO_INVERSE => { map { ICQ_META_INFO()->{$_} => $_ } keys %{ICQ_META_INFO()} };
 
 1;

@@ -23,6 +23,7 @@
 	<!-- Fixed values -->
 	<define name="fixed_value"><word>123</word></define>
 	<define name="fixed_value_data"><data>foo</data></define>
+	<define name="null_terminated_data"><data null_terminated="yes">foo</data></define>
 
 	<!-- Length prefixes, counts -->
 	<define name="length_prefix"><data length_prefix="word" name="x" /></define>
