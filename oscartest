@@ -213,13 +213,9 @@ $oscar->signon($username, $password);
 my $inline = "";
 my $inchar = "";
 while(1) {
-	my $rin = '';
-	foreach my $socket($oscar->connections) {
-		vec($rin, fileno $socket, 1) = 1;
-	};
-	my $win = $rin;
+	my($rin, $win) = $oscar->selector_filenos();
 	vec($rin, 0, 1) = 1;
-	my $ein = $rin;
+	my $ein = $rin | $win;
 	select($rin, $win, $ein, 0.01);
 	$oscar->process_connections(\$rin, \$win, \$ein);
 	next unless vec($rin, 0, 1);
