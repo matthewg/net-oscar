@@ -98,12 +98,12 @@ use constant FLAP_CHAN_SNAC => dualvar(0x02, "SNAC");
 use constant FLAP_CHAN_ERR => dualvar(0x03, "error");
 use constant FLAP_CHAN_CLOSE => dualvar(0x04, "close connection");
 
-use constant CONNTYPE_LOGIN => dualvar(0, "login");
-use constant CONNTYPE_BOS => dualvar(0x2, "BOS");
-use constant CONNTYPE_ADMIN => dualvar(0x7, "admin");
-use constant CONNTYPE_CHAT => dualvar(0xE, "chat");
-use constant CONNTYPE_CHATNAV => dualvar(0xD, "ChatNav");
-use constant CONNTYPE_ICON => dualvar(0x10, "icon");
+use constant CONNTYPE_LOGIN => dualvar(0, "login service");
+use constant CONNTYPE_BOS => dualvar(0x2, "basic OSCAR services");
+use constant CONNTYPE_ADMIN => dualvar(0x7, "administrative service");
+use constant CONNTYPE_CHAT => dualvar(0xE, "chat connection");
+use constant CONNTYPE_CHATNAV => dualvar(0xD, "chat navigator");
+use constant CONNTYPE_ICON => dualvar(0x10, "icon service");
 
 use constant MODBL_ACTION_ADD => 0x1;
 use constant MODBL_ACTION_DEL => 0x2;
@@ -145,13 +145,13 @@ use constant OSCAR_SVC_AIM => (
 use constant OSCAR_SVC_ICQ => ( # Courtesy of SDiZ Cheng
 	host => 'login.icq.com',
 	port => 5190,
-	supermajor => 266,
-	major => 4,
-	minor => 63,
-	subminor => 1,
-	build => 3279,
-	subbuild => 85,
-	clistr => "ICQ Inc. - Product of ICQ (TM).200b.4.63.1.3279.85",
+	supermajor => 0x010A,
+	major => 5,
+	minor => 0x2D,
+	subminor => 0,
+	build => 0xEC1,
+	subbuild => 0x55,
+	clistr => "ICQ Inc. - Product of ICQ (TM).2003a.5.45.1.3777.85",
 	hashlogin => 1,
 );
 
