@@ -125,6 +125,9 @@ sub unpack($$) {
 					my $subinput;
 					if($datum->{len}) {
 						$subinput = substr($input, 0, $datum->{len}, "");
+					} elsif($datum->{null_terminated}) {
+						$input =~ s/^(.*?)\0//;
+						$subinput = $1;
 					} else {
 						$subinput = $input;
 						$input = "";
@@ -147,6 +150,8 @@ sub unpack($$) {
 				push @results, \%tmp if %tmp;
 			}
 		} elsif($datum->{type} eq "tlvchain") {
+			my @unknown;
+
 			## First set up a hash to store the data for each TLV, grouped by (sub)type
 			##
 			my $tlvmap = tlv();
@@ -169,24 +174,54 @@ sub unpack($$) {
 					(%tlv) = protoparse($oscar, "TLV")->unpack(\$input);
 				}
 
+				my $unknown = 0;
+				if(!exists($tlvmap->{$tlv{type}})) {
+					$tlvmap->{$tlv{type}} = $datum->{subtyped} ? tlv() : {};
+					$unknown = 1;
+				}				
+
 				assert(!exists($tlv{name})) if exists($tlv{count});
 				if($datum->{subtyped}) {
 					assert(exists($tlv{subtype}));
 
-					if(!exists($tlvmap->{$tlv{type}}->{$tlv{subtype}}) and exists($tlvmap->{$tlv{type}}->{-1})) {
-						$tlv{subtype} = -1;
+					if(!exists($tlvmap->{$tlv{type}}->{$tlv{subtype}})) {
+						if(exists($tlvmap->{$tlv{type}}->{-1})) {
+							$tlv{subtype} = -1;
+						} else {
+							$tlvmap->{$tlv{type}}->{$tlv{subtype}} = {};
+							$unknown = 1;
+						}
 					}
-					$tlvmap->{$tlv{type}}->{$tlv{subtype}}->{data} ||= [];
-					$tlvmap->{$tlv{type}}->{$tlv{subtype}}->{outdata} ||= [];
 
-					$tlv{data} = "" if !defined($tlv{data});
-					push @{$tlvmap->{$tlv{type}}->{$tlv{subtype}}->{data}}, $tlv{data};
+					if(!$unknown) {
+						my $type = $tlv{type};
+						my $subtype = $tlv{subtype};
+						$tlvmap->{$type}->{$subtype}->{data} ||= [];
+						$tlvmap->{$type}->{$subtype}->{outdata} ||= [];
+
+						$tlv{data} = "" if !defined($tlv{data});
+						push @{$tlvmap->{$type}->{$subtype}->{data}}, $tlv{data};
+					} else {
+						push @unknown, {
+							type => $tlv{type},
+							subtype => $tlv{subtype},
+							data => $tlv{data}
+						};
+					}
 				} else {
-					$tlvmap->{$tlv{type}}->{data} ||= [];
-					$tlvmap->{$tlv{type}}->{outdata} ||= [];
+					if(!$unknown) {
+						my $type = $tlv{type};
+						$tlvmap->{$type}->{data} ||= [];
+						$tlvmap->{$type}->{outdata} ||= [];
 
-					$tlv{data} = "" if !defined($tlv{data});
-					push @{$tlvmap->{$tlv{type}}->{data}}, $tlv{data};
+						$tlv{data} = "" if !defined($tlv{data});
+						push @{$tlvmap->{$tlv{type}}->{data}}, $tlv{data};
+					} else {
+						push @unknown, {
+							type => $tlv{type},
+							data => $tlv{data}
+						};
+					}
 				}
 			}
 
@@ -211,7 +246,6 @@ sub unpack($$) {
 			##
 			foreach my $val (@outvals) {
 				foreach (@{$val->{data}}) {
-					next unless $val->{items};
 					my(%tmp) = $self->new($val->{items})->unpack($_);
 					# We want:
 					#   <tlv type="1"><data name="x" /></tlv>
@@ -256,6 +290,8 @@ sub unpack($$) {
 					}
 				}
 			}
+
+			push @results, {__UNKNOWN => [@unknown]} if @unknown;
 		}
 
 
