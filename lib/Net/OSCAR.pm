@@ -1084,7 +1084,7 @@ sub send_im($$$;$) {
 		$packet .= tlv_encode(tlv(3 => "")); #request server confirmation
 	}
 
-	if($self->{capabilities}->{buddy_icons} and $self->{icon} and
+	if($self->{capabilities}->{buddy_icons} and $self->{icon_checksum} and $self->{icon_timestamp} and
 		(!exists($self->{userinfo}->{$to}) or
 		!exists($self->{userinfo}->{to}->{icon_timestamp_received}) or
 		$self->{icon_timestamp} > $self->{userinfo}->{$to}->{icon_timestamp_received})
@@ -1305,6 +1305,16 @@ sub set_extended_status($$) {
 Sets the user's profile.  Call L<"commit_buddylist"> to have
 the new profile stored on the OSCAR server.
 
+Note that if the user's profile was previously set with Net::OSCAR,
+it will be stored in the server-side buddylist, and so this method will
+not have to be called every time the user signs on.  However, other clients
+do not store the profile on the server, so if the user previously
+set a profile with a non-Net::OSCAR-based client, this method will
+need to be called in order for the user's profile to be set.
+
+See the file C<PROTOCOL>, included with the C<Net::OSCAR> distribution,
+for details of how we're storing this data.
+
 =cut
 
 sub set_info($$;$) {
@@ -1340,6 +1350,16 @@ with the C<buddy_icons> capability to use this.  C<ICONDATA> must be less
 than 4kb, should be 48x48 pixels, and should be BMP, GIF, or JPEG image data.
 You must call L<commit_buddylist> for this change to take effect.  If
 C<ICONDATA> is the empty string, the user's buddy icon will be removed.
+
+Note that if the user's buddy icon was previously set with Net::OSCAR,
+enough data will be stored in the server-side buddylist that this will
+not have to be called every time the user signs on.  However, other clients
+do not store the extra data in the buddylist, so if the user previously
+set a buddy icon with a non-Net::OSCAR-based client, this method will
+need to be called in order for the user's buddy icon to be set properly.
+
+See the file C<PROTOCOL>, included with the C<Net::OSCAR> distribution,
+for details of how we're storing this data.
 
 =cut
 

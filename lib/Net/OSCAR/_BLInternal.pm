@@ -97,10 +97,14 @@ sub BLI_to_NO($) {
 		my $groupperms = $typedata->{0xCB};
 		($session->{groupperms}) = unpack("N", $groupperms) if $groupperms;
 		$session->{profile} = $typedata->{0x0100} if exists($typedata->{0x0100});
+		($session->{icon_checksum}) = unpack("n", $typedata->{0x0101}) if exists($typedata->{0x0101});
+		($session->{icon_timestamp}) = unpack("N", $typedata->{0x0102}) if exists($typedata->{0x0102});
 
 		delete $typedata->{0xCB};
 		delete $typedata->{0xCA};
 		delete $typedata->{0x0100};
+		delete $typedata->{0x0101};
+		delete $typedata->{0x0102};
 		$session->{appdata} = $typedata;
 
 		$session->set_info($session->{profile}) if exists($session->{profile});
@@ -196,7 +200,12 @@ sub NO_to_BLI($) {
 	$vistype ||= int(rand(30000)) + 1;
 	$bli->{4}->{0}->{$vistype}->{data}->{0xCA} = pack("C", $session->{visibility} || VISMODE_PERMITALL);
 	$bli->{4}->{0}->{$vistype}->{data}->{0xCB} = pack("N", $session->{groupperms} || 0xFFFFFFFF);
+
+	#Net::OSCAR protocol extensions
 	$bli->{4}->{0}->{$vistype}->{data}->{0x0100} = $session->{profile} if $session->{profile};
+	$bli->{4}->{0}->{$vistype}->{data}->{0x0101} = pack("n", $session->{icon_checksum}) if $session->{icon_checksum};
+	$bli->{4}->{0}->{$vistype}->{data}->{0x0102} = pack("N", $session->{icon_timestamp}) if $session->{icon_timestamp};
+
 	foreach my $appdata(keys %{$session->{appdata}}) {
 		$bli->{4}->{0}->{$vistype}->{data}->{$appdata} = $session->{appdata}->{$appdata};
 	}
