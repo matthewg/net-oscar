@@ -685,8 +685,6 @@ sub extract_userinfo($$) {
 	($retval->{idle}) = unpack("n", $tlv->{4}) if exists($tlv->{4});
 	($retval->{capabilities}) = $tlv->{0xD};
 
-	($retval->{sessionlen}) = unpack("N", $retval->{aol} ? $tlv->{0x10} : $tlv->{0xF});
-
 	substr($data, 0, $chainlen) = "";
 
 	if($data) {

@@ -163,7 +163,6 @@ Buddy info for $screenname
 Flags: $extra
 Member Since: $membersince
 On Since: $onsince
-Session Length: $buddat->{sessionlen}
 Idle Time (secs): $buddat->{idle}
 Evil Level: $buddat->{evil}%
 $profile
