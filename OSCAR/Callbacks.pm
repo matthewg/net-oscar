@@ -41,11 +41,10 @@ sub process_snac($$) {
 
 		$connection->debug_print("Sending password.");
 
-		# We pretend to be the AIM 3.5.1670/Win32.
 		%tlv = (
 			0x01 => $session->{screenname},
 			0x25 => $connection->encode_password($connection->{auth}, $key),
-			0x03 => "AOL Instant Messenger (SM), version 4.3.2229/WIN32",
+			0x03 => "AOL Instant Messenger (SM), version ".MAJOR.".".MINOR.".".BUILD."/WIN32",
 			0x16 => pack("n", 0x109),
 			0x17 => pack("n", MAJOR),
 			0x18 => pack("n", MINOR),
@@ -287,7 +286,7 @@ sub process_snac($$) {
 		$connection->debug_print("Got buddylist 0x0006.");
 		my $tlvlen = 0;
 		my $tlv;
-		my $haspd = 0; # has permit/deny list
+		my $groupperms = 0;
 		my($flags, $flags2);
 		my @buddyqueue;
 
@@ -298,45 +297,46 @@ sub process_snac($$) {
 		$session->{visibility} = VISMODE_PERMITALL; # If we don't have p/d data, this is default.
 
 		($flags) = unpack("xn", substr($data, 0, 3, ""));
-		substr($data, 0, 6) = "" if substr($data, 0, 6) eq chr(0)x6;
 
 		while(length($data) > 4) {
-			my $type;
-			while(substr($data, 0, 4) eq chr(0)x4) {
-				substr($data, 0, 4) = "";
-			}
+			my($namelen, $gid, $id, $type);
 
-			($type) = unpack("n", substr($data, 0, 2));
-			if($type == 1) {
-				($tlvlen) = unpack("xx n", substr($data, 0, 4, ""));
-				substr($data, 0, $tlvlen) = "";
-			} elsif($type == 2) {
-				substr($data, 0, 4) = ""; #0x0002 0x0004?
-				($tlvlen) = unpack("n", substr($data, 0, 2, ""));
-				$tlv = $connection->tlv_decode(substr($data, 0, $tlvlen, ""));
-				($session->{visibility}) = unpack("C", $tlv->{0xCA});
-				$haspd = $tlv->{0xCB};
+			($namelen) = unpack("n", substr($data, 0, 2));
+			if($namelen == 0) {
+				substr($data, 0, 6) = "";
+				($type, $len) = unpack("nn", substr($data, 0, 4, ""));
+				my $typedata = substr($data, 0, $len, "");
 
-				$session->{haspd} = $haspd;
-				if(substr($data, 0, 4) eq chr(0)x4 and $haspd and $haspd eq chr(0xFF)x4) {
-					substr($data, 0, 8) = "";
-					($tlvlen) = unpack("n", substr($data, 0, 2, ""));
-					substr($data, 0, $tlvlen) = "";
+				if($type == 4) {
+					$tlv = $connection->tlv_decode($typedata);
+					($session->{visibility}) = unpack("C", $tlv->{0xCA});
+
+
+					$groupperms = $tlv->{0xCB};
+					($session->{groupperms}) = unpack("N", $groupperms);
+					$session->{profile} = $tlv->{0x0100} if exists($tlv->{0x0100});
+
+					delete $tlv->{0xCB};
+					delete $tlv->{0xCA};
+					delete $tlv->{0x0100};
+					$session->{appdata} = $tlv;
+
+					$session->set_info($session->{profile}) if exists($session->{profile});
+
+
+					if(substr($data, 0, 4) eq chr(0)x4 and $groupperms and $groupperms eq chr(0xFF)x4) {
+						substr($data, 0, 8) = "";
+						($tlvlen) = unpack("n", substr($data, 0, 2, ""));
+						substr($data, 0, $tlvlen) = "";
+					}
+				} elsif($type == 5) {
+					# Not yet implemented
+					$tlv = $connection->tlv_decode($typedata);
+					($session->{showidle}) = unpack("N", $tlv->{0xC9});
+				} else {
+					$self->debug_print("Got unknown BLTtype $type: ", hexdump($typedata));
 				}
 			} else {
-				# Test for buddy validity
-				my $addedbyte = 0;
-				if(substr($data, 0, 1) ne chr(0)) {
-					$addedbyte = 1;
-					$data = chr(0) . $data;
-				}
-				my($buddy) = unpack("n/a*", $data);
-				if($buddy =~ /[\x00-\x1F\x7F-\xFF]/) {
-					substr($data, 0, 2+length($buddy)) = "";
-					substr($data, 0, 1) = "" if $addedbyte;
-					next;
-				}
-
 				$buddy = get_buddy($session, \$data);
 				next unless $buddy;
 
