@@ -159,6 +159,9 @@ sub new($) {
 	$self->{permit} = $self->bltie();
 	$self->{deny} = $self->bltie();
 
+	$self->{appdata} = {};
+	tie %{$self->{appdata}}, "Net::OSCAR::TLV";
+
 	return $self;
 }
 
@@ -531,21 +534,105 @@ a chatroom.
 
 =cut
 
-sub set_visibility($$) {
-	my($self, $vismode) = @_;
+sub set_visibility($$;$) {
+	my($self, $vismode, $newgp) = @_;
 
 	$self->{vismode} = $vismode;
-	if(!$self->{haspd}) { # Contents of subTLV 0xCB in TLV 0x02 in SNAC 0x0013/0x0006
-		$self->{bos}->snac_put(family => 0x13, subtype => 0x08, data => chr(0xFF)x4);
-		$self->{haspd} = chr(0xFF) x 4;
+	$newgp ||= 0xFFFFFFFF;
+	if(!$self->{groupperms}) { # Contents of subTLV 0xCB in TLV 0x02 in SNAC 0x0013/0x0006
+		$self->{bos}->snac_put(family => 0x13, subtype => 0x08, data => pack("N", $newgp));
+		$self->{groupperms} = $newgp;
 	}
 	$self->{bos}->snac_put(family => 0x13, subtype => 0x9, data =>
-		pack("nnnn nnn Cnn a*", 0, 0, 2, 4, 
-					0xD, 0xCA, 1,
-					$vismode, 0xCB, length($self->{haspd}),
-					$self->{haspd})
+		pack("nnn a*", 0, 0, 2,
+			tlv(0x04 =>
+				tlv(0x0100 => $self->{profile}) .
+				tlv(0xCA => pack("C", $vismode) .
+				tlv(0xCB => pack("N", $self->{groupperms})) .
+				tlv(%{$self->{appdata}})
+			)
+		)
 	);
 }
+
+=pod
+
+=item set_group_permissions NEWPERMS
+
+Set group permissions.  This lets you block any OSCAR users or any AOL users.
+C<NEWPERMS> should be a list of zero or more of the following constants:
+
+=over 4
+
+=item GROUPPERM_OSCAR
+
+Permit AOL Instant Messenger users to contact you.
+
+=item GROUPPERM_AOL
+
+Permit AOL subscribers to contact you.
+
+=back
+
+=cut
+
+sub set_group_permissions($@) {
+	my($self, @perms) = @_;
+	my $perms = 0xFFFFFF00;
+
+	foreach my $perm (@perms) { $perms |= $perm; }
+	$self->set_visibility($self->visibility, $perms);
+}
+
+=pod
+
+=item group_permissions
+
+Returns current group permissions.  The return value is a list like the one
+that L<"set_group_permissions"> wants.
+
+=cut
+
+sub group_permissions($) {
+	my $self = shift;
+	my @retval = ();
+
+	foreach my $perm (GROUPPERM_OSCAR, GROUPPERM_AOL) {
+		push @retval, $perm if $self->{groupperms} & $perm;
+	}
+	return @retval;
+}
+
+=pod
+
+=item profile
+
+Returns your current profile.
+
+=cut
+
+sub profile($) { return shift->{profile}; }
+
+=pod
+
+=item get_app_data NUMBER
+
+Gets application-specific data.  NUMBER should be a long where the high-order byte
+is a number that you have reserved for your application and the low-order byte is
+the type of data.  High-order byte 0x01 is reserved for data not specific to any
+application.  This data is stored in your server-side buddylist and so will be persistent,
+even across machines.  Email C<libfaim-aim-protocol@lists.sourceforge.net> to reserve a
+high-order byte.
+
+=item set_app_data NUMBER VALUE
+
+See L<"get_app_data">.
+
+=cut
+
+sub get_app_data($$) { return shift->{appdata}->{shift}; }
+sub set_app_data($$$) { shift->{appdata}->{shift} = shift; }
+
 
 sub mod_permit($$$@) {
 	my($self, $action, $group, @buddies) = @_;
@@ -645,7 +732,13 @@ sub mod_buddylist($$$$;@) {
 		}
 		$packet .= pack("n", ($what == MODBL_WHAT_BUDDY) ? 0 : 1);
 		if($what == MODBL_WHAT_GROUP and $action == MODBL_ACTION_DEL) {
-			$packet .= pack("nnnn", 1, 4, 0xC8, 0);
+			$packet .= 
+				tlv(1 =>
+					tlv(4 =>
+						tlv(0xC8 => "")
+					)
+				)
+			;
 		} else {
 			$packet .= pack("n", 0);
 		}
@@ -687,18 +780,18 @@ sub modgroups($) {
 			$packet .= pack("na*", length($group), $group);
 			$packet .= pack("nn", $self->{buddies}->{$group}->{groupid}, 0);
 
-			my(%tlv, %subtlv);
-
-			tie %tlv, "Net::OSCAR::TLV";
-			tie %subtlv, "Net::OSCAR::TLV";
-
-			%subtlv = (
-				0xC8 => pack("n*", map { $self->{buddies}->{$group}->{members}->{$_}->{buddyid} } @members)
-			);
-			%tlv = (0x01 => $self->{bos}->tlv_encode(\%subtlv));
-			$packet .= $self->{bos}->tlv_encode(\%tlv);
+			$packet .=
+				tlv(1 =>
+					tlv(0xC8 => pack("n*", map { $self->{buddies}->{$group}->{members}->{$_}->{buddyid} } @members));
+				)
+			;
 		} else {
-			$packet .= pack("n*", 0, 0, 0, 1, 2*scalar keys %{$self->{buddies}}, 0xC8, 4, map { $_->{groupid} } grep { $_->{groupid} != 0xFFFF } values %{$self->{buddies}});
+			$packet .= pack("nnn", 0, 0, 0);
+			$packet .= 
+				tlv(1 =>
+					tlv(0xC8 => pack("n*", map { $_->{groupid} } values %{$self->{buddies}}))
+				)
+			;
 		}
 
 		$self->{bos}->snac_put(family => 0x13, subtype => 0x09, data => $packet);
@@ -794,13 +887,12 @@ sub send_im($$$;$) {
 	$packet .= pack("n", 1); # channel
 	$packet .= pack("Ca*", length($to), $to);
 
-	$packet .= pack("n5 C n C n3 a*", 2, length($msg)+16, 0x501, 4, 0x101, 1,
-		0x201, 1, length($msg)+4, 0, 0, $msg);
+	$packet .= tlv(2 => pack("n3 C n C n3 a*", 0x501, 4, 0x101, 1, 0x201, 1, length($msg)+4, 0, 0, $msg);
 
 	if($away) {
-		$packet .= pack("nn", 4, 0);
+		$packet .= tlv(4 => "");
 	} else {
-		$packet .= pack("nn", 3, 0); #request server confirmation
+		$packet .= tlv(3 => ""); #request server confirmation
 	}
 
 	$self->{bos}->snac_put(reqdata => $to, family => 0x4, subtype => 0x6, data => $packet);
@@ -948,6 +1040,7 @@ sub set_info($$;$) {
 	if($profile) {
 		$tlv{0x1} = ENCODING;
 		$tlv{0x2} = $profile;
+		$self->{profile} = $profile;
 	}
 
 	if(defined($awaymsg)) {
@@ -959,7 +1052,8 @@ sub set_info($$;$) {
 
 	$self->debug_print("Setting user information.");
 	$self->{bos}->snac_put(family => 0x02, subtype => 0x04, data => $self->{bos}->tlv_encode(\%tlv));
-}		
+	$self->set_visibility($self->visibility);
+}
 
 sub svcdo($$%) {
 	my($self, $service, %snac) = @_;
@@ -1054,7 +1148,7 @@ sub change_email($$) {
 		$self->callback_admin_error(ADMIN_TYPE_EMAIL_CHANGE, ADMIN_ERROR_REQPENDING);
 		return;
 	}
-	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => pack("nna*", 0x11, length($newmail), $newmail));
+	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv(0x11 => $nemail));
 }
 
 =pod
@@ -1074,7 +1168,7 @@ sub format_screenname($$) {
 		$self->callback_admin_error(ADMIN_TYPE_SCREENNAME_FORMAT, ADMIN_ERROR_REQPENDING);
 		return;
 	}
-	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => pack("nn a*", 1, length($newname), $newname));
+	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv(1 => $newname));
 }
 
 =pod
@@ -1582,6 +1676,10 @@ instance, an error message and an error number.)
 =item RATE_LIMIT
 
 =item RATE_DISCONNECT
+
+=item GROUPPERM_OSCAR
+
+=item GROUPPERM_AOL
 
 =back
 
