@@ -298,18 +298,19 @@ sub process_snac($$) {
 		$session->{visibility} = VISMODE_PERMITALL; # If we don't have p/d data, this is default.
 
 		($flags) = unpack("xn", substr($data, 0, 3, ""));
+		substr($data, 0, 6) = "" if substr($data, 0, 6) eq chr(0)x6;
 
 		while(length($data) > 4) {
 			my $type;
-			while(substr($data, 0, 2) eq chr(0)x2) {
-				substr($data, 0, 2) = "";
+			while(substr($data, 0, 4) eq chr(0)x4) {
+				substr($data, 0, 4) = "";
 			}
+
 			($type) = unpack("n", substr($data, 0, 2));
 			printf STDERR "Got type 0x%04X\n", $type;
 			if($type == 1) {
-				substr($data, 0, 6) = ""; #0x0001 0x0008 0x00C8
-				($flags, $flags2) = unpack("n n", substr($data, 0, 4, ""));
-				substr($data, 0, $flags - 2) = "" if $flags;
+				($tlvlen) = unpack("xx n", substr($data, 0, 4, ""));
+				substr($data, 0, $tlvlen) = "";
 			} elsif($type == 2) {
 				substr($data, 0, 4) = ""; #0x0002 0x0004?
 				($tlvlen) = unpack("n", substr($data, 0, 2, ""));
@@ -323,17 +324,35 @@ sub process_snac($$) {
 					substr($data, 0, $tlvlen) = "";
 				}
 			} else {
-				my $buddy = get_buddy($session, \$data);
+				# Test for buddy validity
+				my $addedbyte = 0;
+				if(substr($data, 0, 1) ne chr(0)) {
+					$addedbyte = 1;
+					$data = chr(0) . $data;
+				}
+				my($buddy) = unpack("n/a*", $data);
+				if($buddy =~ /[\x00-\x1F\x7F-\xFF]/) {
+					print STDERR "Not a buddy!\n";
+					substr($data, 0, 2+length($buddy)) = "";
+					substr($data, 0, 1) = "" if $addedbyte;
+					next;
+				}
+
+				$buddy = get_buddy($session, \$data);
 				next unless $buddy;
 
 				if($buddy->{buddyid}) {
+					$session->{DEBUG} = 1;
 					$session->debug_print("Queueing buddy $buddy->{name}.");
-					printf STDERR "Queueing buddy $buddy->{name}.\n";
+					$session->{DEBUG} = 0;
 					push @buddyqueue, $buddy;
 				} else {
 					my $group = $buddy->{name};
+					$session->{DEBUG} = 1;
 					$session->debug_printf("Got group $group (0x%04X).", $buddy->{groupid});
-					printf STDERR "Got group $group (0x%04X).\n", $buddy->{groupid};
+					$session->{DEBUG} = 0;
+					$session->{buddies}->{$group}->{groupid} = $buddy->{groupid};
+					$session->{buddies}->{$group}->{members} = $session->bltie();
 				}
 			}
 		}
