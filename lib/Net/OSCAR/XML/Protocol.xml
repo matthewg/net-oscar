@@ -200,18 +200,47 @@
 	<define name="personal_info_request" family="1" subtype="14" />
 	<define name="buddylist_rights_request" family="19" subtype="2" />
 	<define name="buddylist_request" family="19" subtype="4" />
+
 	<define name="locate_rights_request" family="2" subtype="2" />
-	<define name="locate_rights_response" family="2" subtype="3" />
+	<define name="locate_rights_response" family="2" subtype="3">
+		<tlvchain>
+			<tlv type="1"><word name="max_profile_len">1024</word></tlv>
+			<tlv type="2"><word name="max_capabilities">16</word></tlv>
+			<tlv type="3"><word>10</word></tlv>
+			<tlv type="4"><word>4096</word></tlv>
+		</tlvchain>
+	</define>
+
 	<define name="buddy_rights_request" family="3" subtype="2" />
 	<define name="buddy_rights_response" family="3" subtype="3">
 		<tlvchain>
-			<tlv type="1"><word name="maxbuddies" /></tlv>
+			<tlv type="1"><word name="maxbuddies">600</word></tlv>
+			<tlv type="2"><word name="maxwatchers">750</word></tlv>
+			<tlv type="3"><word name="maxnotifies">512</word></tlv>
 		</tlvchain>
 	</define>
-	<define name="IM_parameter_request" family="4" subtype="4" />
-	<define name="IM_parameter_response" family="4" subtype="5" />
+
+	<define name="IM_parameters">
+		<word name="channel" />
+		<dword name="flags" />
+		<word name="max_size" />
+		<word name="max_send_warn" />
+		<word name="max_recv_warn" />
+		<word name="min_msg_interval" />
+		<word>0</word>
+	</define>
+	<define name="add_IM_parameters" family="4" subtype="2"><ref name="IM_parameters" /></define>
+	<define name="IM_parameter_request" family="4" subtype="4"><ref name="IM_parameters" /></define>
+	<define name="IM_parameter_response" family="4" subtype="5"><ref name="IM_parameters" /></define>
+
 	<define name="BOS_rights_request" family="9" subtype="2" />
-	<define name="BOS_rights_response" family="9" subtype="3" />
+	<define name="BOS_rights_response" family="9" subtype="3">
+		<tlvchain>
+			<tlv type="1"><word name="max_permits">200</word></tlv>
+			<tlv type="2"><word name="max_denies">200</word></tlv>
+		</tlvchain>
+	</define>
+
 	<define name="self_information" family="1" subtype="15"><ref name="userinfo" /></define>
 	<define name="minimum_report_interval" family="11" subtype="2" />
 	<define name="MOTD" family="1" subtype="19" />
@@ -257,15 +286,6 @@
 			<word name="service_version" />
 		</data>
 	</define>
-	<define name="session_was_opened_elsewhere" family="9" subtype="2" /> <!-- Before routing (multiple signons of the same screenname) support was added, this error would be sent when the screenname was signed on elsewhere -->
-	<define name="add_IM_parameters" family="4" subtype="2">
-		<word name="channel">0</word>
-		<dword name="flags">11</dword>
-		<word name="max_msg_len">8000</word>
-		<word name="max_sender_warn">999</word>
-		<word name="max_rcpt_warn">999</word>
-		<dword name="min_msg_interval">0</dword>
-	</define>
 	<define name="buddylist_done" family="19" subtype="7" />
 
 
@@ -275,6 +295,11 @@
 	<define name="buddylist_3_response" family="19" subtype="3">
 		<tlvchain>
 			<tlv type="4"><word count="-1" name="maximums" /></tlv>
+			<tlv type="2"><word>254</word></tlv>
+			<tlv type="3"><word>508</word></tlv>
+			<tlv type="5"><word>0</word></tlv>
+			<tlv type="6"><word>97</word></tlv>
+			<tlv type="7"><word>10</word></tlv>
 		</tlvchain>
 	</define>
 	<define name="buddylist" family="19" subtype="6"> <!-- This is supremely weird and fucked up, no bloody way we'll be able to get it in the XML; notably, it is split across multiple SNACs, but not on any sort of coherent boundary, and you have to slice random bits off the front and back...  See OSCAR/Callbacks.pm handler for this protobit. -->
