@@ -509,19 +509,19 @@ sub process_one($;$$$) {
 			$self->{families} = {23 => 1};
 
 			if(!$self->{session}->{svcdata}->{hashlogin}) {
-				$self->proto_send(protobit => "initial signon request",
+				$self->proto_send(protobit => "initial_signon_request",
 					protodata => {screenname => $self->{session}->{screenname}},
 					nopause => 1
 				);
 			} else {
-				$self->proto_send(protobit => "ICQ signon request",
+				$self->proto_send(protobit => "ICQ_signon_request",
 					protodata => {signon_tlv($self->{session}, delete($self->{auth}))},
 					nopause => 1
 				);
 			}
 		} else {
 			$self->log_print(OSCAR_DBG_NOTICE, "Sending BOS-Signon.");
-			$self->proto_send(protobit => "BOS signon",
+			$self->proto_send(protobit => "BOS_signon",
 				reqid => 0x01000000 | (unpack("n", substr($self->{auth}, 0, 2)))[0],
 				protodata => {cookie => substr(delete($self->{auth}), 2)},
 				nopause => 1
@@ -570,5 +570,13 @@ sub ready($) {
 }
 
 sub session($) { return shift->{session}; }
+
+sub local_ip($) {
+	my($self) = @_;
+
+	my $sockaddr = getpeername($self->{socket});
+	my($port, $iaddr) = sockaddr_in($sockaddr);
+	return inet_ntoa($iaddr);
+}
 
 1;

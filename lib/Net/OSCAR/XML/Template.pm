@@ -174,7 +174,7 @@ sub unpack($$) {
 			for(my $i = 0; $input and ($count == -1 or $i < $count); $i++) {
 				my %tlv;
 				if($datum->{subtyped}) {
-					(%tlv) = protoparse($oscar, "subtyped TLV")->unpack(\$input);
+					(%tlv) = protoparse($oscar, "subtyped_TLV")->unpack(\$input);
 				} else {
 					(%tlv) = protoparse($oscar, "TLV")->unpack(\$input);
 				}
@@ -434,7 +434,7 @@ sub pack($%) {
 					assert(exists($tlv->{subtype}));
 					$subtype = $tlv->{subtype} if $tlv->{subtype} != -1;
 
-					$output .= protoparse($oscar, "subtyped TLV")->pack(
+					$output .= protoparse($oscar, "subtyped_TLV")->pack(
 						type => $tlv->{num},
 						subtype => $subtype,
 						data => $_

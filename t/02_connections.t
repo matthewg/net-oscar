@@ -3,7 +3,15 @@
 # The Connection modules are loaded on demand,
 # so we test loading them all here.
 
-use Test::More tests => 5;
+eval {
+	require Test::More;
+	Test::More->import(tests => 5);
+};
+if($@) {
+	print "1..0 # Skipped: Couldn't load Test::More\n";
+	exit 0;
+}
+
 use strict;
 use warnings;
 use lib "./blib/lib";

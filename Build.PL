@@ -9,38 +9,19 @@ $build = Module::Build->new (
                 'perl' => '5.6.1',
                 'Digest::MD5' => '>= 2.0',
                 'Scalar::Util' => '>= 1.0',
+		'Module::Build' => '>= 0.26',
 	},
 	recommends => {
 		'Test::More' => '>= 0.01',
 		'XML::Parser' => '>= 0.01',
 	},
 	create_makefile_pl => "traditional",
-	dist_version_from => "OSCAR.pm",
-	PL_files => {
-		'xmlcache' => 'lib/xmlcache'
-	},
-	pm_files => {
-		'OSCAR.pm' => 'lib/Net/OSCAR.pm',
-		'OSCAR/Connection/Chat.pm' => 'lib/Net/OSCAR/Connection/Chat.pm',
-		'OSCAR/Connection/Direct.pm' => 'lib/Net/OSCAR/Connection/Direct.pm',
-		'OSCAR/Connection/Server.pm' => 'lib/Net/OSCAR/Connection/Server.pm',
-		'OSCAR/Buddylist.pm' => 'lib/Net/OSCAR/Buddylist.pm',
-		'OSCAR/Callbacks.pm' => 'lib/Net/OSCAR/Callbacks.pm',
-		'OSCAR/Common.pm' => 'lib/Net/OSCAR/Common.pm',
-		'OSCAR/Connection.pm' => 'lib/Net/OSCAR/Connection.pm',
-		'OSCAR/Constants.pm' => 'lib/Net/OSCAR/Constants.pm',
-		'OSCAR/Proxy.pm' => 'lib/Net/OSCAR/Proxy.pm',
-		'OSCAR/Screenname.pm' => 'lib/Net/OSCAR/Screenname.pm',
-		'OSCAR/ServerCallbacks.pm' => 'lib/Net/OSCAR/ServerCallbacks.pm',
-		'OSCAR/TLV.pm' => 'lib/Net/OSCAR/TLV.pm',
-		'OSCAR/Utility.pm' => 'lib/Net/OSCAR/Utility.pm',
-		'OSCAR/_BLInternal.pm' => 'lib/Net/OSCAR/_BLInternal.pm',
-		'OSCAR/XML.pm' => 'lib/Net/OSCAR/XML.pm',
-		'OSCAR/XML/Template.pm' => 'lib/Net/OSCAR/XML/Template.pm',
-		'OSCAR/XML/Protocol.xml' => 'lib/Net/OSCAR/XML/Protocol.xml',
-		'OSCAR/XML/Protocol.dtd' => 'lib/Net/OSCAR/XML/Protocol.dtd',
-		'OSCAR/XML/Protocol.parsed-xml' => 'lib/Net/OSCAR/XML/Protocol.parsed-xml'
-	},
+	create_readme => 1,
+	PL_files => { 'xmlcache' => 'lib/Net/OSCAR/XML/Protocol.parsed-xml' },
+	script_files => ["oscartest"],
+	sign => 1,
 );
+$build->add_build_element("xml");
+$build->add_build_element("parsed-xml");
 $build->create_build_script;
 

@@ -69,6 +69,22 @@ sub process_one($;$$$) {
 			$self->log_print(OSCAR_DBG_WARN, "Failed to accept incoming connection: $!");
 			return 0;
 		}
+	} elsif($write and $self->{rv}->{ft_state} eq "connecting") {
+		$self->log_print(OSCAR_DBG_DEBUG, "Connected.");
+		$self->{connected} = 1;
+
+	        my %protodata;
+	        $protodata{status} = 1;
+	        $protodata{cookie} = $self->{rv}->{cookie};
+		$protodata{capability} = OSCAR_CAPS()->{$self->{rv}->{type}} ? OSCAR_CAPS()->{$self->{rv}->{type}}->{value} : $self->{rv}->{type};
+		$self->{session}->send_message($self->{rv}->{sender}, 2, protoparse($self->{session}, "rendezvous_IM")->pack(%protodata));
+
+		$self->{rv}->{ft_state} = "connected";
+		$self->{rv}->{accepted} = 1;
+		if($self->{rv}->{direction} eq "receive") {
+			$self->{state} = "read";
+			$self->{session}->callback_connection_changed($self, $self->{state});
+		}
 	} elsif($write and $self->{rv}->{ft_state} eq "connected") {
 		if($self->{rv}->{direction} eq "send") {
 			return 1 unless $self->{rv}->{accepted};
@@ -123,7 +139,8 @@ sub process_one($;$$$) {
 				$self->{session}->callback_connection_changed($self, "read");
 			}
 		} elsif($read and $self->{rv}->{direction} eq "receive") {
-			#my $ret = $self->read(
+			$self->log_print(OSCAR_DBG_DEBUG, "Receiving data");
+			$ret = $self->read();
 		}
 	} elsif($self->{rv}->{ft_state} eq "fin") {
 		$self->log_print(OSCAR_DBG_DEBUG, "Getting OFT header");
@@ -167,7 +184,7 @@ sub send_oft_header($) {
 		received_checksum => $self->{received_checksum},
 		filename => $self->{rv}->{filenames}->[0]
 	);
-	$self->write(protoparse($self->{session}, "file transfer header")->pack(%protodata));
+	$self->write(protoparse($self->{session}, "file_transfer_header")->pack(%protodata));
 }
 
 sub get_oft_header($) {
@@ -187,7 +204,7 @@ sub get_oft_header($) {
 	my $data = $self->read($length - 6);
 	return $data unless $data;
 	
-	my %protodata = protoparse($self->{session}, "file transfer header")->unpack($header . $data);
+	my %protodata = protoparse($self->{session}, "file_transfer_header")->unpack($header . $data);
 	#TODO: Verify that this matches the initial proposal
 
 	$self->log_print(OSCAR_DBG_DEBUG, "Got OFT header.");

@@ -490,7 +490,7 @@ sub BLI_to_OSCAR($$) {
 		my(@reqdata, @packets);
 		my $packet = "";
 		foreach my $change(@$changelist) {
-			$packet .= protoparse($session, "buddylist modification")->pack(%{$change->{protodata}});
+			$packet .= protoparse($session, "buddylist_modification")->pack(%{$change->{protodata}});
 			push @reqdata, $change->{reqdata};
 
 			if(length($packet) > 7*1024) {
@@ -515,14 +515,14 @@ sub BLI_to_OSCAR($$) {
 
 		push @{$session->{budmods}}, map {
 			{
-				protobit => "buddylist " . $_->{type},
+				protobit => "buddylist_" . $_->{type},
 				reqdata => $_->{reqdata},
 				protodata => {mods => $_->{data}}
 			};
 		} @packets;
 	}
 
-	push @{$session->{budmods}}, {protobit => "end buddylist modifications"}; # End BL mods
+	push @{$session->{budmods}}, {protobit => "end_buddylist_modifications"}; # End BL mods
 	#$session->log_print(OSCAR_DBG_INFO, "Adding terminator to blmod queue.");
 
 	$session->{blold} = $oldbli;
@@ -534,7 +534,7 @@ sub BLI_to_OSCAR($$) {
 		$session->callback_buddylist_ok();
 	} else {
 		#$session->log_print(OSCAR_DBG_INFO, "Non-empty blmod queue - sending initiator and first change packet.");
-		$session->svcdo(CONNTYPE_BOS, protobit => "start buddylist modifications");
+		$session->svcdo(CONNTYPE_BOS, protobit => "start_buddylist_modifications");
 		$session->svcdo(CONNTYPE_BOS, %{shift @{$session->{budmods}}}); # Send the first modification
 	}
 }

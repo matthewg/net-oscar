@@ -265,11 +265,11 @@ sub send_versions($$;$) {
 	}
 
 	if($send_tools) {
-		$connection->proto_send(protobit => "set tool versions", protodata => \%protodata, nopause => 1);
+		$connection->proto_send(protobit => "set_tool_versions", protodata => \%protodata, nopause => 1);
 	} elsif($server) {
-		$connection->proto_send(protobit => "host versions", protodata => \%protodata, nopause => 1);
+		$connection->proto_send(protobit => "host_versions", protodata => \%protodata, nopause => 1);
 	} else {
-		$connection->proto_send(protobit => "set service versions", protodata => \%protodata, nopause => 1);
+		$connection->proto_send(protobit => "set_service_versions", protodata => \%protodata, nopause => 1);
 	}
 }
 

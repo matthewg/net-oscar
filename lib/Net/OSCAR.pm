@@ -223,6 +223,9 @@ sub new($) {
 	$self->{stealth} = 0;
 	$self->{icq_meta_info_cache} = {};
 	$self->{ip} = 0;
+
+	$self->{ft_ip} = undef;
+	$self->{rv_neg_mode} = OSCAR_RV_AUTO;
 	$self->{bl_limits} = {
 		buddies => 0,
 		groups => 0,
@@ -911,7 +914,7 @@ nicely.
 sub is_stealth($) { return shift->{stealth}; }
 sub set_stealth($$) {
 	my($self, $new_state) = @_;
-	$self->svcdo(CONNTYPE_BOS, protobit => "set extended status", protodata => {
+	$self->svcdo(CONNTYPE_BOS, protobit => "set_extended_status", protodata => {
 		stealth => {state => $new_state ? 0x100 : 0}
 	});
 }
@@ -995,13 +998,13 @@ sub get_info($$) {
 	my($self, $screenname) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, protobit => "get info", protodata => {screenname => $screenname});
+	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, protobit => "get_info", protodata => {screenname => $screenname});
 }
 sub get_away($$) {
 	my($self, $screenname) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, protobit => "get away", protodata => {screenname => $screenname});
+	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, protobit => "get_away", protodata => {screenname => $screenname});
 }
 
 
@@ -1055,7 +1058,7 @@ sub send_im($$$;$) {
 		$flags2 = 0xB;
 	}
 
-	my($req_id) = $self->send_message($to, 1, protoparse($self, "standard IM footer")->pack(%protodata), $flags2);
+	my($req_id) = $self->send_message($to, 1, protoparse($self, "standard_IM_footer")->pack(%protodata), $flags2);
 	return $req_id;
 }
 
@@ -1095,7 +1098,7 @@ sub send_typing_status($$$) {
 	croak "This client does not support typing status notifications." unless $self->{capabilities}->{typing_status};
 	return unless exists $self->{userinfo}->{$recipient} and $self->{userinfo}->{$recipient}->{typing_status};
 
-	$self->svcdo(CONNTYPE_BOS, protobit => "typing notification", protodata => {
+	$self->svcdo(CONNTYPE_BOS, protobit => "typing_notification", protodata => {
 		screenname => $recipient,
 		typing_status => $status
 	});
@@ -1121,7 +1124,7 @@ sub evil($$;$) {
 	my($self, $who, $anon) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	$self->svcdo(CONNTYPE_BOS, reqdata => $who, protobit => "outgoing warning", protodata => {
+	$self->svcdo(CONNTYPE_BOS, reqdata => $who, protobit => "outgoing_warning", protodata => {
 		is_anonymous => $anon ? 1 : 0,
 		screenname => $who
 	});
@@ -1148,7 +1151,7 @@ sub get_icon($$$) {
 
 	carp "This client does not support buddy icons!" unless $self->{capabilities}->{buddy_icons};
 
-	$self->svcdo(CONNTYPE_ICON, protobit => "buddy icon download", protodata => {
+	$self->svcdo(CONNTYPE_ICON, protobit => "buddy_icon_download", protodata => {
 		screenname => $screenname,
 		md5sum => $md5sum
 	});
@@ -1293,7 +1296,7 @@ sub set_extended_status($$) {
 	$status ||= "";
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Setting extended status.");
-	$self->svcdo(CONNTYPE_BOS, protobit => "set extended status", protodata => {
+	$self->svcdo(CONNTYPE_BOS, protobit => "set_extended_status", protodata => {
 		status_message => {message => $status}
 	});
 }
@@ -1338,7 +1341,7 @@ sub set_info($$;$) {
 		$protodata{awaymsg} = $awaymsg;
 	}
 
-	$self->svcdo(CONNTYPE_BOS, protobit => "set info", protodata => \%protodata);
+	$self->svcdo(CONNTYPE_BOS, protobit => "set_info", protodata => \%protodata);
 }
 
 =pod
@@ -1414,7 +1417,7 @@ sub change_password($$$) {
 		$self->{adminreq}->{0+ADMIN_TYPE_PASSWORD_CHANGE}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, protobit => "change account info", protodata => {
+	$self->svcdo(CONNTYPE_ADMIN, protobit => "change_account_info", protodata => {
 		newpass => $newpass,
 		oldpass => $currpass
 	});
@@ -1441,7 +1444,7 @@ sub confirm_account($) {
 		$self->{adminreq}->{0+ADMIN_TYPE_ACCOUNT_CONFIRM}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, protobit => "confirm account request");
+	$self->svcdo(CONNTYPE_ADMIN, protobit => "confirm_account_request");
 }
 
 =pod
@@ -1470,7 +1473,7 @@ sub change_email($$) {
 		$self->{adminreq}->{0+ADMIN_TYPE_EMAIL_CHANGE}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, protobit => "change account info", protodata => {
+	$self->svcdo(CONNTYPE_ADMIN, protobit => "change_account_info", protodata => {
 		new_email => $newmail
 	});
 }
@@ -1496,7 +1499,7 @@ sub format_screenname($$) {
 		$self->{adminreq}->{0+ADMIN_TYPE_SCREENNAME_FORMAT}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, protobit => "change account info", protodata => {
+	$self->svcdo(CONNTYPE_ADMIN, protobit => "change_account_info", protodata => {
 		new_screenname => $newname
 	});
 }
@@ -1515,7 +1518,7 @@ the user as being idle.
 sub set_idle($$) {
 	my($self, $time) = @_;
 	return must_be_on($self) unless $self->{is_on};
-	$self->svcdo(CONNTYPE_BOS, protobit => "set idle", protodata => {duration => $time});
+	$self->svcdo(CONNTYPE_BOS, protobit => "set_idle", protodata => {duration => $time});
 }
 
 =pod
@@ -1602,10 +1605,10 @@ sub file_send($$@) {
 		client_2_ip => $self->{ip},
 		port => $port,
 		svcdata_charset => "us-ascii",
-		svcdata => protoparse($self, "file transfer rendezvous data")->pack(%svcdata)
+		svcdata => protoparse($self, "file_transfer_rendezvous_data")->pack(%svcdata)
 	);
 
-	my($req_id) = $self->send_message($screenname, 2, protoparse($self, "rendezvous IM")->pack(%protodata), 0, $cookie);
+	my($req_id) = $self->send_message($screenname, 2, protoparse($self, "rendezvous_IM")->pack(%protodata), 0, $cookie);
 
 	$self->{rv_proposals}->{$cookie} = $connection->{rv} = {
 		cookie => $cookie,
@@ -1760,7 +1763,7 @@ sub chat_join($$;$) {
 
 	my $reqid = (8<<16) | (unpack("n", randchars(2)))[0];
 	$self->{chats}->{pack("N", $reqid)} = $name;
-	$self->svcdo(CONNTYPE_CHATNAV, reqid => $reqid, protobit => "chat navigator room create", protodata => {
+	$self->svcdo(CONNTYPE_CHATNAV, reqid => $reqid, protobit => "chat_navigator_room_create", protodata => {
 		exchange => $exchange,
 		name => $name
 	});
@@ -1786,7 +1789,7 @@ sub chat_accept($$) {
 	my($rv) = grep { $_->{chat_url} eq $url } values %{$self->{rv_proposals}};
 	return unless $rv;
 
-	$self->svcdo(CONNTYPE_CHATNAV, protobit => "chat invitation accept", protodata => {
+	$self->svcdo(CONNTYPE_CHATNAV, protobit => "chat_invitation_accept", protodata => {
 		exchange => $rv->{exchange},
 		url => $url
 	});
@@ -1797,7 +1800,7 @@ sub chat_accept($$) {
 	($reqid) = unpack("N", $reqid);
 
 	$self->{chats}->{$reqid} = $rv;
-	$self->svcdo(CONNTYPE_BOS, protobit => "service request", reqid => $reqid, protodata => {
+	$self->svcdo(CONNTYPE_BOS, protobit => "service_request", reqid => $reqid, protodata => {
 		type => CONNTYPE_CHAT,
 		chat => {
 			exchange => $rv->{exchange},
@@ -1814,7 +1817,7 @@ sub chat_decline($$) {
 	my($rv) = grep { $_->{chat_url} eq $url } values %{$self->{rv_proposals}};
 	return unless $rv;
 
-	$self->svcdo(CONNTYPE_BOS, protobit => "chat invitation decline", protodata => {
+	$self->svcdo(CONNTYPE_BOS, protobit => "chat_invitation_decline", protodata => {
 		cookie => $rv->{cookie},
 		screenname => $rv->{sender},
 	});
@@ -2674,11 +2677,11 @@ Requests ICQ-specific information.  See also the L<"buddy_icq_info"> callback.
 sub get_icq_info($$) {
 	my($self, $uin) = @_;
 
-	$self->svcdo(CONNTYPE_BOS, protobit => "ICQ meta request", protodata => {
+	$self->svcdo(CONNTYPE_BOS, protobit => "ICQ_meta_request", protodata => {
 		our_uin => $self->{screenname},
 		type => 2000,
 		seqno => ++$self->{bos}->{icq_seqno},
-		typedata => protoparse($self, "ICQ meta info request")->pack(uin => $uin)
+		typedata => protoparse($self, "ICQ_meta_info_request")->pack(uin => $uin)
 	});
 }
 
@@ -3743,6 +3746,9 @@ sub addconn($@) {
 		require Net::OSCAR::Connection::Direct;
 		$connection = Net::OSCAR::Connection::Direct->new(%data);
 		$connection->listen();
+	} elsif($conntype == CONNTYPE_DIRECT_OUT) {
+		require Net::OSCAR::Connection::Direct;
+		$connection = Net::OSCAR::Connection::Direct->new(%data);
 	} elsif($conntype == CONNTYPE_SERVER) {
 		require Net::OSCAR::Connection::Server;
 		$connection = Net::OSCAR::Connection::Server->new(%data);
@@ -4030,9 +4036,47 @@ sub send_message($$$$;$$) {
 		screenname => $recipient,
 		message_body => $body,
 	);
-	$self->svcdo(CONNTYPE_BOS, reqdata => $recipient, protobit => "outgoing IM", protodata => \%protodata, flags2 => $flags2);
+	$self->svcdo(CONNTYPE_BOS, reqdata => $recipient, protobit => "outgoing_IM", protodata => \%protodata, flags2 => $flags2);
 
 	return ($reqid, $protodata{cookie});
+}
+
+sub rendezvous_accept($$) {
+	my($self, $cookie) = @_;
+
+	return unless exists($self->{rv_proposals}->{$cookie});
+	my $proposal = $self->{rv_proposals}->{$cookie};
+
+	if($self->{rv_neg_mode} eq OSCAR_RV_AUTO) {
+		$self->log_print(OSCAR_DBG_DEBUG, "Negotiating rendezvous.");
+		if($proposal->{ip} ne $proposal->{external_ip}) {
+			$self->log_printf(OSCAR_DBG_DEBUG, "Rendezvous: IP mismatch (%s vs. %s).", $proposal->{ip}, $proposal->{external_ip});
+
+			# If we haven't tried hosting the connection and it 
+			# doesn't look like we're behind NAT, or we have
+			# a designated file transfer IP, try hosting.
+			# Otherwise, use the proxy.
+			#
+			if(!$proposal->{tried_host} and
+			  $self->{ft_ip} or ($self->{ip} and $self->{bos}->local_ip eq $self->{ip})
+			) {
+				$self->rendezvous_revise($cookie, $self->{ft_ip} || $self->{ip});
+				return;
+			} else {
+				$self->rendezvous_revise($cookie);
+			}
+		}
+	}
+
+
+	$self->log_printf(OSCAR_DBG_INFO, "Establishing rendezvous connection to %s:%d", $proposal->{data}->{client_1_ip}, $proposal->{data}->{port});
+	my $newconn = $self->addconn(
+		conntype => CONNTYPE_DIRECT_OUT,
+		peer => $proposal->{ip} . ":" . $proposal->{port},
+		description => "transfer of files: " . join(", ", @{$proposal->{filenames}}),
+		rv => $proposal,
+		ft_status => "connecting"
+	);
 }
 
 sub rendezvous_reject($$) {
@@ -4046,7 +4090,7 @@ sub rendezvous_reject($$) {
 	$protodata{cookie} = $cookie;
 	$protodata{capability} = OSCAR_CAPS()->{$proposal->{type}} ? OSCAR_CAPS()->{$proposal->{type}}->{value} : $proposal->{type};
 
-	return $self->send_message($proposal->{sender}, 2, protoparse($self, "rendezvous IM")->pack(%protodata));
+	return $self->send_message($proposal->{sender}, 2, protoparse($self, "rendezvous_IM")->pack(%protodata));
 }
 
 sub svcdo($$%) {
@@ -4064,7 +4108,7 @@ sub svcreq($$;@) {
         my($self, $svctype, @extradata) = @_;
 
         $self->log_print(OSCAR_DBG_INFO, "Sending service request for servicetype $svctype.");
-        $self->svcdo(CONNTYPE_BOS, protobit => "service request", protodata => {type => $svctype, @extradata});
+        $self->svcdo(CONNTYPE_BOS, protobit => "service_request", protodata => {type => $svctype, @extradata});
 }
 
 sub crapout($$$;$) {

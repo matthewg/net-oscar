@@ -56,6 +56,10 @@ require Exporter;
 		OSCAR_DIRECT_IM
 		OSCAR_DIRECT_FILESHARE
 		OSCAR_DIRECT_FILEXFER
+		OSCAR_RV_AUTO
+		OSCAR_RV_NOPROXY
+		OSCAR_RV_NODIRECT
+		OSCAR_RV_MANUAL
 	)],
 	loglevels => [qw(
 		OSCAR_DBG_NONE
@@ -118,6 +122,13 @@ use constant ADMIN_ERROR_EMAILBAD => dualvar(9, "the email address is invalid");
 use constant OSCAR_DIRECT_IM => dualvar(1, "direct IM");
 use constant OSCAR_DIRECT_FILESHARE => dualvar(2, "file sharing");
 use constant OSCAR_DIRECT_FILEXFER => dualvar(3, "file transfer");
+
+# Rendezvous autonegotiate modes
+use constant OSCAR_RV_AUTO => "auto";
+use constant OSCAR_RV_NOPROXY => "never proxy";
+use constant OSCAR_RV_NODIRECT => "always proxy";
+use constant OSCAR_RV_MANUAL => "manual negotiation";
+
 
 # Visibility modes
 use constant VISMODE_PERMITALL  => dualvar(0x1, "permit all");

@@ -61,7 +61,7 @@ is_deeply([sort keys(%Net::OSCAR::XML::xmlmap)], [sort qw(
 		ref_bar
 		ref
 		snac
-	), "TLV", "subtyped TLV"], "forward name mapping");
+	), "TLV", "subtyped_TLV"], "forward name mapping");
 
 is_deeply({%Net::OSCAR::XML::xml_revmap}, {1 => { 2 => "snac" }}, "reverse name mapping");
 

@@ -7,7 +7,7 @@
 		<word name="type" />
 		<data length_prefix="word" name="data" />
 	</define>
-	<define name="subtyped TLV">
+	<define name="subtyped_TLV">
 		<word name="type" />
 		<byte name="subtype" />
 		<data length_prefix="byte" name="data" />
