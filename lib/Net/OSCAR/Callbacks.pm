@@ -35,7 +35,7 @@ sub process_snac($$) {
 		return $session->callback_snac_unknown($connection, $snac, $data);
 	}
 
-	our %data = protoparse($session, $protobit)->unpack($data);
+	our %data = protoparse($session, $protobit)->unpack($data || "");
 	$connection->log_printf(OSCAR_DBG_DEBUG, "Got SNAC 0x%04X/0x%04X: %s", $snac->{family}, $snac->{subtype}, $protobit);
 
 	if(!exists($protohandlers{$protobit})) {

@@ -21,6 +21,7 @@ if($COOKIES{$cookie}) {
 		families => [grep { !OSCAR_TOOLDATA()->{$_}->{nobos} } keys %{OSCAR_TOOLDATA()}]
 	});
 } else {
+	$connection->log_print(OSCAR_DBG_DEBUG, "No cookie: $cookie");
 	$session->delconn($connection);
 }
 

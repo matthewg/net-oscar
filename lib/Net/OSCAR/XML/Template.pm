@@ -57,7 +57,7 @@ sub unpack($$) {
 		## Figure out how much input data this datum is dealing with
 
 		if($datum->{prefix} and $datum->{prefix} eq "count") {
-			($count) = unpack($datum->{prefix_packlet}, substr($packet, 0, $datum->{prefix_len}, ""));
+			($count) = unpack($datum->{prefix_packlet}, substr($packet, 0, $datum->{prefix_len}, "")) || 0;
 		}
 
 		my $size = undef;

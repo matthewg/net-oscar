@@ -33,7 +33,7 @@ if($valid) {
 	});
 	$session->delconn($connection);
 
-	#$COOKIES{$key} = {sn => $screenname, conntype => CONNTYPE_BOS};
+	$COOKIES{$key} = {sn => $screenname, conntype => CONNTYPE_BOS};
 } else {
 	$connection->proto_send(protobit => "authorization_response", protodata => {error => 5});
 	$session->delconn($connection);

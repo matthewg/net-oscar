@@ -42,7 +42,7 @@ if(@{$data{families}} == keys %{$connection->{families}} or @migfamilies == 0) {
 		}
 	}
 
-	$connection->log_printf(OSCAR_DBG_WARN, "Migration pause queue: %d/%d", @$pause_queue, @{$connection->{pause_queue}});
+	$connection->log_printf(OSCAR_DBG_WARN, "Migration pause queue: %d/%d", @{$pause_queue || []}, @{$connection->{pause_queue} || []});
 }
 
 my $newconn = $session->addconn(

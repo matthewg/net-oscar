@@ -5,6 +5,7 @@ use strict;
 use warnings;
 use Getopt::Long;
 use Net::OSCAR qw(:standard :loglevels);
+use Net::OSCAR::Utility qw(randchars);
 use IO::Poll;
 eval {
 	require Data::Dumper;
@@ -38,13 +39,14 @@ sub connection_changed($$$) {
 }
 
 $poll = IO::Poll->new();
-#$poll->mask(STDIN => POLLIN);
+$poll->mask(STDIN => POLLIN);
 
 $oscar = Net::OSCAR->new();
 $oscar->set_callback_connection_changed(\&connection_changed);
 $oscar->loglevel(10);
 $oscar->server(local_port => 5190);
 
+my($inline, $inchar);
 while(1) {
 	next unless $poll->poll();
 
@@ -67,5 +69,39 @@ while(1) {
 			next unless $write;
 			my $hash = $Net::OSCAR::ServerCallbacks::SESSIONS;
 		}
+	}
+
+	next unless $got_stdin;
+	sysread(STDIN, $inchar, 1);
+	if($inchar eq "\n") {
+		my($cmd, @params) = split(/[ \t]+/, $inline);
+		$inchar = "";
+		$inline = "";
+		$cmd ||= "";
+
+		if($cmd eq "eval") {
+			eval(join(" ", @params));
+			if($@) {
+				print "$@\n";
+			}
+		} elsif($cmd eq "migrate") {
+			my $session = $params[0];
+			if(!$session) {
+				print "Usage: migrate screenname\n";
+			} else {
+				my $bos = $Net::OSCAR::ServerCallbacks::SESSIONS->{$params[0]}->{sessions}->[0];
+				my $families = $bos->{families};
+
+				my $cookie = randchars(8);
+				$Net::OSCAR::ServerCallbacks::COOKIES{$cookie} = {sn => $params[0]};
+				$bos->proto_send(protobit => "migrate", protodata => {
+					families => $families,
+					peer => "127.0.0.1:5190",
+					cookie => $cookie
+				});
+			}
+		}
+	} else {
+		$inline .= $inchar;
 	}
 }
