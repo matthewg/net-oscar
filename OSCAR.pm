@@ -121,7 +121,6 @@ everyone on our buddylist.
 =cut
 
 use strict;
-use warnings;
 use vars qw($VERSION @ISA @EXPORT_OK %EXPORT_TAGS);
 use Carp;
 use Scalar::Util;
@@ -132,6 +131,12 @@ use Net::OSCAR::TLV;
 use Net::OSCAR::Buddylist;
 use Net::OSCAR::Chat;
 
+if($[ > 5.005) {
+	require warnings;
+} else {
+	$^W = 1;
+}
+use warnings;
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT_OK = @Net::OSCAR::Common::EXPORT_OK;
