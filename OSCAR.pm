@@ -3981,13 +3981,13 @@ sub postprocess_userinfo($$) {
 	}
 
 	if(exists($userinfo->{capabilities})) {
-		$userinfo->{capabilities} = '';
+		my $capabilities = delete $userinfo->{capabilities};
 		foreach my $capability (@$capabilities) {
 			$self->log_print(OSCAR_DBG_DEBUG, "Got a capability.");
 			if(OSCAR_CAPS_INVERSE()->{$capability}) {
-				my($capname, $capno) = @{OSCAR_CAPS_INVERSE()->{$capability}};
+				my $capname = @{OSCAR_CAPS_INVERSE()->{$capability}};
 				$self->log_print(OSCAR_DBG_DEBUG, "Got capability $capname.");
-				vec($userinfo->{capabilities}, $capno, 1) = 1;
+				$userinfo->{capabilities}->{$capname} = OSCAR_CAPS()->{$capname}->{description};
 			} else {
 				$self->log_print_cond(OSCAR_DBG_INFO, sub { "Unknown capability: ", hexdump($capability) });
 			}
