@@ -13,6 +13,7 @@ use overload
 	'""' => "stringify";
 
 sub new($$) {
+	return $_[1] if ref($_[0]);
 	my $class = ref($_[0]) || $_[0] || "Net::OSCAR::Screenname";
 	shift;
 	my $name = shift;
