@@ -326,7 +326,7 @@ sub tlvtie(;$) {
 	return $retval;
 }
 
-sub signon_tlv($$;$) {
+sub signon_tlv($;$$) {
 	my($session, $password, $key) = @_;
 
 	my %tlv = (
@@ -345,7 +345,11 @@ sub signon_tlv($$;$) {
 	if($session->{svcdata}->{hashlogin}) {
 		$tlv{0x02} = encode_password($session, $password);
 	} else {
-		$tlv{0x25} = encode_password($session, $password, $key);
+		if($session->{auth_response}) {
+			($tlv{0x25}) = delete $session->{auth_response};
+		} else {
+			$tlv{0x25} = encode_password($session, $password, $key);
+		}
 		$tlv{0x4A} = pack("C", 1);
 	}
 

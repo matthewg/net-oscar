@@ -2,10 +2,11 @@
 
 use strict;
 use Net::OSCAR qw(:standard);
+use Digest::MD5;
 eval {
 	require Data::Dumper;
 };
-use vars qw($pid $oscar @chats @invites $loglevel);
+use vars qw($pid $oscar @chats @invites $loglevel $domd5 $password);
 
 #$Carp::Verbose = 1;
 $| = 1;
@@ -171,13 +172,23 @@ $profile
 EOF
 }
 
+sub auth_challenge($$$) {
+	my($oscar, $challenge, $hashstr) = @_;
+	my $md5 = Digest::MD5->new;
+	$md5->add($challenge);
+	$md5->add($password);
+	$md5->add($hashstr);
+	$oscar->auth_response($md5->digest);
+}
+
 $loglevel = $ARGV[0] || 0;
+$domd5 = $ARGV[1] || 0;
 
 print "Username: ";
 my $username = <STDIN>;
 print "Password: ";
 system("stty -echo");
-my $password = <STDIN>;
+$password = <STDIN>;
 system("stty echo");
 print "\n";
 chomp $username;
@@ -215,8 +226,13 @@ $oscar->set_callback_admin_error(\&admin_error);
 $oscar->set_callback_admin_ok(\&admin_ok);
 $oscar->set_callback_rate_alert(\&rate_alert);
 $oscar->set_callback_signon_done(\&signon_done);
+$oscar->set_callback_auth_challenge(\&auth_challenge);
 $oscar->loglevel($loglevel);
-$oscar->signon(screenname => $username, password => $password);
+if($domd5) {
+	$oscar->signon(screenname => $username, password => undef);
+} else {
+	$oscar->signon(screenname => $username, password => $password);
+}
 
 my $inline = "";
 my $inchar = "";

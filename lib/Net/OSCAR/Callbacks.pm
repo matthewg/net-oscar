@@ -37,11 +37,16 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got authentication key.");
 		my($key) = unpack("n/a*", $data);
 
-		$connection->log_print(OSCAR_DBG_SIGNON, "Sending password.");
+		if(defined($connection->{auth})) {
+			$connection->log_print(OSCAR_DBG_SIGNON, "Sending password.");
 
-		%tlv = signon_tlv($session, $connection->{auth}, $key);
+			%tlv = signon_tlv($session, $connection->{auth}, $key);
 
-		$connection->snac_put(family => 0x17, subtype => 0x2, data => tlv_encode(\%tlv));
+			$connection->snac_put(family => 0x17, subtype => 0x2, data => tlv_encode(\%tlv));
+		} else {
+			$connection->log_print(OSCAR_DBG_SIGNON, "Giving client authentication challenge.");
+			$session->callback_auth_challenge($key, "AOL Instant Messenger (SM)");
+		}
 	} elsif($conntype == CONNTYPE_LOGIN and $family == 0x17 and $subtype == 0x3) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got authorization response.");
 

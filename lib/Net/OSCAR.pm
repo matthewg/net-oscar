@@ -199,6 +199,8 @@ here are the valid keys:
 =item password
 
 Screenname and password are mandatory.  The other keys are optional.
+In the special case of password being present but undefined, the
+auth_challenge callback will be used - see L<"auth_challenge"> for details.
 
 =item host
 
@@ -239,13 +241,14 @@ sub signon($@) {
 		$args{port} = shift @_ if @_;
 	} else {
 		%args = @_;
-		return $self->crapout($self->{bos}, "You must specify a username and password to sign on with!") unless $args{screenname} and $args{password};
+		return $self->crapout($self->{bos}, "You must specify a username and password to sign on with!") unless $args{screenname} and exists($args{password});
 	}
 
 	my %defaults = OSCAR_SVC_AIM;
 	foreach my $key(keys %defaults) {
 		$args{$key} ||= $defaults{$key};
 	}
+	return $self->crapout($self->{bos}, "MD5 authentication not available for this service (you must define a password.)") if !defined($args{password}) and $args{hashlogin};
 	$self->{screenname} = new Net::OSCAR::Screenname $args{screenname};
 
 	# We set BOS to the login connection so that our error handlers pick up errors on this connection as fatal.
@@ -259,6 +262,22 @@ sub signon($@) {
 	$self->{svcdata} = \%args;
 	$self->{bos} = $self->addconn($password, CONNTYPE_LOGIN, "login", $host);
 	push @{$self->{connections}}, $self->{bos};
+}
+
+=pod
+
+=item auth_response MD5_DIGEST
+
+Provide a response to an authentication challenge - see the L<"auth_challenge">
+callback for details.
+
+=cut
+
+sub auth_response($$) {
+	my($self, $digest) = @_;
+	$self->log_print(OSCAR_DBG_SIGNON, "Got authentication response - proceeding with signon");
+	$self->{auth_response} = $digest;
+	$self->{bos}->snac_put(family => 0x17, subtype => 0x2, data => tlv(signon_tlv($self)));
 }
 
 =pod
@@ -1694,6 +1713,31 @@ may be present.
 
 Called when the user is completely signed on to the service.
 
+=item auth_challenge(OSCAR, CHALLENGE, HASHSTR)
+
+OSCAR uses an MD5-based challenge/response system for authentication so that the
+password is never sent in plaintext over the network.  When a user wishes to sign on,
+the OSCAR server sends an arbitrary number as a challenge.  The client must respond
+with the MD5 digest of the concatenation of, in this order, the challenge, the password,
+and an additional hashing string (currently always the string
+"AOL Instant Messenger (SM)", but it is possible that this might change in the future.)
+
+If password is undefined in L<"signon">, this callback will be triggered when the
+server sends a challenge during the signon process.  The client must reply with 
+the MD5 digest of CHALLENGE . password . HASHSTR.  For instance, using the
+L<MD5::Digest> module:
+
+	my($oscar, $challenge, $hashstr) = @_;
+	my $md5 = Digest::MD5->new;
+	$md5->add($challenge);
+	$md5->add("password");
+	$md5->add($hashstr);
+	$oscar->auth_response($md5->digest);
+
+Note that this functionality is only available for certain services.  It is
+available for AIM but not ICQ.  Note also that the MD5 digest must be in binary
+form, not the more common hex or base64 forms.
+
 =item log(OSCAR, LEVEL, MESSAGE)
 
 Use this callback if you don't want the log_print methods to just print to STDERR.
@@ -1780,6 +1824,7 @@ sub callback_signon_done(@) { do_callback("signon_done", @_); }
 sub callback_log(@) { do_callback("log", @_); }
 sub callback_im_ok(@) { do_callback("im_ok", @_); }
 sub callback_connection_changed(@) { do_callback("connection_changed", @_); }
+sub callback_auth_challenge(@) { do_callback("auth_challenge", @_); }
 
 sub set_callback_error($\&) { set_callback("error", @_); }
 sub set_callback_buddy_in($\&) { set_callback("buddy_in", @_); }
@@ -1802,6 +1847,7 @@ sub set_callback_signon_done($\&) { set_callback("signon_done", @_); }
 sub set_callback_log($\&) { set_callback("log", @_); }
 sub set_callback_im_ok($\&) { set_callback("im_ok", @_); }
 sub set_callback_connection_changed($\&) { set_callback("connection_changed", @_); }
+sub set_callback_auth_challenge($\&) { set_callback("auth_challenge", @_); }
 
 =pod
 
