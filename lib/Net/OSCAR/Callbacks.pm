@@ -39,7 +39,7 @@ sub process_snac($$) {
 	if($protobit eq "authentication key") {
 		if(defined($connection->{auth})) {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Sending password.");
-			my(%signon_data) = signon_tlv($session, $connection->{auth}, $data{key});
+			my(%signon_data) = signon_tlv($session, delete($connection->{auth}), $data{key});
 
 			$session->svcdo(CONNTYPE_BOS, protobit => "signon", protodata => \%signon_data);
 		} else {
@@ -214,6 +214,7 @@ sub process_snac($$) {
 		foreach (keys %$budinfo) {
 			delete $budinfo->{$_} unless /^(?:buddyid|data|__BLI.*|alias|online|comment|screenname)$/;
 		}
+		$budinfo->{online} = 0;
 
 		$connection->log_print(OSCAR_DBG_DEBUG, "And so, another former ally has abandoned us.  Curse you, $buddy!");
 		$session->callback_buddy_out($buddy, $grpname);
@@ -651,8 +652,6 @@ sub process_snac($$) {
 			$connection->log_printf(OSCAR_DBG_WARN, "Migration pause queue: %d/%d", @$pause_queue, @{$connection->{pause_queue}});
 		}
 
-
-		$session->loglevel(delete $session->{__old_loglevel});
 		my $newconn = $session->addconn(
 			auth => $data{cookie},
 			conntype => $connection->{conntype},

@@ -117,7 +117,7 @@ when using multiple C<Net::OSCAR> objects.
 
 use 5.006_001;
 use strict;
-use vars qw($VERSION $REVISION @ISA @EXPORT_OK %EXPORT_TAGS);
+use vars qw($VERSION $REVISION @ISA @EXPORT_OK %EXPORT_TAGS $NODESTROY);
 use Carp;
 use Scalar::Util qw(weaken);
 use Digest::MD5 qw(md5);
@@ -132,6 +132,8 @@ use Net::OSCAR::Buddylist;
 use Net::OSCAR::Screenname;
 use Net::OSCAR::_BLInternal;
 use Net::OSCAR::XML;
+
+$NODESTROY = 0;
 
 require Exporter;
 @ISA = qw(Exporter);
@@ -3791,6 +3793,7 @@ sub delconn($$) {
 
 sub DESTROY {
 	my $self = shift;
+	return if $Net::OSCAR::NODESTROY;
 
 	foreach my $connection(@{$self->{connections}}) {
 		next unless $connection->{socket} and not $connection->{sockerr};

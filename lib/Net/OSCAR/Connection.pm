@@ -515,7 +515,7 @@ sub process_one($;$$$) {
 				);
 			} else {
 				$self->proto_send(protobit => "ICQ signon request",
-					protodata => {signon_tlv($self->{session}, $self->{auth})},
+					protodata => {signon_tlv($self->{session}, delete($self->{auth}))},
 					nopause => 1
 				);
 			}
@@ -523,7 +523,7 @@ sub process_one($;$$$) {
 			$self->log_print(OSCAR_DBG_NOTICE, "Sending BOS-Signon.");
 			$self->proto_send(protobit => "BOS signon",
 				reqid => 0x01000000 | (unpack("n", substr($self->{auth}, 0, 2)))[0],
-				protodata => {cookie => substr($self->{auth}, 2)},
+				protodata => {cookie => substr(delete($self->{auth}), 2)},
 				nopause => 1
 			);
 		}
