@@ -463,6 +463,8 @@ sub process_snac($$) {
 	} elsif($family == 0x07 and $subtype == 0x05) {
 		$session->log_print(OSCAR_DBG_DEBUG, "Account confirmed.");
 		$session->callback_admin_ok(ADMIN_TYPE_ACCOUNT_CONFIRM);
+	} elsif($family == 0x09 and $subtype == 0x02) {
+		$session->crapout($connection, "A session using this screenname has been opened in another location.");
 	} else {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Unknown SNAC: ".hexdump($snac->{data}));
 	}
