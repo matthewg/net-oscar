@@ -287,9 +287,9 @@ sub bltie(;$) {
 	return $retval;
 }
 
-sub tlvtie() {
+sub tlvtie(;$) {
 	my $retval = {};
-	tie %$retval, "Net::OSCAR::TLV";
+	tie %$retval, "Net::OSCAR::TLV", shift;
 	return $retval;
 }
 

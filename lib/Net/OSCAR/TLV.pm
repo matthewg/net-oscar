@@ -5,10 +5,15 @@ $VERSION = 0.08;
 use strict;
 use vars qw($VERSION);
 use warnings;
+use Net::OSCAR::Common qw(:all);
 
+# Extra arguments: an optional scalar which modifies the behavior of $self->{foo}->{bar} = "baz"
+# Iff foo doesn't exist, the scalar will be evaluated and assigned as the value of foo.
+# So, instead of having foo be {bar => "baz"} , it could be another TLV.
+# It will be given the key bar.
 sub new {
 	my $pkg = shift;
-	$pkg->TIEHASH(@_);
+	my $self = $pkg->TIEHASH(@_);
 }
 
 
@@ -29,7 +34,7 @@ sub setorder {
 
 sub TIEHASH {
 	my $class = shift;
-	my $self = { DATA => {}, ORDER => [], CURRKEY => -1};
+	my $self = { DATA => {}, ORDER => [], CURRKEY => -1, AUTOVIVIFY => shift};
 	return bless $self, $class;
 }
 
@@ -40,9 +45,32 @@ sub FETCH {
 
 sub STORE {
 	my($self, $key, $value) = @_;
-	return $self->{DATA}->{pack("n", $key)} = $value if exists $self->{DATA}->{pack("n", $key)};
-	push @{$self->{ORDER}}, pack("n", $key);
-	$self->{DATA}->{pack("n", $key)} = $value;
+	my($normalkey) = pack("n", $key);
+
+	#print STDERR "Storing: ", Data::Dumper->Dump([$value], ["${self}->{$key}"]);
+	if(!exists $self->{DATA}->{$normalkey}) {
+		if(
+			$self->{AUTOVIVIFY} and
+			ref($value) eq "HASH" and
+			!tied(%$value) and
+			scalar keys %$value == 0
+		) {
+			#print STDERR "Autovivifying $key: $self->{AUTOVIVIFY}\n";
+			eval $self->{AUTOVIVIFY};
+			#print STDERR "New value: ", Data::Dumper->Dump([$self->{DATA}->{$normalkey}], ["${self}->{$key}"]);
+		} else {
+			#print STDERR "Not autovivifying $key.\n";
+			#print STDERR "No autovivify.\n" unless $self->{AUTOVIVIFY};
+			#printf STDERR "ref(\$value) eq %s\n", ref($value) unless ref($value) eq "HASH";
+			#print STDERR "tied(\%\$value)\n" unless !tied(%$value);
+			#printf STDERR "scalar keys \%\$value == %d\n", scalar keys %$value unless scalar keys %$value == 0;
+		}
+		push @{$self->{ORDER}}, $normalkey;
+	} else {
+		#print STDERR "Not autovivifying $key: already exists\n";
+	}
+	$self->{DATA}->{$normalkey} = $value;
+	return $value;
 }
 
 sub DELETE {

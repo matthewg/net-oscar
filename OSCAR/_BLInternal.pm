@@ -2,6 +2,31 @@ package Net::OSCAR::_BLInternal;
 
 use Net::OSCAR::Common qw(:all);
 
+# Heh, this is fun.
+# This is what we use as the first arg to Net::OSCAR::TLV when creating a new BLI.
+# What this does is make it so that the hashref-keys (keys whose values are hashrefs)
+# of the root BLI will be Net::OSCAR::TLVs.  Hashref-keys of those N::O::TLVs will also
+# be N::O::TLVs.  Same for the next level.  The level after that gets a hashref
+# with two keys: name is the empty string and data is a N::O::TLV.
+# 
+# Here's a better way to picture it:
+#    $bli = Net::OSCAR::TLV->new(BLI_AUTOVIV);
+#    $bli->{$type}->{$gid}->{$bid}->{data}->{0xABCD} = "foo";
+#          ^^^^^^^  ^^^^^^  ^^^^^^  ^^^^^^
+#          TLV      TLV     {name,  TLV
+#                            data}      
+#
+# The subkeys are automagically TLV-ified.
+#
+use constant BLI_AUTOVIV =>
+	q!
+		tie %$value, ref($self), q#
+			tie %$value, ref($self), q^
+				$value->{name} = ""; $value->{data} = tlvtie;
+			^
+		#
+	!;
+
 sub blparse($$) {
 	my($session, $data) = @_;
 
@@ -13,7 +38,7 @@ sub blparse($$) {
 	substr($data, 0, 3, "");
 
 	delete $session->{blinternal};
-	$session->{blinternal} = tlvtie;
+	$session->{blinternal} = tlvtie BLI_AUTOVIV;
 
 	while(length($data) > 4) {
 		my($name) = unpack("n/a*", $data);
@@ -21,20 +46,11 @@ sub blparse($$) {
 		my($gid, $bid, $type, $sublen) = unpack("n*", substr($data, 0, 8, ""));
 		my $typedata = tlv_decode(substr($data, 0, $sublen, ""));
 
-		$session->{blinternal}->{$type} = tlvtie unless exists $session->{blinternal}->{$type};
-		$session->{blinternal}->{$type}->{$gid} = tlvtie unless exists $session->{blinternal}->{$type}->{$gid};
 		$session->{blinternal}->{$type}->{$gid}->{$bid}->{name} = $name if $name;
-		$session->{blinternal}->{$type}->{$gid}->{$bid}->{data} = $typedata if $typedata;
-		$session->debug_printf("Got BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $name, $type, $gid, $bid, $sublen, hexdump(tlv_encode($typedata)));
-	}
-
-	foreach my $type(values %{$session->{blinternal}}) {
-		foreach my $gid(values %$type) {
-			foreach my $bid(values %$bid) {
-				$bid->{name} = "" unless defined $bid->{name};
-				$bid->{data} = tlvtie unless defined $bid->{data};
-			}
+		while(my($key, $value) = each %$typedata) {
+			$session->{blinternal}->{$type}->{$gid}->{$bid}->{data}->{$key} = $value;
 		}
+		$session->debug_printf("Got BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $name, $type, $gid, $bid, $sublen, hexdump(tlv_encode($typedata)));
 	}
 
 	return BLI_to_NO($session);
@@ -227,33 +243,19 @@ sub BLI_to_NO($;$$$) {
 sub NO_to_BLI($) {
 	my $session = shift;
 
-	my $bli = tlvtie;
+	my $bli = tlvtie BLI_AUTOVIV;
 
-	$bli->{2} = tlvtie;
-	$bli->{2}->{0} = tlvtie;
 	foreach my $permit (keys %{$session->{permit}}) {
-		$bli->{2}->{0}->{$session->{permit}->{$permit}->{buddyid}} = {
-			name => $permit,
-			data => tlvtie
-		};
+		$bli->{2}->{0}->{$session->{permit}->{$permit}->{buddyid}}->{name} = $permit;
 	}
 
-	$bli->{3} = tlvtie;
-	$bli->{3}->{0} = tlvtie;
 	foreach my $deny (keys %{$session->{deny}}) {
-		$bli->{2}->{0}->{$session->{deny}->{$deny}->{buddyid}} = {
-			name => $deny,
-			data => tlvtie
-		};
+		$bli->{2}->{0}->{$session->{deny}->{$deny}->{buddyid}}->{name} = $deny;
 	}
 
-	$bli->{4} = tlvtie;
-	$bli->{4}->{0} = tlvtie;
 	my $vistype;
 	$vistype = (keys %{$session->{blinternal}->{4}->{0}})[0] if exists($session->{blinternal}->{4}) and exists($session->{blinternal}->{4}->{0}) and scalar keys %{$session->{blinternal}->{4}->{0}};
 	$vistype ||= 2;
-	$bli->{4}->{0}->{$vistype}->{name} = "";
-	$bli->{4}->{0}->{$vistype}->{data} = tlvtie;
 	$bli->{4}->{0}->{$vistype}->{data}->{0xCA} = pack("C", $session->{visibility} || VISMODE_PERMITALL);
 	$bli->{4}->{0}->{$vistype}->{data}->{0xCB} = pack("N", $session->{groupperms} || 0xFFFFFFFF);
 	$bli->{4}->{0}->{$vistype}->{data}->{0x0100} = $session->{profile} if exists($session->{profile});
@@ -262,31 +264,17 @@ sub NO_to_BLI($) {
 	}
 
 	if(exists($session->{showidle})) {
-		$bli->{5} = tlvtie;
-		$bli->{5}->{0} = tlvtie;
-		$bli->{5}->{0}->{19719}->{name} = "";
-		$bli->{5}->{0}->{19719}->{data} = tlvtie;
-		$bli->{5}->{0}->{19719}->{data}->{0xC9} = pack("N", $session->{showidle});
+		$bli->{5}->{0}->{0x4D07}->{data}->{0xC9} = pack("N", $session->{showidle});
 	}
 
-	$bli->{0} = tlvtie;
-	$bli->{1} = tlvtie;
-	$bli->{1}->{0} = tlvtie;
-	$bli->{1}->{0}->{0}->{name} = "";
-	$bli->{1}->{0}->{0}->{data} = tlvtie;
 	$bli->{1}->{0}->{0}->{data}->{0xC8} = pack("n*", map { $_->{groupid} } values %{$session->{buddies}});
 	foreach my $group(keys %{$session->{buddies}}) {
 		my $gid = $session->{buddies}->{$group}->{groupid};
-		$bli->{1}->{$gid} = tlvtie;
-		$bli->{1}->{$gid}->{0}->{name} = $group;
-		$bli->{1}->{$gid}->{0}->{data} = tlvtie;
 		$bli->{1}->{$gid}->{0}->{data}->{0xC8} = pack("n*", map { $_->{buddyid} } values %{$session->{buddies}->{$group}->{members}});
 
-		$bid->{0}->{$gid} = tlvtie;
 		foreach my $buddy(keys %{$session->{buddies}->{$group}->{members}}) {
 			my $bid = $session->{buddies}->{$group}->{members}->{$buddy}->{buddyid};
 			$bli->{0}->{$gid}->{$bid}->{name} = $buddy;
-			$bli->{0}->{$gid}->{$bid}->{data} = tlvtie;
 			while(my ($key, $value) = each(%{$session->{buddies}->{$group}->{members}->{$buddy}->{data}})) {
 				$bli->{0}->{$gid}->{$bid}->{data}->{$key} = $value;
 			}
