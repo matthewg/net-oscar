@@ -71,7 +71,9 @@ demonstrates how to use this method with multiple C<Net::OSCAR> objects:
 
 	my($rin, $win) = (0, 0);
 	foreach my $oscar(@oscars) {
-		my($rin, $win) = $oscar->selector_filenos;
+		my($thisrin, $thiswin) = $oscar->selector_filenos;
+		$rin |= $thisrin;
+		$win |= $thiswin;
 	}
 	# Add in any other file descriptors you care about using vec().
 	my $ein = $rin | $win;
@@ -312,12 +314,8 @@ convenient for use with multiple C<Net::OSCAR> objects or
 use with a C<select>-based event loop that you are also
 using for other purposes.
 
-You must include the file numbers of all sockets returned by
-the L<connections> method in both the readers, writers, and
-errors parameters of your select statement.
-
-See the L<connections> method for a way to get the file
-descriptors to add to your C<select>.
+See the L<selector_filenos> method for a way to get the necessary
+bit vectors to use in your C<select>.
 
 =cut
 
@@ -1644,6 +1642,8 @@ sub set_callback_log($\&) { set_callback("log", @_); }
 sub set_callback_im_ok($\&) { set_callback("im_ok", @_); }
 
 =pod
+
+=back
 
 =head1 CHATS
 
