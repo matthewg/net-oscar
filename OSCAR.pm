@@ -1649,6 +1649,39 @@ libpcap-format packet captures.
 
 =item *
 
+0.07, 2001-08-13
+
+=over 4
+
+=item *
+
+A bunch of Makefile.PL fixes
+
+=item *
+
+Fixed spurious admin_error callback and prevent user from having multiple
+pending requests of the same type.  (closes #39)
+
+=item *
+
+Head off some potential problems with set_visibility.  (closes #34)
+
+=item *
+
+Removed connections method, added selector_filenos
+
+=item *
+
+Added error number 29 (too many recent signons from your site) to Net::OSCAR::Common.
+
+=item *
+
+We now explicitly perl 5.6.0 or newer.
+
+=back
+
+=item *
+
 0.06, 2001-08-12
 
 =over 4
