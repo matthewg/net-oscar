@@ -1007,7 +1007,7 @@ sub format_screenname($$) {
 
 Creates (or joins?) a chatroom.  The exchange parameter should probably not be
 specified unless you know what you're doing.  Do not use this method
-to accept invitations to join a chatroom - use the L<chat_accept> method
+to accept invitations to join a chatroom - use the L<"chat_accept"> method
 for that.
 
 =cut
