@@ -219,7 +219,7 @@ sub new($) {
 		croak "Invalid parameter '$badparam' passed to Net::OSCAR::new.";
 	}
 	if($parameters{capabilities}) {
-		if(my($badcap) = grep { $_ ne "extended_status" and $_ ne "buddy_icons" and $_ ne "file_transfer" and $_ ne "file_sharing" and $_ ne "typing_status" } @{$parameters{capabilities}}) {
+		if(my($badcap) = grep { $_ ne "extended_status" and $_ ne "buddy_icons" and $_ ne "file_transfer" and $_ ne "file_sharing" and $_ ne "typing_status" and $_ ne "file_transfer" } @{$parameters{capabilities}}) {
 			croak "Invalid capability '$badcap' passed to Net::OSCAR::new.";
 		}
 	}
@@ -231,6 +231,7 @@ sub new($) {
 	$self->{services} = tlv;
 	$self->{svcqueues} = tlv;
 	$self->{listener} = undef;
+	$self->{rv_proposals} = {};
 	$self->{pass_is_hashed} = 0;
 
 	$self->{timeout} = 0.01;
@@ -1081,6 +1082,38 @@ sub get_away($$) {
 	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, protobit => "get away", protodata => {screenname => $screenname});
 }
 
+
+sub send_message($$$$;$) {
+	my($self, $recipient, $channel, $body, $flags2) = @_;
+	$flags2 ||= 0;
+
+	my $reqid = (8<<16) | (unpack("n", randchars(2)))[0];
+	my %protodata = (
+		cookie => randchars(8),
+		channel => $channel,
+		screenname => $recipient,
+		message_body => $body,
+	);
+	$self->svcdo(CONNTYPE_BOS, reqdata => $to, protobit => "outgoing IM", protodata => \%protodata, flags2 => $flags2);
+
+	return $reqid;
+}
+
+sub rendezvous_reject($$) {
+	my($self, $cookie) = @_;
+
+	return unless exists($self->{rv_proposals}->{$cookie});
+	my $proposal = delete $self->{rv_proposals}->{$cookie};
+
+	my %protodata;
+	$protodata{status} = 1;
+	$protodata{cookie} = $cookie;
+	$protodata{capability} = OSCAR_CAPS()->{$proposal->{type}} ? OSCAR_CAPS()->{$proposal->{type}}->{value} : $proposal->{type};
+
+	return $self->send_message($proposal->{sender}, 2, protoparse($self, "rendezvous IM")->pack(%protodata));
+}
+
+
 =pod
 
 =item send_im (WHO, MESSAGE[, AWAY])
@@ -1095,11 +1128,9 @@ If the message was too long to send, returns zero.
 
 =cut
 
-sub send_im($$$;$;) {
-	my($self, $to, $msg, $away, $channel) = @_;
+sub send_im($$$;$) {
+	my($self, $to, $msg, $away) = @_;
 	return must_be_on($self) unless $self->{is_on};
-
-	my $reqid = (8<<16) | (unpack("n", randchars(2)))[0];
 
 	if(!$self->{svcdata}->{hashlogin}) {
 		return 0 if length($msg) >= 7987;
@@ -1107,12 +1138,7 @@ sub send_im($$$;$;) {
 		return 0 if length($msg) > 2000;
 	}
 
-	my %protodata = (
-		cookie => randchars(8),
-		channel => $channel || 1,
-		screenname => $to,
-		message => $msg,
-	);
+	my %protodata;
 
 	if($away) {
 		$protodata{is_automatic} = {};
@@ -1132,15 +1158,12 @@ sub send_im($$$;$;) {
 		$protodata{icon_data}->{"icon_".$_} = $self->{"icon_".$_} foreach qw(length checksum timestamp);
 	}
 
-	
 	my $flags2 = 0;
 	if($self->{capabilities}->{typing_status}) {
 		$flags2 = 0xB;
 	}
 
-	$self->svcdo(CONNTYPE_BOS, reqdata => $to, protobit => "outgoing IM", protodata => \%protodata, flags2 => $flags2);
-
-	return $reqid;
+	return $self->send_message($to, 1, protoparse($self, "standard IM footer")->pack(%protodata), $flags2);
 }
 
 =pod
@@ -1282,14 +1305,10 @@ set the next time the screenname is signed on.  (This is a
 Net::OSCAR-specific feature, so other clients will not pick
 up the profile from the buddylist.)
 
-Note that if the user's profile was previously set with Net::OSCAR,
-it will be stored in the server-side buddylist, and so this method will
-not have to be called every time the user signs on.  However, other clients
-do not store the profile on the server, so if the user previously
-set a profile with a non-Net::OSCAR-based client, this method will
-need to be called in order for the user's profile to be set.
-
-See the file C<PROTOCOL>, included with the C<Net::OSCAR> distribution,
+Note that Net::OSCAR stores the user's profile in the server-side buddylist, so
+if L<"commit_buddylist"> is called after setting the profile with this method,
+the user will automatically get that same profile set whenever they sign on
+through Net::OSCAR.  See the file C<PROTOCOL>, included with the C<Net::OSCAR> distribution,
 for details of how we're storing this data.
 
 =cut

@@ -251,7 +251,7 @@ print "\n";
 chomp $username;
 chomp $password;
 
-$oscar = Net::OSCAR->new(capabilities => [qw(typing_status extended_status buddy_icons)]);
+$oscar = Net::OSCAR->new(capabilities => [qw(typing_status extended_status buddy_icons file_transfer)]);
 $oscar->set_callback_error(\&error);
 $oscar->set_callback_buddy_in(\&buddy_in);
 $oscar->set_callback_buddy_out(\&buddy_out);

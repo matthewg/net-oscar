@@ -236,12 +236,17 @@ sub process_snac($$) {
 			# Okay, finally we're done with silly processing of embedded flags
 			$session->callback_im_in($sender, $data{message}, exists($data{is_automatic}) ? 1 : 0);
 
-		} elsif($data{channel} == 2) { # Chat invite
+		} elsif($data{channel} == 2) {
 			%data = protoparse($session, "rendezvous IM")->unpack($data{IM});
-
 			my $type = OSCAR_CAPS_INVERSE()->{$data{capability}};
+			$session->{rv_proposals}->{$data{cookie}} = {
+				sender => $sender,
+				type => $type || $data{capability}
+			};
+
 			if(!$type) {
 				$connection->log_print(OSCAR_DBG_INFO, "Unknown rendezvous type: ", hexdump($data{capability}));
+				$session->rendezvous_reject($data{cookie});
 			} elsif($type eq "chat") {
 				# Ignore invites for chats that we're already in
 				if(not grep { $_->{url} eq $data{url} }
@@ -255,6 +260,11 @@ sub process_snac($$) {
 
 					$session->callback_chat_invite($sender, $data{invitation_msg}, $chat, $data{url});
 				}
+			} elsif($type eq "filexfer") {
+				
+			} else {
+				$connection->log_print(OSCAR_DBG_INFO, "Unsupported rendezvous type '$type'");
+				$session->rendezvous_reject($data{cookie});
 			}
 		}
 	} elsif($protobit eq "typing notification") {

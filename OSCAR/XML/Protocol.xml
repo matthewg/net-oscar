@@ -394,7 +394,7 @@
 	<define name="rendezvous IM">
 		<tlvchain>
 			<tlv type="5">
-				<!-- 0=cancel, 1=cancel, 2=accept -->
+				<!-- 0=propose, 1=cancel, 2=accept -->
 				<word name="status" /> 
 
 				<data length="8" name="cookie" />
@@ -414,7 +414,7 @@
 					<tlv type="4"><dword name="apparent_outside_ip" /></tlv>
 					<tlv type="5"><word name="port" /></tlv>
 
-					<!-- Chat invitations -->
+					<!-- Proposal message -->
 					<tlv type="12"><data name="invitation_msg" /></tlv>
 					<tlv type="13"><data name="charset">us-ascii</data></tlv>
 					<tlv type="14"><data name="language">0</data></tlv>
@@ -434,7 +434,7 @@
 	<define name="outgoing IM" family="4" subtype="6">
 		<ref name="standard IM header" />
 		<data name="screenname" length_prefix="byte" />
-		<ref name="standard IM footer" />
+		<data name="message_body" />
 	</define>
 
 	<define name="IM acknowledgement" family="4" subtype="12">
