@@ -1222,9 +1222,11 @@ sub change_password($$$) {
 	my($self, $currpass, $newpass) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	if($self->{adminreq}->{ADMIN_TYPE_PASSWORD_CHANGE}++) {
+	if($self->{adminreq}->{0+ADMIN_TYPE_PASSWORD_CHANGE}) {
 		$self->callback_admin_error(ADMIN_TYPE_PASSWORD_CHANGE, ADMIN_ERROR_REQPENDING);
 		return;
+	} else {
+		$self->{adminreq}->{0+ADMIN_TYPE_PASSWORD_CHANGE}++;
 	}
 
 	my %tlv;
@@ -1252,10 +1254,13 @@ sub confirm_account($) {
 	my($self) = shift;
 	return must_be_on($self) unless $self->{is_on};
 
-	if($self->{adminreq}->{ADMIN_TYPE_ACCOUNT_CONFIRM}++) {
+	if($self->{adminreq}->{0+ADMIN_TYPE_ACCOUNT_CONFIRM}) {
 		$self->callback_admin_error(ADMIN_TYPE_ACCOUNT_CONFIRM, ADMIN_ERROR_REQPENDING);
 		return;
+	} else {
+		$self->{adminreq}->{0+ADMIN_TYPE_ACCOUNT_CONFIRM}++;
 	}
+
 	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x06);
 }
 
@@ -1278,10 +1283,13 @@ sub change_email($$) {
 	my($self, $newmail) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	if($self->{adminreq}->{ADMIN_TYPE_EMAIL_CHANGE}++) {
+	if($self->{adminreq}->{0+ADMIN_TYPE_EMAIL_CHANGE}) {
 		$self->callback_admin_error(ADMIN_TYPE_EMAIL_CHANGE, ADMIN_ERROR_REQPENDING);
 		return;
+	} else {
+		$self->{adminreq}->{0+ADMIN_TYPE_EMAIL_CHANGE}++;
 	}
+
 	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv(0x11 => $newmail));
 }
 
@@ -1299,10 +1307,13 @@ sub format_screenname($$) {
 	my($self, $newname) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	if($self->{adminreq}->{ADMIN_TYPE_SCREENNAME_FORMAT}++) {
+	if($self->{adminreq}->{0+ADMIN_TYPE_SCREENNAME_FORMAT}) {
 		$self->callback_admin_error(ADMIN_TYPE_SCREENNAME_FORMAT, ADMIN_ERROR_REQPENDING);
 		return;
+	} else {
+		$self->{adminreq}->{0+ADMIN_TYPE_SCREENNAME_FORMAT}++;
 	}
+
 	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv(1 => $newname));
 }
 
