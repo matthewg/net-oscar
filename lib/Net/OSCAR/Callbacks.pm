@@ -12,8 +12,8 @@ use Net::OSCAR::TLV;
 use Net::OSCAR::Buddylist;
 
 use constant MAJOR => 4;
-use constant MINOR => 7;
-use constant BUILD => 2480;
+use constant MINOR => 3;
+use constant BUILD => 2229;
 
 sub capabilities() {
 	my $caps;
@@ -50,7 +50,7 @@ sub process_snac($$) {
 			0x18 => pack("n", MINOR),
 			0x19 => pack("n", 0),
 			0x1A => pack("n", BUILD),
-			0x14 => pack("N", 0x9F),
+			0x14 => pack("N", 0x8C),
 			0x0E => "us", # country
 			0x0F => "en", # lang
 			0x4A => pack("C", 1),
@@ -299,70 +299,78 @@ sub process_snac($$) {
 		($flags) = unpack("xn", substr($data, 0, 3, ""));
 
 		while(length($data) > 4) {
-			my($name) = unpack("n/a*", $data);
-			substr($data, 0, 2+length($name)) = "";
-			my($gid, $bid, $type, $sublen) = unpack("n*", substr($data, 0, 8, ""));
-			my $typedata = substr($data, 0, $sublen, "");
+			my($namelen, $gid, $id, $type);
 
-			if($type == 0) { #Buddy
-				push @buddyqueue, {
-					screenname => $name,
-					buddyid => $bid,
-					groupid => $gid,
-					type => $type,
-					data => tlv_decode($typedata)
+			($namelen) = unpack("n", substr($data, 0, 2));
+			if($namelen == 0) {
+				substr($data, 0, 6) = "";
+				my($type, $len) = unpack("nn", substr($data, 0, 4, ""));
+				my $typedata = substr($data, 0, $len, "");
+
+				if($type == 4) {
+					$tlv = tlv_decode($typedata);
+					($session->{visibility}) = unpack("C", $tlv->{0xCA}) if $tlv->{0xCA};
+
+
+					$groupperms = $tlv->{0xCB};
+					($session->{groupperms}) = unpack("N", $groupperms) if $groupperms;
+					$session->{profile} = $tlv->{0x0100} if exists($tlv->{0x0100});
+
+					delete $tlv->{0xCB};
+					delete $tlv->{0xCA};
+					delete $tlv->{0x0100};
+					$session->{appdata} = $tlv;
+
+					$session->set_info($session->{profile}) if exists($session->{profile});
+
+
+					if(substr($data, 0, 4) eq chr(0)x4 and $groupperms and $groupperms eq chr(0xFF)x4) {
+						substr($data, 0, 8) = "";
+						($tlvlen) = unpack("n", substr($data, 0, 2, ""));
+						substr($data, 0, $tlvlen) = "";
+					}
+				} elsif($type == 5) {
+					# Not yet implemented
+					$tlv = tlv_decode($typedata);
+					($session->{showidle}) = unpack("N", $tlv->{0xC9});
+				} else {
+					$session->debug_print("Got unknown BLTtype $type: ", hexdump($typedata));
 				}
-			} elsif($type == 1) { #Group
-				if($groupid != 0) {
-					$session->{buddies}->{$group}->{$groupid} = $groupid;
+			} else {
+				my $buddy = get_buddy($session, \$data);
+				next unless $buddy;
+
+				if($buddy->{buddyid}) {
+					$session->debug_print("Queueing buddy $buddy->{name}.");
+					push @buddyqueue, $buddy;
+				} else {
+					my $group = $buddy->{name};
+					$session->debug_printf("Got group $group (0x%04X).", $buddy->{groupid});
+					$session->{buddies}->{$group}->{groupid} = $buddy->{groupid};
 					$session->{buddies}->{$group}->{members} = $session->bltie();
 				}
-				# Group/buddy ordering in type 0xC8
-			} elsif($type == 4) {
-				$session->{vistype} = $bid;
-				$tlv = tlv_decode($typedata);
-				($session->{visibility}) = unpack("C", $tlv->{0xCA}) if $tlv->{0xCA};
-
-
-				$groupperms = $tlv->{0xCB};
-				($session->{groupperms}) = unpack("N", $groupperms) if $groupperms;
-				$session->{profile} = $tlv->{0x0100} if exists($tlv->{0x0100});
-
-				delete $tlv->{0xCB};
-				delete $tlv->{0xCA};
-				delete $tlv->{0x0100};
-				$session->{appdata} = $tlv;
-
-				$session->set_info($session->{profile}) if exists($session->{profile});
-			} elsif($type == 5) {
-				# Not yet implemented
-				$tlv = tlv_decode($typedata);
-				($session->{showidle}) = unpack("N", $tlv->{0xC9});
-			} else {
-				$session->debug_print("Got unknown BLTtype $type: ", hexdump($typedata));
 			}
 		}
 
 		$session->debug_print("Processing queued buddies.");
 		foreach my $buddy(@buddyqueue) {
 			my $group = "";
-			if($buddy->{type} == 2) {
-				$session->{permit}->{$buddy->{screenname}} = {
-					buddyid => $buddy->{buddyid}
-				}
-			} elsif($buddy->{type} == 3) {
-				$session->{deny}->{$buddy->{screenname}} = {
-					buddyid => $buddy->{buddyid}
-				}
+			if($buddy->{pdflag}) {
+				($buddy->{pdflag} == GROUP_PERMIT) ? ($group = "permit") : ($group = "deny");
+				$session->{$group}->{$buddy->{name}} = { buddyid => $buddy->{buddid} };
 			} else {
+				if(!$buddy->{groupid}) {
+					my $xgroup = (sort grep { $_ ne "permit" and $_ ne "deny" } keys %{$session->{buddies}})[0];
+					$buddy->{groupid} = $session->{buddies}->{$xgroup}->{groupid};
+				}
 				$group = $session->findgroup($buddy->{groupid});
 				#$session->debug_print("After findgroup, groups are: ", join(",", keys %{$session->{buddies}}));
 				next unless $group;
 				next if $session->{buddies}->{$group}->{members}->{$buddy->{name}};
-				$session->{buddies}->{$group}->{members}->{$buddy->{screenname}} = {
+				$session->{buddies}->{$group}->{members} = $session->bltie() unless exists $session->{buddies}->{$group}->{members};
+				$session->{buddies}->{$group}->{members}->{$buddy->{name}} = {
 					online => 0,
-					buddyid => $buddy->{buddyid},
-					data => $buddy->{data}
+					buddyid => $buddy->{buddyid}
 				};
 			}
 		}
@@ -522,6 +530,32 @@ sub process_snac($$) {
 	}
 
 	return 1;
+}
+
+sub get_buddy($\$) {
+	my ($session, $data) = @_;
+	confess "Bad data $data!" unless ref($data) eq "SCALAR";
+	confess "Too short" if length($$data) < 10;
+	if(substr($$data, 0, 2) eq pack("n", 0xC8)) { ## Sometimes we get TLV 0xC8?
+		my($tlvlen) = unpack("xx n", $$data);
+		substr($$data, 0, 4+$tlvlen) = "";
+	}
+	my($name, $groupid, $buddyid, $pdflag, $groupmembers) = unpack("n/a* n n n n", $$data);
+	return undef unless $name;
+	substr($$data, 0, 10+length($name)) = "";
+	my(@groupmembers) = ();
+	@groupmembers = unpack("n*", substr($$data, 0, $groupmembers, "")) if $groupmembers;
+	if($groupmembers) {
+		$session->{buddies}->{$name}->{groupid} = $groupid;
+		$session->{buddies}->{$name}->{members} = $session->bltie();
+	}
+	return {
+		name => $name,
+		groupid => $groupid,
+		buddyid => $buddyid,
+		pdflag => $pdflag,
+		groupmembers => \@groupmembers
+	};
 }
 
 1;

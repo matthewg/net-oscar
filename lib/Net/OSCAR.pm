@@ -539,12 +539,13 @@ sub set_visibility($$;$) {
 	my($self, $vismode, $newgp) = @_;
 
 	$self->{vismode} = $vismode if $vismode;
-	$self->{groupperms} = $newgp if $newgp;
-	$self->{groupperms} ||= 0xFFFFFFFF;
-	$self->{bos}->snac_put(family => 0x13, subtype => 0x08, data => pack("n*", 0, 0, 2, 4, 0) unless $self->{vistype};
-	$self->{vistype} ||= 2;
+	$newgp ||= 0xFFFFFFFF;
+	if($self->{vismode} and !$self->{groupperms}) { # Contents of subTLV 0xCB in TLV 0x02 in SNAC 0x0013/0x0006
+		$self->{bos}->snac_put(family => 0x13, subtype => 0x08, data => pack("N", $newgp));
+		$self->{groupperms} = $newgp;
+	}
 	$self->{bos}->snac_put(family => 0x13, subtype => 0x9, data =>
-		pack("nnn a*", 0, 0, $self->{vistype},
+		pack("nnn a*", 0, 0, 0,
 			tlv(0x04 =>
 				(exists($self->{profile}) ? tlv(0x0100 => $self->{profile}) : "") .
 				(exists($self->{vismode}) ? tlv(0xCA => pack("C", $self->{vismode})) : "") .
@@ -791,7 +792,7 @@ sub modgroups($) {
 				)
 			;
 		} else {
-			$packet .= pack("nnn", 0, 0, $self->{vistype});
+			$packet .= pack("nnn", 0, 0, 0);
 			$packet .= 
 				tlv(1 =>
 					tlv(0xC8 => pack("n*", map { $_->{groupid} } values %{$self->{buddies}}))

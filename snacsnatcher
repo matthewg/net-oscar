@@ -17,11 +17,16 @@ my $file = shift or die "Usage: snacsnatcher pcapfile [verbose]\n";
 
 # Quick and dirty protocol analyzer
 
-use vars qw($packet $verbose $buffer $bufflen $datalink);
+use vars qw($packet $verbose $buffer $bufflen $dummyconn $datalink);
 $packet = 0;
 $verbose = shift;
 $buffer = "";
 $bufflen = 0;
+
+$dummyconn = {};
+bless $dummyconn, "Net::OSCAR::Connection";
+$dummyconn->{DEBUG} = 1 if $verbose;
+$dummyconn->{description} = "";
 
 $| = 1;
 
@@ -122,10 +127,7 @@ sub got_packet($$$) {
 				}
 
 				if($tlv) {
-					my $tlv = tlv_decode(substr($pkt, 0, $len));
-					foreach my $type(keys %$tlv) {
-						printf "\n\t0x%04X: %s", $type, hexdump($tlv->{$type});
-					}
+					Net::OSCAR::Connection::tlv_decode($dummyconn, substr($pkt, 0, $len));
 				} else {
 					print hexdump(substr($pkt, 0, $len));
 				}
