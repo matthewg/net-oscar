@@ -1,0 +1,552 @@
+<?xml version="1.0"?>
+<!DOCTYPE oscar SYSTEM "Protocol.dtd">
+
+<oscar>
+
+	<!-- OSCAR primitives -->
+
+	<define name="flap">
+		<byte>42</byte> <!-- FLAP packet start indicator -->
+		<byte name="channel">2</byte>
+		<word name="seqno" />
+		<data length_prefix="word" name="msg" />
+	</define>
+
+	<define name="snac">
+		<word name="family" />
+		<word name="subtype" />
+		<byte name="flags1" />
+		<byte name="flags2" />
+		<dword name="reqid" />
+		<data name="data" />
+	</define>
+
+	<define name="userinfo">
+		<data name="screenname" length_prefix="byte" />
+		<word name="evil" />
+		<tlvchain count_prefix="word">
+			<tlv type="1"><word name="flags" /></tlv>
+			<tlv type="2"><dword name="membersince" /></tlv>
+			<tlv type="3"><dword name="onsince" /></tlv>
+			<tlv type="4"><word name="idle" /></tlv>
+			<tlv type="13"><data length="16" count="-1" name="capabilities" /></tlv>
+			<tlv type="29">
+				<tlvchain subtyped="yes">
+					<tlv type="1" subtype="1"><data name="icon_md5sum" /></tlv>
+					<tlv type="2"><data length_prefix="word" name="extended_status" /></tlv>
+				</tlvchain>
+			</tlv>
+
+			<tlv type="5"> <!-- Only found in channel 3 IMs, why is it in this structure??? -->
+				<tlvchain>
+					<tlv type="12"><data name="invitation_message" /></tlv>
+					<tlv type="10001">
+						<word />
+						<data length_prefix="byte" name="chat_url" />
+					</tlv>
+				</tlvchain>
+			</tlv> 
+		</tlvchain>
+	</define>
+
+
+	<!-- Random protocol crap -->
+
+	<define name="service request" family="1" subtype="4">
+		<word name="type" />
+	</define>
+	<define name="error" family="0" subtype="1">
+		<word name="errno" />
+		<tlvchain>
+			<tlv type="4"><data name="error_details" /></tlv>
+		</tlvchain>
+	</define>
+	<define name="service redirect response" family="1" subtype="5">
+		<tlvchain>
+			<tlv type="13"><word name="service_type" /></tlv>
+			<tlv type="6"><data name="auth_cookie" /></tlv>
+			<tlv type="5"><data name="server_ip" /></tlv>
+		</tlvchain>
+	</define>
+
+
+	<!-- Signing on -->
+
+	<define name="signon_TLV">
+		<tlvchain>
+			<tlv type="1"><data name="screenname" /></tlv>
+			<tlv type="3"><data name="clistr" /></tlv>
+			<tlv type="22"><word name="supermajor" /></tlv>
+			<tlv type="23"><word name="major" /></tlv>
+			<tlv type="24"><word name="minor" /></tlv>
+			<tlv type="25"><word name="subminor" /></tlv>
+			<tlv type="26"><word name="build" /></tlv>
+			<tlv type="20"><dword name="subbuild" /></tlv>
+			<tlv type="15"><data>en</data></tlv>
+			<tlv type="14"><data>us</data></tlv>
+			<tlv type="74"><byte>1</byte></tlv>
+		</tlvchain>
+	</define>
+	<define name="signon" family="23" subtype="2">
+		<ref name="signon_TLV" />
+		<tlvchain>
+			<tlv type="37"><data name="auth_response" /></tlv>
+			<tlv type="76"><data name="betainfo" /></tlv>
+		</tlvchain>
+	</define>
+	<define name="signon_ICQ" family="23" subtype="2">
+		<ref name="signon_TLV" />
+		<tlvchain>
+			<tlv type="2"><data name="password" /></tlv>
+		</tlvchain>
+	</define>
+
+	<!-- How server sends challenge for challenge/response authentication to client -->
+	<define name="authentication key" family="23" subtype="7">
+		<data name="key" length_prefix="word" />
+	</define>
+
+	<!-- Random crap that's part of signon, protocol negotiation -->
+	<define name="authorization response" family="23" subtype="3">
+		<tlvchain>
+			<tlv type="8"><word name="error" /></tlv>
+			<tlv type="4"><data name="error_details" /></tlv>
+
+			<tlv type="1"><data name="screenname" /></tlv>
+			<tlv type="17"><data name="email" /></tlv>
+			<tlv type="6"><data name="auth_cookie" /></tlv>
+			<tlv type="5"><data name="server_ip" /></tlv>
+		</tlvchain>
+	</define>
+	<define name="rate info response" family="1" subtype="7" />
+	<define name="rate acknowledgement" family="1" subtype="8">
+		<word>1</word>
+		<word>2</word>
+		<word>3</word>
+		<word>4</word>
+		<word>5</word>
+	</define>
+	<define name="personal info request" family="1" subtype="14" />
+	<define name="buddylist unknown 0x2" family="19" subtype="2" />
+	<define name="buddylist request" family="19" subtype="4" />
+	<define name="locate rights request" family="2" subtype="2" />
+	<define name="locate rights response" family="2" subtype="3" />
+	<define name="buddy rights request" family="3" subtype="2" />
+	<define name="buddy rights response" family="3" subtype="3" />
+	<define name="IM parameter request" family="4" subtype="4" />
+	<define name="IM parameter response" family="4" subtype="5" />
+	<define name="BOS rights request" family="9" subtype="2" />
+	<define name="BOS rights response" family="9" subtype="3" />
+	<define name="routing information" family="1" subtype="15">
+		<data length_prefix="byte" name="screenname" />
+		<tlvchain>
+			<tlv type="15"><dword name="routing_data" /></tlv>
+		</tlvchain>
+	</define>
+	<define name="minimum report interval" family="11" subtype="2" />
+	<define name="MOTD" family="1" subtype="19" />
+	<define name="server ready" family="1" subtype="3" />
+	<define name="set service versions" family="1" subtype="23">
+		<data count="-1">
+			<word name="service_id" />
+			<word name="service_version" />
+		</data>
+	</define>
+	<define name="set tool versions" family="1" subtype="2">
+		<data count="-1">
+			<word name="service_id" />
+			<word name="service_version" />
+			<word name="tool_id" />
+			<word name="tool_version" />
+		</data>
+	</define>
+	<define name="rate info request" family="1" subtype="6" />
+	<define name="rate change" family="1" subtype="10">
+		<word />
+		<word name="group" />
+		<dword name="window" />
+		<dword name="clear" />
+		<dword name="alert" />
+		<dword name="limit" />
+		<dword name="disconnect" />
+		<dword name="max" />
+	</define>
+	<define name="outgoing warning" family="4" subtype="8">
+		<word name="is_anonymous" />
+		<data name="screenname" length_prefix="byte" />
+	</define>
+	<define name="incoming warning" family="1" subtype="16">
+		<word name="new_level" />
+		<ref name="userinfo" />
+	</define>
+	<define name="memory request" family="1" subtype="31" /> <!-- This was an attempt to block third-party clients by requesting MD5s of portions of the AIM.EXE binary; it is no longer used, huzzah -->
+	<define name="host versions" family="1" subtype="24" />
+	<define name="session was opened elsewhere" family="9" subtype="2" /> <!-- Before routing (multiple signons of the same screenname) support was added, this error would be sent when the screenname was signed on elsewhere -->
+	<define name="add IM parameters" family="4" subtype="2">
+		<word>0</word>
+		<word>0</word>
+		<word>11</word>
+		<word>8000</word>
+		<word>999</word>
+		<word>999</word>
+		<word>0</word>
+		<word>0</word>
+	</define>
+	<define name="buddylist done" family="19" subtype="7" />
+
+
+
+	<!-- Buddylist stuff -->
+
+	<define name="buddylist 3 response" family="19" subtype="3" />
+	<define name="buddylist" family="19" subtype="6"> <!-- This is supremely weird and fucked up, no bloody way we'll be able to get it in the XML; notably, it is split across multiple SNACs, but not on any sort of coherent boundary, and you have to slice random bits off the front and back...  See OSCAR/Callbacks.pm handler for this protobit. -->
+		<data name="data" />		
+	</define>
+	<define name="buddylist modification acknowledgement" family="19" subtype="13">
+		<word name="error" count="-1" />
+	</define>
+	<define name="buddylist error" family="19" subtype="15">
+		<data name="data" />
+	</define>
+
+	<!-- Packets are limited to 8k in size, which we could exceed if we try to put too many
+		modifications into one packet.  Since we need to flatten one modification at a time
+		and stop when we hit the size cap, this stuff is a bit peculiar. -->
+	<define name="buddylist modification">
+		<data name="entry_name" length_prefix="word" />
+		<word name="group_id" />
+		<word name="buddy_id" />
+		<word name="entry_type" />
+		<data name="entry_data" length_prefix="word" />
+	</define>
+	<define name="buddylist add" family="19" subtype="8"><data name="mods" /></define>
+	<define name="buddylist modify" family="19" subtype="9"><ref name="mods" /></define>
+	<define name="buddylist delete" family="19" subtype="10"><ref name="mods" /></define>
+	<define name="start buddylist modifications" family="19" subtype="17" />
+	<define name="end buddylist modifications" family="19" subtype="18" />
+	
+
+
+	<!-- User information -->
+
+	<define name="get info" family="2" subtype="6">
+		<ref name="userinfo" />
+		<tlvchain>
+			<tlv type="2"><data name="profile" /></tlv>
+			<tlv type="4"><data name="awaymsg" /></tlv>
+		</tlvchain>
+	</define>
+
+	<define name="set info" family="2" subtype="4">
+		<tlvchain>
+			<tlv type="1"><data name="profile_encoding" /></tlv>
+			<tlv type="2"><data name="profile" /></tlv>
+
+			<tlv type="3"><data name="awaymsg_encoding" /></tlv>
+			<tlv type="4"><data name="awaymsg" /></tlv>
+
+			<tlv type="5"><data name="capabilities" /></tlv>
+		</tlvchain>
+	</define>
+
+	<define name="set idle" family="1" subtype="17">
+		<dword name="duration" />
+	</define>
+
+	<!-- Extended information -->
+
+	<define name="typing notification" family="4" subtype="20">
+		<dword>0</dword>
+		<dword>0</dword>
+		<word>1</word>
+		<data length_prefix="byte" name="screenname" />
+		<word name="typing_status" />
+	</define>
+
+	<define name="incoming extended information" family="1" subtype="33">
+		<!-- Gee, thank you for this wonderful structure, AOL...  Love you too. -->
+		<!-- Only one item in the TLV chain will be present, client should key off of which one -->
+		<tlvchain subtyped="yes">
+			<tlv type="0" subtype="65"><data name="upload_checksum" /></tlv>
+			<tlv type="1" subtype="65"><data name="upload_checksum" /></tlv>
+
+			<tlv type="0" subtype="129"><data name="resend_checksum" /></tlv>
+			<tlv type="1" subtype="129"><data name="resend_checksum" /></tlv>
+
+			<tlv type="2"><data length_prefix="word" name="status_message" /></tlv>
+		</tlvchain>
+	</define>
+
+	<define name="set extended status" family="1" subtype="30">
+		<tlvchain>
+			<tlv type="29">
+				<word>2</word>
+				<byte>4</byte>
+				<data length_prefix="byte">
+					<data length_prefix="word" name="message" />
+					<word>0</word>
+				</data>
+			</tlv>
+		</tlvchain>
+	</define>
+
+	<define name="icon upload" family="16" subtype="2">
+		<tlvchain>
+			<tlv type="1"><data name="icon" /></tlv>
+		</tlvchain>
+	</define>
+
+
+
+	<!-- Buddylist -->
+
+	<define name="buddy status update" family="3" subtype="11">
+		<ref name="userinfo" />
+	</define>
+	<define name="buddy signoff" family="3" subtype="12">
+		<data length_prefix="byte" name="screenname" />
+	</define>
+
+
+
+	<!-- IMs -->
+
+	<define name="standard IM header">
+		<data length="8" name="cookie" />
+		<word name="channel">1</word>
+	</define>
+	<define name="standard IM footer">
+		<tlvchain>
+			<tlv type="2">
+				<tlvchain>
+					<tlv type="1281">
+						<word>257</word>
+						<word>257</word>
+					</tlv>
+					<tlv type="257">
+						<word>0</word>
+						<word>0</word>
+						<data name="message" />
+					</tlv>
+				</tlvchain>
+			</tlv>
+			<tlv type="4"><data name="is_automatic" /></tlv>
+			<tlv type="3"><data name="request_server_confirmation" /></tlv>
+			<tlv type="11"><data name="supports_typing_status" /></tlv>
+			<tlv type="8">
+				<dword name="icon_length" />
+				<word>1</word>
+				<word name="icon_checksum" />
+				<dword name="icon_timestamp" />
+			</tlv>
+		</tlvchain>
+	</define>
+	<define name="chat invitation IM footer">
+		<tlvchain>
+			<tlv type="12"><data name="invitation_message" /></tlv>
+			<tlv type="10001">
+				<word />
+				<data name="chat_url" length_prefix="byte" />
+			</tlv>
+		</tlvchain>
+	</define>
+
+	<define name="incoming IM" family="4" subtype="7">
+		<ref name="standard IM header" />
+		<ref name="userinfo" />
+		<data name="IM" />
+	</define>
+	<define name="outgoing IM" family="4" subtype="6">
+		<ref name="standard IM header" />
+		<data name="screenname" length_prefix="byte" />
+		<ref name="standard IM footer" />
+	</define>
+
+	<define name="IM acknowledgement" family="4" subtype="12" />
+
+
+
+	<!-- Chat -->
+
+	<define name="chat invitation accept" family="13" subtype="4">
+		<word>4</word>
+		<data name="chat" length_prefix="byte" />
+		<byte>0</byte>
+		<word>2</word>
+	</define>
+	<define name="chat invitation decline" family="13" subtype="11">
+		<data length="8" name="cookie" />
+		<word>2</word>
+		<data name="sender" length_prefix="byte" />
+		<word>3</word>
+		<word>2</word>
+		<word>1</word>
+	</define>
+
+	<define name="chat navigator request" family="13" subtype="8">
+		<word name="exchange" />
+		<data length_prefix="byte">create</data>
+		<word>0xFFFF</word>
+		<word>0x0100</word>
+		<byte>0x03</byte>
+		<tlvchain>
+			<tlv type="215"><data>en</data></tlv>
+			<tlv type="214"><data>us-ascii</data></tlv>
+			<tlv type="211"><data name="room_name" /></tlv>
+		</tlvchain>
+	</define>
+	<define name="chat navigator response" family="13" subtype="9">
+		<dword />
+		<word name="exchange" />
+		<data name="url" length_prefix="byte" />
+		<data length="21" />
+		<data name="name" length_prefix="word" />
+	</define>
+
+	<define name="chat service request" family="1" subtype="4">
+		<word name="service_type" />
+		<tlvchain>
+			<tlv type="1">
+				<word name="exchange" />
+				<data length_prefix="byte" name="url" />
+				<word>0</word>
+			</tlv>
+		</tlvchain>
+	</define>
+
+	<define name="chat room status" family="14" subtype="2">
+		<word />
+		<data length_prefix="byte">
+			<byte />
+			<data name="name" />
+		</data>
+		<word />
+		<byte name="detail_level" />
+		<tlvchain count_prefix="word">
+			<tlv type="111"><word name="occupant_count" /></tlv>
+			<tlv type="115">
+				<data name="occupants" count="-1">
+					<ref name="userinfo" />
+				</data>
+			</tlv>
+		</tlvchain>
+	</define>
+	<define name="chat buddy arrival" family="14" subtype="3">
+		<data name="arrivals" count="-1">
+			<ref name="userinfo" />
+		</data>
+	</define>
+	<define name="chat buddy departure" family="14" subtype="4">
+		<data name="departures" count="-1" length_prefix="byte" />
+	</define>
+
+
+	<define name="chat invite" family="4" subtype="6">
+		<data length="8" name="cookie" />
+		<word>2</word>
+		<data name="invitee" length_prefix="byte" />
+		<tlvchain>
+			<tlv type="5">
+				<word>0</word>
+				<word>32431</word>
+				<word>14848</word>
+				<word>45626</word>
+				<word>0</word>
+				<word>29839</word>
+				<word>9248</word>
+				<word>25223</word>
+				<word>4561</word>
+				<word>33314</word>
+				<word>17477</word>
+				<word>21332</word>
+				<word>0</word>
+				<tlvchain>
+					<tlv type="10"><word>1</word></tlv>
+					<tlv type="13"><data>us-ascii</data></tlv>
+					<tlv type="12"><data name="message" /></tlv>
+					<tlv type="15" />
+					<tlv type="10001">
+						<word name="exchange" />
+						<data name="url" length_prefix="byte" />
+						<word>0</word>
+						<word>3</word>
+						<word>0</word>
+					</tlv>
+				</tlvchain>
+			</tlv>
+		</tlvchain>
+	</define>
+
+	<define name="chat IM">
+		<data length="8" name="cookie" />
+		<word>3</word> <!-- channel -->
+		<tlvchain>
+			<tlv type="1" />
+			<tlv type="3"><data name="sender" length_prefix="byte" /></tlv>
+			<tlv type="6"><data name="reflect" /></tlv>
+			<tlv type="7"><data name="is_automatic" /></tlv>
+			<tlv type="5">
+				<tlvchain>
+					<tlv type="2"><data name="message_encoding" /></tlv>
+					<tlv type="3" />
+					<tlv type="1"><data name="message" /></tlv>
+				</tlvchain>
+			</tlv>
+		</tlvchain>
+	</define>
+	<define name="outgoing chat IM" family="14" subtype="5"><ref name="chat IM" /></define>
+	<define name="incoming chat IM" family="14" subtype="6"><ref name="chat IM" /></define>
+
+
+
+	<!-- Administrative services -->
+
+	<define name="admin request response" family="7" subtype="5">
+		<word name="request_type" />
+		<data length="6">
+			<tlvchain>
+				<tlv type="3"><word name="subrequest" /></tlv>
+				<tlv type="1"><data name="success" /></tlv>
+			</tlvchain>
+			<tlvchain>
+				<tlv type="8"><word name="error_code" /></tlv>
+				<tlv type="4"><data name="error_url" /></tlv>
+			</tlvchain>
+		</data>
+	</define>
+	<define name="account confirmed" family="7" subtype="5" />
+	<define name="buddy icon uploaded" family="16" subtype="3" />
+	<define name="buddy icon download" family="16" subtype="4">
+		<data name="screenname" length_prefix="byte" />
+		<byte>1</byte>
+		<word>1</word>
+		<byte>1</byte>
+		<data name="md5sum" length_prefix="byte" />
+	</define>
+	<define name="buddy icon downloaded" family="16" subtype="5">
+		<data name="screenname" length_prefix="byte" />
+		<word name="flags" />
+		<byte name="number" />
+		<data name="checksum" length_prefix="byte" />
+		<data name="icon" length_prefix="word" />
+	</define>
+
+	<define name="confirm account" family="7" subtype="6" />
+	<define name="change password" family="7" subtype="4">
+		<tlvchain>
+			<tlv type="2"><data name="newpass" /></tlv>
+			<tlv type="18"><data name="oldpass" /></tlv>
+		</tlvchain>
+	</define>
+	<define name="change email" family="7" subtype="6">
+		<tlvchain>
+			<tlv type="17"><data name="new_email" /></tlv>
+		</tlvchain>
+	</define>
+	<define name="format screenname" family="7" subtype="6">
+		<tlvchain>
+			<tlv type="1"><data name="new_screenname" /></tlv>
+		</tlvchain>
+	</define>
+</oscar>
+

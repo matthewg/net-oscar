@@ -6,7 +6,7 @@ Net::OSCAR::Common -- Net::OSCAR public constants
 
 package Net::OSCAR::Common;
 
-$VERSION = '0.62';
+$VERSION = '1.11';
 $REVISION = '$Revision$';
 
 use strict;

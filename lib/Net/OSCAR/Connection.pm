@@ -6,7 +6,7 @@ Net::OSCAR::Connection -- individual Net::OSCAR service connection
 
 package Net::OSCAR::Connection;
 
-$VERSION = '0.62';
+$VERSION = '1.11';
 $REVISION = '$Revision$';
 
 use strict;
@@ -23,7 +23,7 @@ use Net::OSCAR::Constants;
 use Net::OSCAR::Utility;
 use Net::OSCAR::TLV;
 use Net::OSCAR::Callbacks;
-use Net::OSCAR::OldPerl;
+use Net::OSCAR::XML;
 
 if($^O eq "MSWin32") {
 	eval '*F_GETFL = sub {0};';
@@ -45,6 +45,19 @@ sub new($@) {
 	return $self;
 }
 
+sub proto_send($%) {
+	my($self, %data) = @_;
+
+	my %snac = %data;
+	($snac{family}, $snac{subtype}) = protobit_to_snacfam($data{protobit}) or croak "Couldn't find protobit $data{protobit}";
+	$snac{data} = protoparse($self->{session}, $data{protobit})->(%{$data{protodata}});
+
+	$self->log_print(OSCAR_DBG_DEBUG, "Put SNAC 0x%04X/0x%04X: %s", $snac{family}, $snac{subtype}, $data{protobit});
+	$self->snac_put(%snac);
+}
+
+
+
 sub fileno($) {
 	my $self = shift;
 	if(!$self->{socket}) {
@@ -59,7 +72,11 @@ sub flap_encode($$;$) {
 	my ($self, $msg, $channel) = @_;
 
 	$channel ||= FLAP_CHAN_SNAC;
-	return pack("CCnn", 0x2A, $channel, ++$self->{seqno}, length($msg)) . $msg;
+	return protoparse($self->{session}, "flap")->(
+		channel => $channel,
+		seqno => ++$self->{seqno},
+		msg => $msg
+	);
 }
 
 sub flap_put($;$$) {
@@ -167,7 +184,7 @@ sub snac_encode($%) {
 
 	#print "===\n", hexdump($snac{data}), "\n===\n";
 	#print hexdump(pack("a*", $snac{data})), "\n===\n";
-	return pack("nnCCN", $snac{family}, $snac{subtype}, $snac{flags1}, $snac{flags2}, $snac{reqid}) . $snac{data};
+	return protoparse($self->{session}, "snac")->(%snac);
 }
 
 sub snac_put($%) {
@@ -184,22 +201,17 @@ sub snac_get($) {
 
 sub snac_decode($$) {
 	my($self, $snac) = @_;
+	my(%data) = protoparse($self->{session}, "snac")->($snac);
+
 	my($family, $subtype, $flags1, $flags2, $reqid, $data) = (unpack("nnCCNa*", $snac));
 
-	if($flags1 & 0x80) {
-		my($minihdr_len) = unpack("n", $data);
+	if($data{flags1} & 0x80) {
+		my($minihdr_len) = unpack("n", $data{data});
 		$self->log_print(OSCAR_DBG_DEBUG, "Got miniheader of length $minihdr_len");
-		substr($data, 0, 2+$minihdr_len) = "";
+		substr($data{data}, 0, 2+$minihdr_len) = "";
 	}
 
-	return {
-		family => $family,
-		subtype => $subtype,
-		flags1 => $flags1,
-		flags2 => $flags2,
-		reqid => $reqid,
-		data => $data
-	};
+	return \%data;
 }
 
 sub snac_dump($$) {
@@ -348,6 +360,7 @@ sub process_one($;$$$) {
 		} else {
 			$self->log_print(OSCAR_DBG_DEBUG, "Got connack.");
 		}
+
 		return $self->{session}->crapout($self, "Got bad connack from server") unless $self->{channel} == FLAP_CHAN_NEWCONN;
 
 		if($self->{conntype} == CONNTYPE_LOGIN) {
@@ -391,7 +404,12 @@ sub process_one($;$$$) {
 				$self->{reqdata}->[0x17]->{pack("N", 0)} = "";
 				return Net::OSCAR::Callbacks::process_snac($self, $snac);
 			} else {
-				return Net::OSCAR::Callbacks::process_snac($self, $self->snac_decode($data));
+				my $snac = $self->snac_decode($data);
+				if($snac) {
+					return Net::OSCAR::Callbacks::process_snac($self, $snac);
+				} else {
+					return 0;
+				}
 			}
 		}
 	}
@@ -401,18 +419,7 @@ sub ready($) {
 	my($self) = shift;
 
 	return if $self->{sentready}++;
-	$self->log_print(OSCAR_DBG_DEBUG, "Sending client ready.");
-	my $conntype = $self->{conntype};
-	if($conntype != CONNTYPE_BOS) {
-		$self->snac_put(family => 0x1, subtype => 0x2, data => pack("n*",
-			1, OSCAR_TOOLDATA()->{1}->{version}, OSCAR_TOOLDATA()->{1}->{toolid}, OSCAR_TOOLDATA()->{1}->{toolversion},
-			$conntype, OSCAR_TOOLDATA()->{$conntype}->{version}, OSCAR_TOOLDATA()->{$conntype}->{toolid}, OSCAR_TOOLDATA()->{$conntype}->{toolversion}
-		));
-	} else {
-		my $data = "";
-		$data .= pack("n*", $_, OSCAR_TOOLDATA()->{$_}->{version}, OSCAR_TOOLDATA()->{$_}->{toolid}, OSCAR_TOOLDATA()->{$_}->{toolversion}) foreach sort {$b <=> $a} grep {not OSCAR_TOOLDATA()->{$_}->{nobos}} keys %{OSCAR_TOOLDATA()};
-		$self->snac_put(family => 0x1, subtype => 0x2, data => $data);
-	}
+	send_versions($self, 1);
 }
 
 sub session($) { return shift->{session}; }

@@ -9,7 +9,7 @@ This class also preserves the ordering of its keys.
 
 package Net::OSCAR::TLV;
 
-$VERSION = '0.62';
+$VERSION = '1.11';
 $REVISION = '$Revision$';
 
 use strict;

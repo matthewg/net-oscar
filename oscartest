@@ -186,7 +186,7 @@ sub buddy_info($$$$) {
 	$extra .= " [AWAY]" if $buddat->{away};
 
 	$extra .= "\nMember Since: $membersince" if $membersince;
-	$extra .= "\nIdle Time (secs): $buddat->{idle}" if exists($buddat->{idle}) and defined($buddat->{idle});
+	$extra .= "\nIdle Time (secs): " . (time()-$buddat->{idle_since}) if exists($buddat->{idle_since}) and defined($buddat->{idle_since});
 	if($buddat->{capabilities}) {
 		$extra .= "\nCapabilities:";
 		$extra .= "\n\t$_" foreach values %{$buddat->{capabilities}};
@@ -483,6 +483,7 @@ EOF
 				print "Couldn't open ", join(" ", @params), ": $!\n";
 				next;
 			};
+			binmode ICON;
 			my $icondata = <ICON>;
 			close ICON;
 			$oscar->set_icon($icondata);

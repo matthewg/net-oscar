@@ -1,4 +1,6 @@
 MANIFEST
+META.yml
+Build.PL
 Makefile.PL
 OSCAR.pm
 README
@@ -21,5 +23,4 @@ OSCAR/Screenname.pm
 OSCAR/TLV.pm
 OSCAR/Utility.pm
 OSCAR/Connection/Chat.pm
-OSCAR/Connection/Direct.pm
-OSCAR/Connection/Direct/Listener.pm
+META.yml                                 Module meta-data (added by MakeMaker)

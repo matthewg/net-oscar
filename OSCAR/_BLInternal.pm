@@ -10,13 +10,13 @@ and the sending of buddylist changes to the OSCAR server.
 package Net::OSCAR::_BLInternal;
 
 use strict;
-use Net::OSCAR::OldPerl;
 use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::Constants;
 use Net::OSCAR::Utility;
+use Net::OSCAR::XML;
 
 use vars qw($VERSION $REVISION);
-$VERSION = '0.62';
+$VERSION = '1.11';
 $REVISION = '$Revision$';
 
 sub init_entry($$$$) {
@@ -72,6 +72,7 @@ sub BLI_to_NO($) {
 	delete $session->{profile};
 	delete $session->{appdata};
 	delete $session->{showidle};
+	delete $session->{presence_unknown};
 
 	$session->{buddies} = bltie(1);
 	$session->{permit} = bltie;
@@ -115,9 +116,16 @@ sub BLI_to_NO($) {
 		$session->{groupperms} = 0xFFFFFFFF;
 	}
 
-	if(exists $bli->{5}) {
-		# Not yet implemented
-		($session->{showidle}) = unpack("N", $bli->{5}->{0}->{19719}->{data}->{0xC9} || pack("N", 1));
+	if(exists $bli->{5} and (my($presbid) = keys %{$bli->{5}->{0}})) {
+		my $typedata = $bli->{5}->{0}->{$presbid}->{data};
+		($session->{showidle}) = unpack("N", $typedata->{0xC9} || pack("F", 0x0061E7FF));
+		($session->{presence_unknown}) = unpack("N", $typedata->{0xD6} || pack("F", 0x0077FFFF));
+		delete $typedata->{0xC9};
+		delete $typedata->{0xD6};
+	} else {
+		# OSCAR complains if we set presence when it didn't give it to us...
+		#$session->{showidle} = 0x0061E7FF;
+		#$session->{presence_unknown} = 0x0077FFFF;
 	}
 
 	if(exists $bli->{0x14}) {
@@ -220,9 +228,14 @@ sub NO_to_BLI($) {
 	}
 
 	if(exists($session->{showidle})) {
-		init_entry($bli, 5, 0, 0x4D07);
-		$bli->{5}->{0}->{0x4D07}->{data}->{0xC9} = pack("N", $session->{showidle});
+		my $presencetype;
+		$presencetype = (keys %{$session->{blinternal}->{5}->{0}})[0] if exists($session->{blinternal}->{5}) and exists($session->{blinternal}->{5}->{0}) and scalar keys %{$session->{blinternal}->{5}->{0}};
+		$presencetype ||= 0x0001;
+		init_entry($bli, 5, 0, $presencetype);
+		$bli->{5}->{0}->{$presencetype}->{data}->{0xC9} = pack("N", exists($session->{showidle}) ? $session->{showidle} : 0x0061E7FF);
+		$bli->{5}->{0}->{$presencetype}->{data}->{0xD6} = pack("N", exists($session->{presence_unknown}) ? $session->{presence_unknown} : 0x0077FFFF);
 	}
+
 
 	if(exists($session->{icon_md5sum})) {
 		init_entry($bli, 0x14, 0, 0x51F4);
@@ -261,7 +274,13 @@ sub BLI_to_OSCAR($$) {
 	my($session, $newbli) = @_;
 	my $oldbli = $session->{blinternal};
 	my (@adds, @modifies, @deletes);
+        $session->crapout($session->{services}->{0+CONNTYPE_BOS}, "You must wait for a buddylist_ok or buddylist_error callback before calling commit_buddylist again.") if $session->{budmods};
 	$session->{budmods} = [];
+
+	my %budmods;
+	$budmods{add} = [];
+	$budmods{modify} = [];
+	$budmods{delete} = [];
 
 	# First, delete stuff that we no longer use and modify everything else
 	foreach my $type(keys %$oldbli) {
@@ -286,18 +305,15 @@ sub BLI_to_OSCAR($$) {
 					} else {
 						$session->log_print(OSCAR_DBG_DEBUG, "Modifying.");
 
-						push @modifies, {
+						push @{$budmods{modify}}, {
 							reqdata => {desc => "modifying ".(BUDTYPES)[$type]." $newentry->{name}", type => $type, gid => $gid, bid => $bid},
-							data =>
-								pack("na* nnn na*",
-									length($newentry->{name}),
-									$newentry->{name},
-									$gid,
-									$bid,
-									$type,
-									length($newdata),
-									$newdata
-								)
+							protodata => {
+								entry_name => $newentry->{name},
+								group_id => $gid,
+								buddy_id => $bid,
+								entry_type => $type,
+								entry_data => $newdata
+							}
 						};
 					}
 				} else {
@@ -307,18 +323,15 @@ sub BLI_to_OSCAR($$) {
 				if($delete) {
 					$session->log_print(OSCAR_DBG_DEBUG, "Deleting.");
 
-					push @deletes, {
+					push @{$budmods{delete}}, {
 						reqdata => {desc => "deleting ".(BUDTYPES)[$type]." $oldentry->{name}", type => $type, gid => $gid, bid => $bid},
-						data => 
-							pack("na* nnn na*",
-								length($oldentry->{name}),
-								$oldentry->{name},
-								$gid,
-								$bid,
-								$type,
-								length($olddata),
-								$olddata
-							)
+						protodata => {
+							entry_name => $oldentry->{name},
+							group_id => $gid,
+							buddy_id => $bid,
+							entry_type => $type,
+							entry_data => $olddata
+						}
 					};
 				}
 			}
@@ -335,18 +348,15 @@ sub BLI_to_OSCAR($$) {
 
 				$session->log_printf(OSCAR_DBG_DEBUG, "New BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $entry->{name}, $type, $gid, $bid, length($data), hexdump($data));
 
-				push @adds, {
+				push @{$budmods{add}}, {
 					reqdata => {desc => "adding ".(BUDTYPES)[$type]." $entry->{name}", type => $type, gid => $gid, bid => $bid},
-					data =>
-						pack("na* nnn na*",
-							length($entry->{name}),
-							$entry->{name},
-							$gid,
-							$bid,
-							$type,
-							length($data),
-							$data
-						)
+					protodata => {
+						entry_name => $entry->{name},
+						group_id => $gid,
+						buddy_id => $bid,
+						entry_type => $type,
+						entry_data => $data
+					}
 				};
 			}
 		}
@@ -354,23 +364,19 @@ sub BLI_to_OSCAR($$) {
 
 	# Actually send the changes.  Don't send more than 7K in a single SNAC.
 	# FLAP size limit is 8K, but that includes headers - good to have a safety margin
-	foreach my $type(0xA, 0x8, 0x9) {
-		my $changelist;
-		if($type == 0x8) {
-			$changelist = \@adds;
-		} elsif($type == 0x9) {
-			$changelist = \@modifies;
-		} else {
-			$changelist = \@deletes;
-		}
+	foreach my $type (qw(add modify delete)) {
+		my $changelist = $budmods{$type};
 
-		my($packet, @reqdata, @packets);
+		my(@reqdata, @packets);
+		my $packet = "";
 		foreach my $change(@$changelist) {
-			$packet .= $change->{data};
+			$packet .= protoparse($session, "buddylist modification")->(%{$change->{protodata}});
 			push @reqdata, $change->{reqdata};
 
 			if(length($packet) > 7*1024) {
+				#$session->log_print(OSCAR_DBG_INFO, "Adding to blmod queue (max packet size reached): type $type, payload size ", scalar(@reqdata));
 				push @packets, {
+					type => $type,
 					data => $packet,
 					reqdata => [@reqdata],
 				};
@@ -379,25 +385,34 @@ sub BLI_to_OSCAR($$) {
 			}
 		}
 		if($packet) {
+			#$session->log_print(OSCAR_DBG_INFO, "Adding to blmod queue (no more changes): type $type, payload size ", scalar(@reqdata));
 			push @packets, {
+				type => $type,
 				data => $packet,
 				reqdata => [@reqdata],
 			};
 		}
 
-		push @{$session->{budmods}}, map {{family => 0x13, subtype => $type, reqdata => $_->{reqdata}, data => $_->{data}}} @packets
+		push @{$session->{budmods}}, map {
+			(protobit => "buddylist " . $_->{type},
+			reqdata => $_->{reqdata},
+			protodata => $_->{data});
+		} @packets;
 	}
 
-	push @{$session->{budmods}}, {family => 0x13, subtype => 0x12}; # End BL mods
+	push @{$session->{budmods}}, {protobit => "end buddylist modifications"}; # End BL mods
+	#$session->log_print(OSCAR_DBG_INFO, "Adding terminator to blmod queue.");
 
 	$session->{blold} = $oldbli;
 	$session->{blinternal} = $newbli;
 
 	if(@{$session->{budmods}} <= 1) { # We only have the start/end modification packets, no actual changes
+		#$session->log_print(OSCAR_DBG_INFO, "Empty blmod queue - calling buddylist_ok.");
 		delete $session->{budmods};
 		$session->callback_buddylist_ok();
 	} else {
-		$session->svcdo(CONNTYPE_BOS, family => 0x13, subtype => 0x11); # Start buddylist modifications
+		#$session->log_print(OSCAR_DBG_INFO, "Non-empty blmod queue - sending initiator and first change packet.");
+		$session->svcdo(CONNTYPE_BOS, protobit => "start buddylist modifications");
 		$session->svcdo(CONNTYPE_BOS, %{shift @{$session->{budmods}}}); # Send the first modification
 	}
 }

@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = '0.62';
+$VERSION = '1.11';
 $REVISION = '$Revision$';
 
 =head1 NAME
@@ -10,7 +10,6 @@ Net::OSCAR - Implementation of AOL's OSCAR protocol for instant messaging
 =head1 SYNOPSIS
 
 	use Net::OSCAR qw(:standard);
-	use Net::OSCAR::OldPerl; # You may need to use this perls older than 5.6.
 
 	$oscar = Net::OSCAR->new();
 	$oscar->set_callback_foo(\&foo);
@@ -22,12 +21,15 @@ Net::OSCAR - Implementation of AOL's OSCAR protocol for instant messaging
 
 =head1 INSTALLATION
 
-	perl Makefile.PL
-	make
-	make test
-	make install
-
-See C<perlmodinstall> for details.
+	perl Build.PL
+	perl Build
+	perl Build test
+	perl Build install
+                                                                                                      
+See C<perldoc Module::Build> for details.
+Note that this requires that you have the perl module Module::Build installed.
+If you don't, the traditional C<perl Makefile.PL ; make ; make test ; make install>
+should still work.
 
 =head1 DEPENDENCIES
 
@@ -103,15 +105,16 @@ C<fileno($connection-E<gt>get_filehandle)> inside of the L<"connection_changed">
 and then calling C<@handles = $poll-E<gt>handles(POLLIN | POLLOUT | POLLERR | POLLHUP)>
 and walking through the handles.
 
-For optimum performance, use the L<"connection_changed"> and L<"register_timer"> callback.
+For optimum performance, use the L<"connection_changed"> callback.
 
 =head1 FUNCTIONALITY
 
-C<Net::OSCAR> pretends to be WinAIM 4.7.2480.  It supports remote buddylists
-including permit and deny settings.  It also supports chat.  At the present
-time, setting and retrieving of directory information is not supported; nor
-are email privacy settings, buddy icons, voice chat, stock ticker, and
-many other of the official AOL Instant Messenger client's features.
+C<Net::OSCAR> pretends to be WinAIM 5.2.3292.  It supports remote buddylists
+including permit and deny settings.  It also supports chat, buddy icons,
+and extended status messages.  At the present time, setting and retrieving of
+directory information is not supported; nor are email privacy settings,
+voice chat, stock ticker, file transfer, direct IM, and many other of the
+official AOL Instant Messenger client's features.
 
 =head1 TERMINOLOGY/METHODOLOGY
 
@@ -149,14 +152,12 @@ use Net::OSCAR::Constants;
 use Net::OSCAR::Utility;
 use Net::OSCAR::Connection;
 use Net::OSCAR::Connection::Chat;
-use Net::OSCAR::Connection::Direct;
-use Net::OSCAR::Connection::Direct::Listener;
 use Net::OSCAR::Callbacks;
 use Net::OSCAR::TLV;
 use Net::OSCAR::Buddylist;
 use Net::OSCAR::Screenname;
 use Net::OSCAR::_BLInternal;
-use Net::OSCAR::OldPerl;
+use Net::OSCAR::XML;
 
 require Exporter;
 @ISA = qw(Exporter);
@@ -165,7 +166,7 @@ require Exporter;
 
 =pod
 
-=item new ([capabilities => CAPABILITIES, direct_connect_port => PORT])
+=item new ([capabilities => CAPABILITIES])
 
 Creates a new C<Net::OSCAR> object.  You may optionally
 pass a hash to set some parameters for the object.
@@ -195,17 +196,9 @@ Typing status notification
 
 =back
 
-=item direct_connect_port
-
-Which port to listen on for direct-connects initiated by us.  If this is
-not set, we will allow the operating system to pick a port.
-You may wish to allow the user to set this so that they can
-set up their NAT device to forward packets to this port
-to the proper place.
-
 =back
 
-	$oscar = Net::OSCAR->new(capabilties => [qw(extended_status typing_status)]);
+	$oscar = Net::OSCAR->new(capabilities => [qw(extended_status typing_status)]);
 
 =cut
 
@@ -214,24 +207,19 @@ sub new($) {
 	shift;
 
 	my $self = {
-		options => {
-			direct_connect_port => 0
-		},
+		options => {},
 		_parameters => [@_]
 	};
 	bless $self, $class;
 
 	my(%parameters) = @_;
-	if(my($badparam) = grep { $_ ne "capabilities" and $_ ne "direct_connect_port" } keys %parameters) {
+	if(my($badparam) = grep { $_ ne "capabilities" } keys %parameters) {
 		croak "Invalid parameter '$badparam' passed to Net::OSCAR::new.";
 	}
 	if($parameters{capabilities}) {
 		if(my($badcap) = grep { $_ ne "extended_status" and $_ ne "buddy_icons" and $_ ne "file_transfer" and $_ ne "file_sharing" and $_ ne "typing_status" } @{$parameters{capabilities}}) {
 			croak "Invalid capability '$badcap' passed to Net::OSCAR::new.";
 		}
-	}
-	if($parameters{direct_connect_port}) {
-		$self->{options}->{direct_connect_port} = $parameters{direct_connect_port};
 	}
 
 	$self->{LOGLEVEL} = 0;
@@ -245,44 +233,12 @@ sub new($) {
 	$self->{timeout} = 0.01;
 	$self->{capabilities} = {};
 
-	$self->{direct_requests_in} = {};
-	$self->{direct_requests_out} = {};
-
 	if($parameters{capabilities}) {
 		$self->{capabilities}->{$_} = 1 foreach @{$parameters{capabilities}};
 	}
 
 	return $self;
 }
-
-=pod
-
-=item option (NAME[, NEWVAL])
-
-Gets or sets any of the following options, as per the L<new> method:
-
-=over 4
-
-=item direct_connect_port
-
-=back
-
-Returns the current value or, if C<NEWVAL> is specified, the previous value.
-
-=cut
-
-sub option($$;$) {
-	my($self, $opt, $newval) = @_;
-
-	if($opt eq "direct_connect_port") {
-		my $val = $self->{options}->{direct_connect_port};
-		$self->{options}->{direct_connect_port} = $newval if defined($newval);
-		return $val;
-	} else {
-		croak "Invalid option '$opt' in option method.";
-	}
-}
-
 
 =pod
 
@@ -479,17 +435,13 @@ sub addconn($@) {
 	my $conntype = $data{conntype};
 	if($conntype == CONNTYPE_CHAT) {
 		$connection = Net::OSCAR::Connection::Chat->new(%data);
-	} elsif($conntype == CONNTYPE_DIRECT_IN) {
-		$connection = Net::OSCAR::Connection::Direct::Listener->new(%data);
-	} elsif($conntype == CONNTYPE_DIRECT_OUT) {
-		$connection = Net::OSCAR::Connection::Direct->new(%data);
 	} else {
 		$connection = Net::OSCAR::Connection->new(%data);
 		# We set the connection to 1 to indicate that it is in progress but not ready for SNAC-sending yet.
 		$self->{services}->{$conntype} = 1 unless $conntype == CONNTYPE_CHAT;
 	}
 
-	if($conntype == CONNTYPE_BOS or $conntype == CONNTYPE_DIRECT_IN) {
+	if($conntype == CONNTYPE_BOS) {
 		$self->{services}->{$conntype} = $connection;
 	}
 
@@ -639,7 +591,7 @@ sub do_one_loop($) {
 
 	return unless $ein;
 	my $nfound = select($rin, $win, $ein, $timeout);
-	$self->process_connections(\$rin, \$win, \$ein) if $nfound;
+	$self->process_connections(\$rin, \$win, \$ein) if $nfound and $nfound != -1;
 }
 
 sub findgroup($$) {
@@ -697,7 +649,7 @@ sub newid($;$) {
 
 	if($group) {
 		%ids = map { $_->{buddyid} => 1 } values %$group;
-		do { ++$id; } while($ids{$id}) and $id < 4;
+		do { ++$id; } while($ids{$id}) or $id < 4;
 	} else {
 		do { $id = ++$self->{nextid}->{__GROUPID__}; } while($self->findgroup($id));
 	}
@@ -725,7 +677,9 @@ sub capabilities($) {
 Sends your modified buddylist to the OSCAR server.  Changes to the buddylist
 won't actually take effect until this method is called.  Methods that change
 the buddylist have a warning about needing to call this method in their
-documentation.
+documentation.  After calling this method, your program B<MUST> not call
+it again until either the L<buddylist_ok> or L<buddylist_error> callbacks
+are received.
 
 =item rollback_buddylist
 
@@ -1059,9 +1013,8 @@ sub postprocess_userinfo($$) {
 
 	if(exists($userinfo->{capabilities})) {
 		my $capabilities = delete $userinfo->{capabilities};
-		while($capabilities) {
+		foreach my $capability (@$capabilities) {
 			$self->log_print(OSCAR_DBG_DEBUG, "Got a capability.");
-			my $capability = substr($capabilities, 0, 16, "");
 			if(OSCAR_CAPS_INVERSE()->{$capability}) {
 				my $capname = OSCAR_CAPS_INVERSE()->{$capability};
 				$self->log_print(OSCAR_DBG_DEBUG, "Got capability $capname.");
@@ -1125,7 +1078,7 @@ If the message was too long to send, returns zero.
 sub send_im($$$;$;) {
 	my($self, $to, $msg, $away, $channel) = @_;
 	return must_be_on($self) unless $self->{is_on};
-	my $packet = "";
+
 	my $reqid = (8<<16) | (unpack("n", randchars(2)))[0];
 
 	if(!$self->{svcdata}->{hashlogin}) {
@@ -1134,40 +1087,36 @@ sub send_im($$$;$;) {
 		return 0 if length($msg) > 2000;
 	}
 
-	$packet = randchars(8);
-	$channel ||= 1;
-	$packet .= pack("n", $channel);
-	$packet .= pack("Ca*", length($to), $to);
+	my %protodata = (
+		cookie => randchars(8),
+		channel => $channel || 1,
+		screenname => $to,
+		message => $msg,
+	);
 
-	my $flags2 = 0;
-
-	if($channel == 1) {
-		$packet .= tlv_encode(tlv(2 => pack("n3 C n C n3 a*", 0x501, 4, 0x101, 1, 0x201, 1, length($msg)+4, 0, 0, $msg)));
-
-		if($away) {
-			$packet .= tlv_encode(tlv(4 => ""));
-		} else {
-			$packet .= tlv_encode(tlv(3 => "")); #request server confirmation
-		}
-
-		if($self->{capabilities}->{buddy_icons} and $self->{icon_checksum} and $self->{icon_timestamp} and
-			(!exists($self->{userinfo}->{$to}) or
-			!exists($self->{userinfo}->{to}->{icon_timestamp_received}) or
-			$self->{icon_timestamp} > $self->{userinfo}->{$to}->{icon_timestamp_received})
-		) {
-
-			$self->log_print(OSCAR_DBG_DEBUG, "Informing $to about our buddy icon.");
-			$self->{userinfo}->{$to} ||= {};
-			$self->{userinfo}->{$to}->{icon_timestamp_received} = $self->{icon_timestamp};
-			$packet .= tlv_encode(tlv(8 => pack("NnnN", $self->{icon_length}, 1, $self->{icon_checksum}, $self->{icon_timestamp})));
-		}
-
-		$flags2 = 0xB if $self->{capabilities}->{typing_status};
+	if($away) {
+		$protodata{is_automatic} = "";
 	} else {
-		$packet .= $msg;
+		$protodata{request_server_confirmation} = "";
 	}
 
-	$self->svcdo(CONNTYPE_BOS, reqid => $reqid, reqdata => $to, family => 0x4, subtype => 0x6, data => $packet, flags2 => $flags2);
+	if($self->{capabilities}->{buddy_icons} and $self->{icon_checksum} and $self->{icon_timestamp} and
+		(!exists($self->{userinfo}->{$to}) or
+		!exists($self->{userinfo}->{to}->{icon_timestamp_received}) or
+		$self->{icon_timestamp} > $self->{userinfo}->{$to}->{icon_timestamp_received})
+	) {
+		$self->log_print(OSCAR_DBG_DEBUG, "Informing $to about our buddy icon.");
+		$self->{userinfo}->{$to} ||= {};
+		$self->{userinfo}->{$to}->{icon_timestamp_received} = $self->{icon_timestamp};
+
+		$protodata{icon_$_} = $self->{icon_$_} foreach qw(length checksum timestamp);
+	}
+
+	
+	my $flags2 = $self->{capabilities}->{typing_status} ? 0xB : 0;
+
+	$self->svcdo(CONNTYPE_BOS, protobit => "outgoing IM", protodata => \%protodata, flags2 => $flags2);
+
 	return $reqid;
 }
 
@@ -1207,55 +1156,12 @@ sub send_typing_status($$$) {
 	croak "This client does not support typing status notifications." unless $self->{capabilities}->{typing_status};
 	return unless exists $self->{userinfo}->{$recipient} and $self->{userinfo}->{$recipient}->{typing_status};
 
-	$self->svcdo(CONNTYPE_BOS, family => 0x4, subtype => 0x14, data =>
-		pack("NNnCa*", 0, 0, 1, length($recipient), $recipient) . pack("n", $status)
-	);
+	$self->svcdo(CONNTYPE_BOS, protobit => "typing notification", protodata => {
+		screenname => $recipient,
+		typing_status => $status
+	});
 }
 
-
-=pod
-
-=item direct_im_connect (SCREENNAME)
-
-Requests a direct IM connection to C<SCREENNAME>.
-
-=cut
-
-sub direct_listener($) {
-	my $self = shift;
-	my $listener = $self->{services}->{CONNTYPE_DIRECT_IN} or $self->addconn(conntype => CONNTYPE_DIRECT_IN, description => "direct connection listener");
-	$listener->touch();
-	return $listener;
-}
-
-sub ip($) {
-	my $self = shift;
-	my $sockaddr = getsockname($self->{services}->{CONNTYPE_BOS()}->{socket});
-	my $addr;
-	(undef, $addr) = sockaddr_in($sockaddr);
-	return $addr;
-}
-
-sub direct_im_connect($$) {
-	my($self, $to) = @_;
-
-	my $listener = $self->direct_listener();
-
-	my $cookie = randchars(8);
-	$self->{direct_requests_out}->{$cookie} = {who => $to, what => OSCAR_DIRECT_IM};
-	$self->send_im(
-		$to,
-		encode_tlv(tlv(
-		   0x05 =>
-			pack("na*a*a*",
-				0, $cookie, OSCAR_CAPS()->{directim}->{value},
-				encode_tlv(tlv(0x0A => pack("n", 1), 0x0F => "", 0x03 => $self->ip(), 0x05 => pack("n", $listener->port())))
-			), 0x04 => $self->ip()
-		)),
-		0,
-		2
-	);
-}
 
 =pod
 
@@ -1272,92 +1178,6 @@ without regards to case and whitespace.
 =cut
 
 sub buddyhash($) { bltie; }
-
-sub im_parse($$) {
-	my($self, $data) = @_;
-	my(%im_data) = (from => "", msg => "", away => 0);
-
-	my $cookie = substr($data, 0, 8, ""); #OSCAR is so nice, it feeds us BLTs and cookies as SNACs.
-	my($channel) = unpack("n", substr($data, 0, 2, ""));
-	if($channel != 1 and $channel != 2 and $channel != 3) {
-		carp "Got ICBM on unsupported channel $channel - ignoring.";
-		return;
-	} else {
-		$self->log_print(OSCAR_DBG_DEBUG, "Incoming ICBM on channel $channel.");
-	}
-
-	$self->log_print(OSCAR_DBG_DEBUG, "Extracting user info.");
-	my ($senderinfo, $tlvlen) = $self->extract_userinfo($data);
-	$im_data{from} = $senderinfo->{screenname};
-
-	# Copying gAIM/libfaim is *so* much easier than understanding stuff.
-	if($channel == 1) {
-		my $typing_status = 0;
-
-		substr($data, 0, $tlvlen) = "";
-		$self->log_print(OSCAR_DBG_DEBUG, "Decoding ICBM secondary TLV.");
-
-		my $tlv = tlv_decode($data);
-		$im_data{msg} = $tlv->{2};
-
-		substr($im_data{msg}, 0, 2) = "";
-		my($y) = unpack("n", substr($im_data{msg}, 0, 2, ""));
-		substr($im_data{msg}, 0, $y+2) = "";
-
-		my($msglen, $flags1, $flags2) = unpack("nnn", substr($im_data{msg}, 0, 6, ""));
-		$msglen -= 4;
-
-		$im_data{away} = 1 if exists $tlv->{4};
-
-		# Sender supports typing status notification
-		$self->{userinfo}->{$im_data{from}} ||= {};
-		if(exists($tlv->{0xB})) {
-			$self->{userinfo}->{$im_data{from}}->{typing_status} = 1;
-		} else {
-			delete $self->{userinfo}->{$im_data{from}}->{typing_status};
-		}
-
-		if($tlv->{8} and $self->{capabilities}->{buddy_icons}) { # user has buddy icon
-			my($icon_length, $icon_checksum, $icon_timestamp) = unpack("NxxnN", $tlv->{8});
-			my $new_icon = 0;
-
-			if(!exists($self->{userinfo}->{$im_data{from}}->{icon_timestamp})
-			   or $icon_timestamp > $self->{userinfo}->{$im_data{from}}->{icon_timestamp}
-			   or $icon_checksum != $self->{userinfo}->{$im_data{from}}->{icon_checksum}) {
-				$new_icon = 1;
-			}
-
-			($self->{userinfo}->{$im_data{from}}->{icon_length}, $self->{userinfo}->{$im_data{from}}->{icon_checksum}, $self->{userinfo}->{$im_data{from}}->{icon_timestamp}) =
-				($icon_length, $icon_checksum, $icon_timestamp);
-
-			$self->callback_new_buddy_icon($im_data{from}, $self->{userinfo}->{$im_data{from}});
-		}
-	} elsif($channel == 2) {
-		substr($data, 0, $tlvlen) = "";
-		my $tlv = tlv_decode($data);
-		
-	} elsif($channel == 3) {
-		$data = $senderinfo->{chatdata};
-
-		substr($data, 0, 26) = "";
-		my $tlv = tlv_decode($data);
-		$im_data{msg} = $tlv->{0xC};
-		if($tlv->{0x2711}) {
-			($im_data{chaturl}) = unpack("xx C/a*", $tlv->{0x2711});
-
-			$im_data{chaturl} =~ /-.*?-(.*)/;
-			$im_data{chat} = $1;
-			$im_data{chat} =~ s/%([0-9A-Z]{1,2})/chr(hex($1))/eig;
-		}
-
-		$self->{chatinvites}->{$im_data{chaturl}} = {
-			cookie => $cookie,
-			sender => $im_data{from}
-		};
-	}
-
-	return %im_data;
-}
 
 =pod
 
@@ -1378,9 +1198,10 @@ sub evil($$;$) {
 	my($self, $who, $anon) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	$self->svcdo(CONNTYPE_BOS, reqdata => $who, family => 0x04, subtype => 0x08, data =>
-		pack("n C a*", ($anon ? 1 : 0), length($who), $who)
-	);
+	$self->svcdo(CONNTYPE_BOS, reqdata => $who, protobit => "outgoing warning", protodata => {
+		is_anonymous => $anon ? 1 : 0,
+		screenname => $who
+	});
 }
 
 =pod
@@ -1417,10 +1238,9 @@ sub set_extended_status($$) {
 	croak "This client does not support extended status messages." unless $self->{capabilities}->{extended_status};
 
 	$status ||= "";
-	my $message = pack("na*n", length($status), $status, 0);
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Setting extended status.");
-	$self->svcdo(CONNTYPE_BOS, family => 0x01, subtype => 0x1E, data => tlv_encode(tlv(0x1D => pack("nCCa*", 2, 4, length($status) + 4, $message))));
+	$self->svcdo(CONNTYPE_BOS, protobit => "set extended status", protodata => {message => $status});
 }
 
 =pod
@@ -1446,24 +1266,23 @@ sub set_info($$;$) {
 	my($self, $profile, $awaymsg) = @_;
 
 	return must_be_on($self) unless $self->{services}->{CONNTYPE_BOS()};
+	$self->log_print(OSCAR_DBG_NOTICE, "Setting user information.");
 
-	my $tlv = tlv;
+	my %protodata;
+	$protodata{capabilities} = $self->capabilities();
 
 	if(defined($profile)) {
-		$tlv->{0x1} = ENCODING;
-		$tlv->{0x2} = $profile;
+		$protodata{profile_encoding} = ENCODING;
+		$protodata{profile} = $profile;
 		$self->{profile} = $profile;
 	}
 
 	if(defined($awaymsg)) {
-		$tlv->{0x3} = ENCODING;
-		$tlv->{0x4} = $awaymsg;
+		$protodata{awaymsg_encoding} = ENCODING;
+		$protodata{awaymsg} = $awaymsg;
 	}
 
-	$tlv->{0x5} = $self->capabilities();
-
-	$self->log_print(OSCAR_DBG_NOTICE, "Setting user information.");
-	$self->svcdo(CONNTYPE_BOS, family => 0x02, subtype => 0x04, data => tlv_encode($tlv));
+	$self->svcdo(CONNTYPE_BOS, protobit => "set info", protodata => \%protodata);
 }
 
 =pod
@@ -1475,6 +1294,9 @@ with the C<buddy_icons> capability to use this.  C<ICONDATA> must be less
 than 4kb, should be 48x48 pixels, and should be BMP, GIF, or JPEG image data.
 You must call L<commit_buddylist> for this change to take effect.  If
 C<ICONDATA> is the empty string, the user's buddy icon will be removed.
+
+When reading the icon data from a file, make sure to call C<binmode>
+on the file handle.
 
 Note that if the user's buddy icon was previously set with Net::OSCAR,
 enough data will be stored in the server-side buddylist that this will
@@ -1532,9 +1354,10 @@ sub get_icon($$$) {
 
 	carp "This client does not support buddy icons!" unless $self->{capabilities}->{buddy_icons};
 
-	$self->svcdo(CONNTYPE_ICON, family => 0x10, subtype => 0x04, data => pack("Ca*CnCCa*",
-		length($screenname), $screenname, 1, 1, 1, length($md5sum), $md5sum
-	));
+	$self->svcdo(CONNTYPE_ICON, protobit => "buddy icon download", protodata => {
+		screenname => $screenname,
+		md5sum => $md5sum
+	});
 }	
 
 =pod
@@ -1572,9 +1395,9 @@ sub svcdo($$%) {
 	$snac{data} = protoparse($self, $data{protobit})->(%{$data{protodata}});
 
 	if($self->{services}->{$service} and ref($self->{services}->{$service})) {
-		$self->{services}->{$service}->snac_put(%snac);
+		$self->{services}->{$service}->proto_send(%data);
 	} else {
-		push @{$self->{svcqueues}->{$service}}, \%snac;
+		push @{$self->{svcqueues}->{$service}}, \%data;
 		$self->svcreq($service) unless $self->{services}->{$service};
 	}
 }
@@ -1583,7 +1406,7 @@ sub svcreq($$) {
         my($self, $svctype) = @_;
 
         $self->log_print(OSCAR_DBG_INFO, "Sending service request for servicetype $svctype.");
-        $self->svcdo(CONNTYPE_BOS, family => 0x1, subtype => 0x4, data => pack("n", $svctype));
+        $self->svcdo(CONNTYPE_BOS, protobit => "service request", protodata => {type => $svctype});
 }
 
 =pod
@@ -1605,7 +1428,10 @@ sub change_password($$$) {
 		$self->{adminreq}->{0+ADMIN_TYPE_PASSWORD_CHANGE}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv_encode(tlv(0x02 => $newpass, 0x12 => $currpass)));
+	$self->svcdo(CONNTYPE_ADMIN, protobit => "change password", protodata => {
+		newpass => $newpass,
+		oldpass => $currpass
+	});
 }
 
 =pod
@@ -1629,7 +1455,7 @@ sub confirm_account($) {
 		$self->{adminreq}->{0+ADMIN_TYPE_ACCOUNT_CONFIRM}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x06);
+	$self->svcdo(CONNTYPE_ADMIN, protobit => "confirm account");
 }
 
 =pod
@@ -1658,7 +1484,9 @@ sub change_email($$) {
 		$self->{adminreq}->{0+ADMIN_TYPE_EMAIL_CHANGE}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv_encode(tlv(0x11 => $newmail)));
+	$self->svcdo(CONNTYPE_ADMIN, protobit => "change email", protodata => {
+		new_email => $newmail
+	});
 }
 
 =pod
@@ -1682,7 +1510,9 @@ sub format_screenname($$) {
 		$self->{adminreq}->{0+ADMIN_TYPE_SCREENNAME_FORMAT}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv_encode(tlv(1 => $newname)));
+	$self->svcdo(CONNTYPE_ADMIN, protobit => "format screenname", protodata => {
+		new_screenname => $newname
+	});
 }
 
 =pod
@@ -1701,24 +1531,12 @@ sub chat_join($$; $) {
 	return must_be_on($self) unless $self->{is_on};
 	$exchange ||= 4;
 
-	$self->log_print(OSCAR_DBG_INFO, "Creating chatroom $name ($exchange).");
 	my $reqid = (8<<16) | (unpack("n", randchars(2)))[0];
 	$self->{chats}->{pack("N", $reqid)} = $name;
-	$self->svcdo(CONNTYPE_CHATNAV, family => 0x0D, subtype => 0x08, reqid => $reqid, data =>
-		#pack("n Ca*n3C na*", $exchange,
-		#	length("create"), "create", 0xFFFF, 0x100, 0x100, 0xD3,
-		#	length($name), $name
-		#)
-
-		pack("n Ca*n2C a*", $exchange,
-			length("create"), "create", 0xFFFF, 0x100, 0x03,
-			tlv_encode(tlv(
-				0xD7 => "en",
-				0xD6 => "us-ascii",
-				0xD3 => $name
-			))
-		)
-	);
+	$self->svcdo(CONNTYPE_CHATNAV, reqid => $reqid, protobit => "chat navigator request", protodata => {
+		exchange => $exchange,
+		room_name => $name
+	});
 }
 
 =pod
@@ -1739,9 +1557,9 @@ sub chat_accept($$) {
 
 	delete $self->{chatinvites}->{$chat};
 	$self->log_print(OSCAR_DBG_NOTICE, "Accepting chat invite for $chat.");
-	$self->svcdo(CONNTYPE_CHATNAV, family => 0x0D, subtype => 0x04, data =>
-		pack("nca* Cn", 4, length($chat), $chat, 0, 2)
-	);
+	$self->svcdo(CONNTYPE_CHATNAV, protobit => "chat invitation accept", protodata => {
+		chat => $chat
+	});
 }
 
 sub chat_decline($$) {
@@ -1753,12 +1571,10 @@ sub chat_decline($$) {
 		return;
 	};
 	$self->log_print(OSCAR_DBG_NOTICE, "Declining chat invite for $chat.");
-	$self->svcdo(CONNTYPE_BOS, family => 0x04, subtype => 0x0B, data =>
-		$invite->{cookie} .
-		pack("n", 2) .
-		pack("Ca*", length($invite->{sender}), $invite->{sender}) .
-		pack("nnn", 3, 2, 1)
-	);
+	$self->svcdo(CONNTYPE_BOS, protobit => "chat invitation decline", protodata => {
+		cookie => $invite->{cookie},
+		sender => $invite->{sender}
+	});
 }
 
 sub crapout($$$;$) {
@@ -1786,7 +1602,7 @@ the user as being idle.
 sub set_idle($$) {
 	my($self, $time) = @_;
 	return must_be_on($self) unless $self->{is_on};
-	$self->svcdo(CONNTYPE_BOS, family => 0x1, subtype => 0x11, data => pack("N", $time));
+	$self->svcdo(CONNTYPE_BOS, protobit => "set idle", protodata => {duration => $time});
 }
 
 =pod
@@ -1952,10 +1768,15 @@ Time that the user's account was created, in the same format as the C<time> func
 
 Time that the user signed on to the service, in the same format as the C<time> function.
 
-=item idle
+=item idle_since
 
-Time that the user has been idle for, in seconds.  If this key is present but zero,
-the user is not idle.  If this key is not present, the user is not reporting idle time.
+Time, in seconds since Jan 1st 1970, since which the user has been idle.  This will only
+be present if the user is idle.  To figure out how long the user has been idle for,
+subtract this value from C<time()> .
+
+=item evil
+
+Evil (warning) level for the user.
 
 =back
 
@@ -2198,29 +2019,6 @@ Called when someone sends you an instant message.  If the AWAY parameter
 is non-zero, the message was generated as an automatic reply, perhaps because
 you sent that person a message and they had an away message set.
 
-=item direct_connect_request (OSCAR, FROM, TYPE, IP, PORT, COOKIE)
-
-Called when someone requests a direct connection to the user.
-C<IP> and C<PORT> are the address of the remote user.  C<COOKIE>
-is a random string used to identify this particular request.
-C<TYPE> will be one of:
-
-=over 4
-
-=item OSCAR_DIRECT_IM
-
-Someone wants to establish a direct IM connection with the user.
-
-=item OSCAR_DIRECT_FILESHARE
-
-Someone wants to establish a filesharing connection with the user.
-
-=item OSCAR_DIRECT_FILEXFER
-
-Someone wants to establish a file transfer connection with the user.
-
-=back
-
 =item chat_im_in (OSCAR, FROM, CHAT, MESSAGE)
 
 Called when someone says something in a chatroom.  Note that you
@@ -2338,17 +2136,7 @@ should be called in both cases, or "deleted" if the connection has been deleted.
 C<CONNECTION> is a C<Net::OSCAR::Connection> object.
 
 Users of this callback may also be interested in the L<"get_filehandle">
-method of C<Net::OSCAR::Connection>, and the L<"register_timer"> callback.
-
-=item register_timer (OSCAR, TIME, CODEREF, DATA)
-
-This will be called when Net::OSCAR wants to do something later.  Currently,
-this is used by C<Net::OSCAR::Connection::Direct::Listener> in order to close
-the listening socket after a certain period of inactivity.  C<TIME> is the
-B<minimum> time (in "seconds since Jan 1st, 1970" format) at which you should
-call C<CODEREF>.  You may call C<CODEREF> at your convenience, but no sooner
-than C<TIME>.  C<DATA> is a listref to pass to C<CODEREF>.
-To call the C<CODEREF>, you can do C<$coderef->(@$data);>.
+method of C<Net::OSCAR::Connection>.
 
 =cut
 
@@ -2363,7 +2151,6 @@ sub callback_error(@) { do_callback("error", @_); }
 sub callback_buddy_in(@) { do_callback("buddy_in", @_); }
 sub callback_buddy_out(@) { do_callback("buddy_out", @_); }
 sub callback_im_in(@) { do_callback("im_in", @_); }
-sub callback_direct_connect_request(@) { do_callback("direct_connect_request", @_); }
 sub callback_chat_joined(@) { do_callback("chat_joined", @_); }
 sub callback_chat_buddy_in(@) { do_callback("chat_buddy_in", @_); }
 sub callback_chat_buddy_out(@) { do_callback("chat_buddy_out", @_); }
@@ -2387,13 +2174,11 @@ sub callback_extended_status(@) { do_callback("extended_status", @_); }
 sub callback_im_ok(@) { do_callback("im_ok", @_); }
 sub callback_connection_changed(@) { do_callback("connection_changed", @_); }
 sub callback_auth_challenge(@) { do_callback("auth_challenge", @_); }
-sub callback_register_timer(@) { do_callback("register_timer", @_); }
 
 sub set_callback_error($\&) { set_callback("error", @_); }
 sub set_callback_buddy_in($\&) { set_callback("buddy_in", @_); }
 sub set_callback_buddy_out($\&) { set_callback("buddy_out", @_); }
 sub set_callback_im_in($\&) { set_callback("im_in", @_); }
-sub set_callback_direct_connect_request($\&) { set_callback("direct_connect_request", @_); }
 sub set_callback_chat_joined($\&) { set_callback("chat_joined", @_); }
 sub set_callback_chat_buddy_in($\&) { set_callback("chat_buddy_in", @_); }
 sub set_callback_chat_buddy_out($\&) { set_callback("chat_buddy_out", @_); }
@@ -2432,7 +2217,6 @@ sub set_callback_extended_status($\&) {
 sub set_callback_im_ok($\&) { set_callback("im_ok", @_); }
 sub set_callback_connection_changed($\&) { set_callback("connection_changed", @_); }
 sub set_callback_auth_challenge($\&) { set_callback("auth_challenge", @_); }
-sub set_callback_register_timer($\&) { set_callback("register_timer", @_); }
 
 =pod
 
@@ -2537,6 +2321,12 @@ instance, an error message and an error number.)
 
 =item GROUPPERM_AOL
 
+=item TYPINGSTATUS_STARTED
+
+=item TYPINGSTATUS_TYPING
+
+=item TYPINGSTATUS_FINISHED
+
 =back
 
 =head1 Net::AIM Compatibility
@@ -2632,6 +2422,105 @@ Returns the C<Net::OSCAR> object associated with this C<Net::OSCAR::Connection>.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+1.11, 2004-02-13
+
+=over 4
+
+=item *
+
+Fixed presence-related problems modifying some buddylists
+
+=back
+
+=item *
+
+1.10, 2004-02-10
+
+=over 4
+
+=item *
+
+Fixed idle time handling; user info hashes now have an 'idle_since' key,
+which you should use instead of the old 'idle' key.  Subtract C<idle_since>
+from C<time()> to get the length of time for which the user has been idle.
+
+=item *
+
+Fixed buddylist type 5 handling; this fixes problems modifying the buddylists
+of recently-created screennames.
+
+=back
+
+=item *
+
+1.01, 2004-01-06
+
+=over 4
+
+=item *
+
+Fixed buddy ID generation (problems adding buddies)
+
+=back
+
+=item *
+
+1.00, 2004-01-03
+
+=over 4
+
+=item *
+
+Documented requirement to wait for buddylist_foo callback between calls to commit_buddylist
+
+=item *
+
+Fixed handling of idle time (zoyboy22)
+
+=item *
+
+More flexible signon method
+
+=item *
+
+Added buddy alias support
+
+=item *
+
+Buddy icon support
+
+=item *
+
+Typing notification support
+
+=item *
+
+mac.com screenname support
+
+=item *
+
+Support for communicating with ICQ users from AIM
+
+=item *
+
+iChat extended status message support
+
+=item *
+
+We now emulate AOL Instant Messenger for Windows 5.2
+
+=item *
+
+We now parse the capabilities of other users
+
+=item *
+
+Attempts at Win32 (non-cygwin) support
+
+=back
 
 =item *
 
@@ -3172,6 +3061,8 @@ Sam Wong E<lt>sam@uhome.netE<gt> for a patch implementing ICQ2000 support.
 Bill Atkins for typing status notification and mobile user support.  E<lt>http://www.milkbone.org/E<gt>
 
 Jonathon Wodnicki for additional help with typing status notification.
+
+Roy Camp for loads of bug reports and ideas and helping with user support.
 
 The gaim team - the source to their libfaim client was also very helpful.  E<lt>http://gaim.sourceforge.net/E<gt>
 

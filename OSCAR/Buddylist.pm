@@ -9,17 +9,15 @@ This is a tied hash class that has that behavior for its keys.
 
 package Net::OSCAR::Buddylist;
 
-$VERSION = '0.62';
+$VERSION = '1.11';
 $REVISION = '$Revision$';
 
 use strict;
 use vars qw($VERSION);
 
 use Carp;
-use Net::OSCAR::Utility;
 use Net::OSCAR::Screenname;
-use Net::OSCAR::OldPerl;
-use Net::OSCAR::Utility;
+use Net::OSCAR::Utility qw(normalize);
 
 sub new {
 	my $pkg = shift;
