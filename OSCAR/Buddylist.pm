@@ -18,6 +18,7 @@ use vars qw($VERSION);
 use Carp;
 use Net::OSCAR::Screenname;
 use Net::OSCAR::OldPerl;
+use Net::OSCAR::Utility;
 
 sub new {
 	my $pkg = shift;
