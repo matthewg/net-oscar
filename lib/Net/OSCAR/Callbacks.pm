@@ -441,7 +441,7 @@ sub got_buddylist($$) {
 
 	$session->set_extended_status("") if $session->{capabilities}->{extended_status};
 
-	$connection->proto_send(protobit => "send idle", protodata => {duration => 0});
+	$connection->proto_send(protobit => "set idle", protodata => {duration => 0});
 	$connection->proto_send(protobit => "buddylist done");
 
 	$session->{is_on} = 1;

@@ -12,7 +12,7 @@ $REVISION = '$Revision$';
 use strict;
 use vars qw(@ISA @EXPORT $VERSION);
 use Scalar::Util qw(dualvar);
-use Net::OSCAR::Utility qw(tlv);
+use Net::OSCAR::TLV;
 require Exporter;
 @ISA = qw(Exporter);
 

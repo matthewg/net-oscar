@@ -41,7 +41,8 @@ use Memoize;
 memoize('protoparse');
 
 use Net::OSCAR::Common qw(:loglevels);
-use Net::OSCAR::Utility qw(hexdump tlv);
+use Net::OSCAR::Utility qw(hexdump);
+use Net::OSCAR::TLV;
 
 require Exporter;
 @ISA = qw(Exporter);
@@ -174,8 +175,10 @@ sub _protopack($$;@) {
 
 				my $tlvmap = tlv();
 				if($datum->{subtyped}) {
-					$tlvmap->{$_->{num}} = tlv() foreach (@{$datum->{items}});
-					$tlvmap->{$_->{num}}->{$_->{subtype}} = $_ foreach (@{$datum->{items}});
+					foreach (@{$datum->{items}}) {
+						$tlvmap->{$_->{num}} ||= tlv();
+						$tlvmap->{$_->{num}}->{$_->{subtype} || -1} = $_;
+					}
 				} else {
 					$tlvmap->{$_->{num}} = $_ foreach (@{$datum->{items}});
 				}
@@ -189,6 +192,9 @@ sub _protopack($$;@) {
 					$value = substr($tlvpacket, 0, $length, "");
 
 					if($datum->{subtyped}) {
+						if(!exists($tlvmap->{$type}->{$subtype}) and exists($tlvmap->{$type}->{-1})) {
+							$subtype = -1;
+						}
 						$tlvmap->{$type}->{$subtype}->{data} = $value;
 					} else {
 						$tlvmap->{$type}->{data} = $value;
@@ -198,14 +204,18 @@ sub _protopack($$;@) {
 				}
 
 				while(my($num, $val) = each %$tlvmap) {
-					next unless $val->{type};
-
 					if($datum->{subtyped}) {
 						while(my($subtype, $subval) = each %$val) {
-							my(%tmp) = _protopack($oscar, [$subval], $subval->{data});
-							$data{$_} = $tmp{$_} foreach keys %tmp;
+							next unless $subval->{type};
+
+							if(defined($subval->{data})) {
+								my(%tmp) = _protopack($oscar, [$subval], $subval->{data});
+								$data{$_} = $tmp{$_} foreach keys %tmp;
+							}
 						}
 					} else {
+						next unless $val->{type};
+
 						if(defined($val->{data})) {
 							my(%tmp) = _protopack($oscar, [$val], $val->{data});
 							$data{$_} = $tmp{$_} foreach keys %tmp;
@@ -293,9 +303,12 @@ sub _protopack($$;@) {
 					confess "No num: ", Data::Dumper::Dumper($_) unless $_->{num};
 
 					if($datum->{subtyped}) {
+						my $subtype = 0;
+						$subtype = $_->{subtype} if exists($_->{subtype});
+
 						$tlvpacket .= _protopack($oscar, [
 							{type => "num", packlet => "n", len => 2, value => $_->{num}},
-							{type => "num", packlet => "C", len => 1, value => $_->{subtype}},
+							{type => "num", packlet => "C", len => 1, value => $subtype},
 							{type => "data", packlet => "C", len => 1, value => $tmp},
 						]);
 					} else {
@@ -420,6 +433,7 @@ sub _xmlnode_to_template($$) {
 				# Plus we have the 'num' attribute to worry about.
 				$item->{name} = $attrs->{name} if $attrs->{name};
 				$item->{num} = $attrs->{type};
+				$item->{subtype} = $attrs->{subtype} if $attrs->{subtype};
 			} else {
 				$item = _xmlnode_to_template($subtag, $subval);
 			}

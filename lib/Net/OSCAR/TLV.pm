@@ -13,7 +13,11 @@ $VERSION = '1.11';
 $REVISION = '$Revision$';
 
 use strict;
-use vars qw($VERSION);
+use vars qw($VERSION @EXPORT @ISA);
+
+require Exporter;
+@ISA = qw(Exporter);
+@EXPORT = qw(tlv);
 
 # Extra arguments: an optional scalar which modifies the behavior of $self->{foo}->{bar} = "baz"
 # Iff foo doesn't exist, the scalar will be evaluated and assigned as the value of foo.
@@ -124,5 +128,14 @@ sub NEXTKEY {
 		return wantarray ? ($currkey, $self->{DATA}->{$packedkey}) : $currkey;
 	}
 }
+
+
+sub tlv(;@) {
+	my %tlv = ();
+	tie %tlv, "Net::OSCAR::TLV";
+	while(@_) { my($key, $value) = (shift, shift); $tlv{$key} = $value; }
+	return \%tlv;
+}
+
 
 1;

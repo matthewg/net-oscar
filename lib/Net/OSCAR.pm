@@ -1110,7 +1110,7 @@ sub send_im($$$;$;) {
 		$self->{userinfo}->{$to} ||= {};
 		$self->{userinfo}->{$to}->{icon_timestamp_received} = $self->{icon_timestamp};
 
-		$protodata{icon_$_} = $self->{icon_$_} foreach qw(length checksum timestamp);
+		$protodata{"icon_".$_} = $self->{"icon_".$_} foreach qw(length checksum timestamp);
 	}
 
 	

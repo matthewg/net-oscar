@@ -21,17 +21,9 @@ use Net::OSCAR::Constants;
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(
-	randchars log_print log_printf hexdump normalize tlv_decode tlv_encode tlv send_error bltie
+	randchars log_print log_printf hexdump normalize tlv_decode tlv_encode send_error bltie
 	signon_tlv encode_password send_versions
 );
-
-sub tlv(;@) {
-	my %tlv = ();
-	tie %tlv, "Net::OSCAR::TLV";
-	while(@_) { my($key, $value) = (shift, shift); $tlv{$key} = $value; }
-	return \%tlv;
-}
-
 
 sub randchars($) {
 	my $count = shift;
@@ -225,33 +217,33 @@ sub send_versions($$) {
 	my $conntype = $connection->{conntype};
 	my @services;
 
-	if($conntype != CONNTYPE_BOS) {
+	if($conntype != 2) {
 		@services = (1, $conntype);
 	} else {
 		@services = sort {$b <=> $a} grep {not OSCAR_TOOLDATA()->{$_}->{nobos}} keys %{OSCAR_TOOLDATA()};
 	}
 
+	my %protodata;
+	$protodata{service_id} = [];
+	$protodata{service_version} = [];
 	if($send_tools) {
-		$connection->proto_send(protobit => "set tool versions", protodata => {
-			[
-				map { {
-					service_id => $_,
-					service_version => OSCAR_TOOLDATA()->{$_}->{version},
-					tool_id => OSCAR_TOOLDATA()->{$_}->{toolid},
-					tool_version => OSCAR_TOOLDATA()->{$_}->{toolversion},
-				} } @services
-			]
-		});
+		$protodata{tool_id} = [];
+		$protodata{tool_version} = [];
+	}
+
+	foreach my $service (@services) {
+		push @{$protodata{service_id}}, $service;
+		push @{$protodata{service_version}}, OSCAR_TOOLDATA->{$service}->{version};
+		if($send_tools) {
+			push @{$protodata{tool_id}}, OSCAR_TOOLDATA->{$service}->{toolid};
+			push @{$protodata{tool_version}}, OSCAR_TOOLDATA->{$service}->{toolversion};
+		}
+	}
+
+	if($send_tools) {
+		$connection->proto_send(protobit => "set tool versions", protodata => \%protodata);
 	} else {
-		$connection->proto_send(protobit => "set service versions", protodata => {
-				map { {
-					service_id => $_,
-					service_version => OSCAR_TOOLDATA()->{$_}->{version}
-				} } @services
-			[
-				map { {$_ => OSCAR_TOOLDATA()->{$_}->{version}} } @services
-			]
-		});
+		$connection->proto_send(protobit => "set service versions", protodata => \%protodata);
 	}
 }
 
