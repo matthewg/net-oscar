@@ -190,6 +190,7 @@ sub new($) {
 	$self->{rv_proposals} = {};
 	$self->{pass_is_hashed} = 0;
 	$self->{stealth} = 0;
+	$self->{icq_meta_info_cache} = {};
 
 	$self->{timeout} = 0.01;
 	$self->{capabilities} = {};
@@ -2288,7 +2289,6 @@ Requests ICQ-specific information.  See also the L<"icq_info"> callback.
 sub get_icq_info($$) {
 	my($self, $uin) = @_;
 
-	$self->{icq_meta_info_cache} = {};
 	$self->svcdo(CONNTYPE_BOS, protobit => "ICQ meta request", protodata => {
 		our_uin => $self->{screenname},
 		type => 2000,
