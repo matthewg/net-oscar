@@ -22,8 +22,19 @@ require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(
 	randchars log_print log_printf log_print_cond log_printf_cond hexdump normalize tlv_decode tlv_encode send_error bltie
-	signon_tlv encode_password send_versions hash_iter_reset
+	signon_tlv encode_password send_versions hash_iter_reset millitime
 );
+
+eval {
+	require Time::HiRes;
+};
+our $finetime = $@ ? 0 : 1;
+
+
+sub millitime() {
+	my $time = $finetime ? Time::HiRes::time() : time();
+	return int($time * 1000);
+}
 
 sub randchars($) {
 	my $count = shift;

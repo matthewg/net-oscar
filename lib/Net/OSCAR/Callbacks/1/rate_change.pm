@@ -6,6 +6,14 @@ sub {
 
 my($rate, $worrisome);
 
+if($session->{rate_manage_mode} != OSCAR_RATE_MANAGE_NONE) {
+	delete $data{message_type};
+
+	my $cinfo = $connection->{rate_limits}->{$data{class_id}};
+	$cinfo->{$_} = $data{$_} foreach keys(%data);
+}
+
+
 if($data{current} <= $data{disconnect}) {
 	$rate = RATE_DISCONNECT;
 	$worrisome = 1;
@@ -24,6 +32,6 @@ if($data{current} <= $data{disconnect}) {
 	$worrisome = 0;
 }
 
-$session->callback_rate_alert($rate, $data{clear}, $data{window}, $worrisome);
+$session->callback_rate_alert($rate, $data{clear}, $data{window}, $worrisome, 0);
 
 };

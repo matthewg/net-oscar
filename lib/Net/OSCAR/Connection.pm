@@ -18,6 +18,7 @@ use Digest::MD5;
 use Fcntl;
 use POSIX qw(:errno_h);
 use Scalar::Util qw(weaken);
+use List::Util qw(max);
 
 use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::Constants;
@@ -289,15 +290,32 @@ sub snac_put($%) {
 
 	if($snac{family} and !$self->{families}->{$snac{family}}) {
 		$self->log_printf(OSCAR_DBG_WARN, "Tried to send unsupported SNAC 0x%04X/0x%04X", $snac{family}, $snac{subtype});
-		foreach my $connection (@{$self->{session}->{connections}}) {
-			next unless $connection->{families}->{$snac{family}};
-			$connection->log_print(OSCAR_DBG_WARN, "Found connection for unsupported SNAC.");
-			return $connection->snac_put(%snac);
+
+		my $newconn = $self->{session}->connection_for_family($snac{family});
+		if($newconn) {
+			return $newconn->snac_put(%snac);
+		} else {
+			$self->{session}->crapout($self, "Couldn't find supported connection for SNAC 0x%04X/0x%04X", $snac{family}, $snac{subtype});
 		}
-		$self->{session}->crapout($self, "Couldn't find supported connection for SNAC 0x%04X/0x%04X", $snac{family}, $snac{subtype});
 	} else {
 		$snac{channel} ||= 0+FLAP_CHAN_SNAC;
 		confess "No family/subtype" unless exists($snac{family}) and exists($snac{subtype});
+
+		if($self->{session}->{rate_manage_mode} != OSCAR_RATE_MANAGE_NONE and $self->{rate_limits}) {
+			my $key = $self->{rate_limits}->{classmap}->{pack("nn", $snac{family}, $snac{subtype})};
+			if($key) {
+				my $rinfo = $self->{rate_limits}->{$key};
+				if($rinfo) {
+					print Data::Dumper::Dumper($rinfo), "\n";
+					$rinfo->{current_state} = max(
+						$rinfo->{max},
+						$self->{session}->_compute_rate($rinfo)
+					);
+					$rinfo->{last_time} = millitime() - $rinfo->{time_offset};
+				}
+			}
+		}
+
 		$self->flap_put($self->snac_encode(%snac), $snac{channel});
 	}
 }

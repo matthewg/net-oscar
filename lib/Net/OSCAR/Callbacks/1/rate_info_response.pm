@@ -2,9 +2,32 @@ package Net::OSCAR::Callbacks;
 use strict;
 use warnings;
 use vars qw($connection $snac $conntype $family $subtype $data $reqid $reqdata $session $protobit %data);
+use Net::OSCAR::Utility qw(millitime);
+
 sub {
 
-$connection->proto_send(protobit => "rate_acknowledgement");
+if($session->{rate_manage_mode} != OSCAR_RATE_MANAGE_NONE) {
+	$connection->{rate_limits} ||= {classmap => {}};
+
+	my $rinfo = $connection->{rate_limits};
+	my $time = millitime();
+	foreach my $class (@{$data{classes}}) {
+		$class->{time_offset} = $time - $class->{last_time};
+		$rinfo->{$class->{class_id}} = $class;
+	}
+
+	my $map = $rinfo->{classmap};
+	foreach my $class (@{$data{classmembers}}) {
+		my $id = $class->{class_id};
+		foreach my $snacfam (@{$class->{snacs}}) {
+			my $key = pack("nn", $snacfam->{family}, $snacfam->{subtype});
+			$map->{$key} = $id;
+		}
+	}
+}
+
+$connection->proto_send(protobit => "rate_acknowledgement",
+	classes => [map {$_->{class_id}} @{$data{classes}}]);
 $connection->log_print(OSCAR_DBG_NOTICE, "BOS handshake complete!");
 
 if($conntype == CONNTYPE_BOS) {

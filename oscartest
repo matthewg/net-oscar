@@ -302,20 +302,18 @@ sub buddylist_changed($@) {
 }
 
 my $loglevel = undef;
-my $do_md5 = 0;
 my $stealth = 0;
 my $screenname = undef;
 my $password = undef;
 my $host = undef;
 if(!GetOptions(
 	"l|loglevel=i" => \$loglevel,
-	"m|md5" => \$do_md5,
 	"s|stealth" => \$stealth,
 	"u|screenname=s" => \$screenname,
 	"p|password=s" => \$password,
 	"host=s" => \$host,
 ) or @ARGV) {
-	die "Usage: $0 [--loglevel=NUM] [--md5] [--stealth] [--screenname S] [--password P] [--host h]\n";
+	die "Usage: $0 [--loglevel=NUM] [--stealth] [--screenname S] [--password P] [--host h]\n";
 }
 
 if(!defined($screenname)) {
@@ -336,7 +334,7 @@ if(!defined($password)) {
 $poll = IO::Poll->new();
 $poll->mask(STDIN => POLLIN);
 
-$oscar = Net::OSCAR->new(capabilities => [qw(typing_status extended_status buddy_icons file_transfer buddy_list_transfer)]);
+$oscar = Net::OSCAR->new(capabilities => [qw(typing_status extended_status buddy_icons file_transfer buddy_list_transfer)], rate_manage => OSCAR_RATE_MANAGE_MANUAL);
 $oscar->set_callback_error(\&error);
 $oscar->set_callback_buddy_in(\&buddy_in);
 $oscar->set_callback_buddy_out(\&buddy_out);
@@ -369,14 +367,11 @@ $oscar->set_callback_connection_changed(\&connection_changed);
 $oscar->set_callback_buddylist_in(\&buddylist_in);
 
 $oscar->loglevel($loglevel) if defined($loglevel);
+
 # I specify local_port 5190 so that I can sniff that one port and get all OSCAR
 # traffic, including direct connections.
 my %so_opts;
-if($do_md5) {
-	%so_opts = (screenname => $screenname, password => undef, stealth => $stealth, local_port => 5190);
-} else {
-	%so_opts = (screenname => $screenname, password => $password, stealth => $stealth, local_port => 5190);
-}
+%so_opts = (screenname => $screenname, password => $password, stealth => $stealth, local_port => 5190);
 
 if(defined($host)) {
 	$so_opts{host} = $host;

@@ -49,6 +49,9 @@ require Exporter;
 		RATE_ALERT
 		RATE_LIMIT
 		RATE_DISCONNECT
+		OSCAR_RATE_MANAGE_NONE
+		OSCAR_RATE_MANAGE_AUTO
+		OSCAR_RATE_MANAGE_MANUAL
 		GROUPPERM_OSCAR
 		GROUPPERM_AOL
 		OSCAR_SVC_AIM
@@ -142,6 +145,11 @@ use constant RATE_CLEAR => dualvar(1, "clear");
 use constant RATE_ALERT => dualvar(2, "alert");
 use constant RATE_LIMIT => dualvar(3, "limit");
 use constant RATE_DISCONNECT => dualvar(4, "disconnect");
+
+# Rate handling modes
+use constant OSCAR_RATE_MANAGE_NONE => dualvar(0, "none");
+use constant OSCAR_RATE_MANAGE_AUTO => dualvar(1, "auto");
+use constant OSCAR_RATE_MANAGE_MANUAL => dualvar(2, "manual");
 
 # Group permissions
 use constant GROUPPERM_OSCAR => dualvar(0x18, "AOL Instant Messenger users");
