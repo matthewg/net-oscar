@@ -4,12 +4,7 @@ $VERSION = 0.06;
 
 use strict;
 use vars qw($VERSION);
-if($[ > 5.005) {
-	require warnings;
-} else {
-	$^W = 1;  
-}
-
+use warnings;
 
 sub new {
 	my $pkg = shift;

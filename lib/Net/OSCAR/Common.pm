@@ -3,11 +3,7 @@ package Net::OSCAR::Common;
 $VERSION = 0.06;
 
 use strict;
-if($[ > 5.005) {
-	require warnings;
-} else {
-	$^W = 1;  
-}
+use warnings;
 use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS $VERSION);
 use Scalar::Util qw(dualvar);
 require Exporter;
