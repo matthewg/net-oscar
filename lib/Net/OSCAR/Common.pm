@@ -43,10 +43,11 @@ require Exporter;
 		FLAP_CHAN_NEWCONN FLAP_CHAN_SNAC FLAP_CHAN_ERR FLAP_CHAN_CLOSE
 		CONNTYPE_LOGIN CONNTYPE_BOS CONNTYPE_ADMIN CONNTYPE_CHAT CONNTYPE_CHATNAV
 		MODBL_ACTION_ADD MODBL_ACTION_DEL MODBL_WHAT_BUDDY MODBL_WHAT_GROUP MODBL_WHAT_PERMIT MODBL_WHAT_DENY
-		GROUP_PERMIT GROUP_DENY GROUPPERM_OSCAR GROUPPERM_AOL
+		GROUPPERM_OSCAR GROUPPERM_AOL
+		BUDTYPES
 		ENCODING
 		ERRORS
-		randchars debug_print debug_printf hexdump normalize tlv_decode tlv_encode tlv send_error
+		randchars debug_print debug_printf hexdump normalize tlv_decode tlv_encode tlv send_error tlvtie bltie
 	)]
 );
 @EXPORT_OK = map { @$_ } values %EXPORT_TAGS;
@@ -99,6 +100,8 @@ use constant RATE_DISCONNECT => dualvar(4, "disconnect");
 
 use constant GROUPPERM_OSCAR => dualvar(0x18, "AOL Instant Messenger users");
 use constant GROUPPERM_AOL => dualvar(0x04, "AOL subscribers");
+
+use constant BUDTYPES => ("buddy", "group", "permit entry", "deny entry", "visibility/misc. data", "presence");
 
 use constant ENCODING => 'text/aolrtf; charset="us-ascii"';
 
@@ -263,7 +266,7 @@ sub tlv_encode($) {
 	my $tlv = shift;
 	my($buffer, $type, $value) = ("", 0, "");
 
-	confess "You must use a tied Net::OSCAR::TLV hash!" unless ref($tlv) eq "HASH" and tied(%$tlv)->isa("Net::OSCAR::TLV");
+	confess "You must use a tied Net::OSCAR::TLV hash!" unless defined($tlv) and ref($tlv) eq "HASH" and defined(%$tlv) and tied(%$tlv)->isa("Net::OSCAR::TLV");
 	while (($type, $value) = each %$tlv) {
 		$value ||= "";
 		$buffer .= pack("nna*", $type, length($value), $value);
@@ -276,6 +279,18 @@ sub send_error($$$$$;@) {
 	my($oscar, $connection, $error, $desc, $fatal, @reqdata) = @_;
 	$desc = sprintf $desc, @reqdata;
 	$oscar->callback_error($connection, $error, $desc, $fatal);
+}
+
+sub bltie(;$) {
+	my $retval = {};
+	tie %$retval, "Net::OSCAR::Buddylist", @_;
+	return $retval;
+}
+
+sub tlvtie() {
+	my $retval = {};
+	tie %$retval, "Net::OSCAR::TLV";
+	return $retval;
 }
 
 1;
