@@ -1306,7 +1306,7 @@ sub do_one_loop($) {
 	my $self = shift;
 	my $timeout = $self->{timeout};
 
-	undef $timeout if $timeout == -1;
+	undef $timeout if defined($timeout) and $timeout == -1;
 
 	my($rin, $win, $ein) = ('', '', '');
 
@@ -3367,6 +3367,7 @@ sub addconn($@) {
 	my %data = @_;
 
 	$data{session} = $self;
+
 	my $connection;
 	my $conntype = $data{conntype};
 	$data{description} ||= $conntype;
