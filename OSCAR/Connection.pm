@@ -173,13 +173,20 @@ sub flap_put($;$$) {
 # To prevent a single OSCAR conneciton from monopolizing processing time, for instance if it has
 # a flood of incoming data wide enough that we never run out of stuff to read, we'll only fill
 # the buffer once per call to process_one.
+#
+# no_reread value of 2 indicates that we should only read if we have to
 sub read($$;$) {
 	my($self, $len, $no_reread) = @_;
 	$no_reread ||= 0;
 
 	my $buffsize = $self->{buffsize};
 	$buffsize = $len if $len > $buffsize;
-	my $readlen = $buffsize - length(${$self->{buffer}});
+	my $readlen;
+	if($no_reread == 2) {
+		$readlen = $len - length(${$self->{buffer}});
+	} else {
+		$readlen = $buffsize - length(${$self->{buffer}});
+	}
 
 	if($readlen > 0 and !$no_reread) {
 		my $buffer = "";
@@ -239,7 +246,7 @@ sub flap_get($;$) {
 	}
 
 	if($self->{flap_size} > 0) {
-		my $data = $self->read($self->{flap_size}, $no_reread);
+		my $data = $self->read($self->{flap_size}, $no_reread || 2);
 		if(!defined($data)) {
 			return undef;
 		} elsif($data eq "") {
