@@ -1468,6 +1468,10 @@ Leave the chatroom.
 Returns the URL for the chatroom.  Use this to associate a chat invitation
 with the chat_joined that C<Net::OSCAR> sends when you've join the chatroom.
 
+=item name
+
+Returns the name of the chatroom.
+
 =back
 
 =head1 CONSTANTS
