@@ -423,6 +423,42 @@ sub connect($$) {
 			$self->{connected} = 1;
 			$self->set_blocking(0);
 		} elsif($self->{session}->{proxy_type} eq "HTTP" or $self->{session}->{proxy_type} eq "HTTPS") {
+
+			require MIME::Base64;
+
+			my $authen   =  $self->{session}->{proxy_username};
+			   $authen  .= ":$self->{session}->{proxy_password}"  if $self->{session}->{proxy_password};
+			   $authen   = encode_base64 $authen if $authen;
+
+			my $request  = "CONNECT $host:$port HTTP/1.1\r\n";
+			   $request .= "Proxy-Authorization: Basic $authen\r\n" if $authen;
+			   $request .= "User-Agent: Net::OSCAR\r\n";
+			   $request .= "\r\n";
+
+			$self->{socket} = gensym;
+			socket($self->{socket}, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
+			if($self->{session}->{local_ip}) {
+				bind($self->{socket}, sockaddr_in(0, inet_aton($self->{session}->{local_ip}))) or croak "Couldn't bind to desired IP: $!\n";
+			}
+			$self->set_blocking(0);
+
+			my $addr = inet_aton($self->{session}{proxy_host}) or return $self->{session}->crapout($self, "Couldn't resolve $self->{session}{proxy_host}.");
+			if(!connect($self->{socket}, sockaddr_in($self->{session}{proxy_port}, $addr))) {
+				return $self->{session}->crapout($self, "Couldn't connect to $self->{session}{proxy_host}:$self->{session}{proxy_port}: $!")
+				    unless $! == EINPROGRESS;
+			}
+
+			# TODO: I don't know what happens if authentication or connection fails
+			#
+			my $buffer;
+			syswrite ($self->{socket}, $request); 
+			sysread  ($self->{socket}, $buffer, 1024)
+				or return $self->{session}->crapout($self, "Couldn't read from $self->{session}{proxy_host}:$self->{session}{proxy_port}: $!");
+
+			return $self->{session}->crapout($self, "Couldn't connect to proxy: $self->{session}{proxy_host}:$self->{session}{proxy_port}: $!")
+				unless $buffer =~ /connection\s+established/i;
+
+			$self->set_blocking(0);
 			$self->{ready} = 0;
 			$self->{connected} = 1;
 		} else {
