@@ -1996,9 +1996,17 @@ of C<Net::OSCAR::Connection>, not C<Net::OSCAR>.
 
 =over 4
 
-* Sent callback_chat_joined correctly when joining an existing chat
+=item *
 
-* Don't activate OldPerl fixes for perl 5.6.0
+Send callback_chat_joined correctly when joining an existing chat
+
+=item *
+
+Don't activate OldPerl fixes for perl 5.6.0
+
+=item *
+
+Ignore chats that we're already in
 
 =back
 
