@@ -19,6 +19,10 @@ sub new {
 
 sub setorder {
 	my $self = shift;
+
+	# Anything not specified gets shoved at the end
+	my @end = grep { my $inbud = $_; not grep { $_ eq $inbud } @_ } @{$self->{ORDERFORM}};
+
 	@{$self->{ORDERFORM}} = @_;
 }
 
