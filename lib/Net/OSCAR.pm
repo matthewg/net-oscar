@@ -632,7 +632,11 @@ See L<"get_app_data">.
 =cut
 
 sub get_app_data($$) { return shift->{appdata}->{shift}; }
-sub set_app_data($$$) { shift->{appdata}->{shift} = shift; }
+sub set_app_data($$$) {
+	my($self, $idno, $data) = @_;
+	$self->{appdata}->{$idno} = $data;
+	$self->set_visibility($self->visibility);
+}
 
 
 sub mod_permit($$$@) {
