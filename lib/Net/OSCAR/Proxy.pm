@@ -9,6 +9,10 @@ use Carp;
 use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::OldPerl;
 
+sub use_socks {
+	require Net::SOCKS or return -1;
+	
+}
 
 1;
 

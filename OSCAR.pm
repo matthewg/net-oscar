@@ -222,6 +222,20 @@ auth_challenge callback will be used - see L<"auth_challenge"> for details.
 
 =item port
 
+=item proxy_type
+
+Either "SOCKS4", "SOCKS5", or "HTTP".  This and C<proxy_host> must be specified if you wish to use a proxy.
+C<proxy_port>, C<proxy_username>, C<proxy_password> are optional.  Note that proxy support
+is considered experimental.
+
+=item proxy_host
+
+=item proxy_port
+
+=item proxy_username
+
+=item proxy_password
+
 =back
 
 There are some other data that can be passed to this method.
@@ -272,10 +286,13 @@ sub signon($@) {
 	$args{port} ||= 5190;
 
 
-	($self->{screenname}, $password, $host, $self->{port}) =
-		delete @args{qw(screenname password host port)};
+	($self->{screenname}, $password, $host, $self->{port},
+		$self->{proxy_type}, $self->{proxy_host}, $self->{proxy_port},
+		$self->{proxy_username}, $self->{proxy_password}) =
+			delete @args{qw(screenname password host port)};
 
 	$self->{svcdata} = \%args;
+
 	$self->{bos} = $self->addconn($password, CONNTYPE_LOGIN, "login", $host);
 }
 

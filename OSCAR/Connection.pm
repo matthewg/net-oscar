@@ -194,15 +194,17 @@ sub set_blocking($$) {
 	my $blocking = shift;
 	my $flags = 0;
 
-	fcntl($self->{socket}, F_GETFL, $flags);
+	my $socket = $self->{socket};
+
+	fcntl($socket, F_GETFL, $flags);
 	if($blocking) {
 		$flags &= ~O_NONBLOCK;
 	} else {
 		$flags |= O_NONBLOCK;
 	}
-	fcntl($self->{socket}, F_SETFL, $flags);
+	fcntl($socket, F_SETFL, $flags);
 
-	return $self->{socket};
+	return $socket;
 }
 
 sub connect($$) {
@@ -231,17 +233,52 @@ sub connect($$) {
 	$self->{port} = $port;
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Connecting to $host:$port.");
-	$self->{socket} = gensym;
-	socket($self->{socket}, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
+	if(defined($self->{session}->{proxy_type})) {
+		die "You must specify proxy_host if proxy_type is given!\n" unless $self->{session}->{proxy_host};
+		$self->{session}->{proxy_type} = uc($self->{session}->{proxy_type});
 
-	$self->{ready} = 0;
-	$self->{connected} = 0;
+		if($self->{session}->{proxy_type} eq "SOCKS4" or $self->{session}->{proxy_type} eq "SOCKS5") {
+			require Net::SOCKS or die "SOCKS proxying not available - couldn't load Net::SOCKS: $!\n";
 
-	$self->set_blocking(0);
-	my $addr = inet_aton($host) or return $self->{session}->crapout($self, "Couldn't resolve $host.");
-	if(!connect($self->{socket}, sockaddr_in($port, $addr))) {
-		return 1 if $! == EINPROGRESS;
-		return $self->{session}->crapout($self, "Couldn't connect to $host:$port: $!");
+			my $socksver;
+			if($self->{session}->{proxy_type} eq "SOCKS4") {
+				$socksver = 4;
+			} else {
+				$socksver = 5;
+			}
+			$self->{session}->{proxy_type} = "SOCKS"; # We no longer care about 4/5
+
+			my %socksargs = (
+				socks_addr => $self->{session}->{proxy_host},
+				socks_port => $self->{session}->{proxy_port} || 1080,
+				protocol_version => $socksver
+			);
+			$socksargs{user_id} = $self->{session}->{proxy_username} if exists($self->{session}->{proxy_username});
+			$socksargs{user_password} = $self->{session}->{proxy_password} if exists($self->{session}->{proxy_password});
+		        $self->{socks} = new Net::SOCKS(%socksargs) or return $self->{session}->crapout($self, "Couldn't connect to SOCKS proxy: $@");
+
+			$self->{socket} = $self->{socks}->connect($host, $port);
+
+			$self->{ready} = 0;
+			$self->{connected} = 1
+			$self->set_blocking(0);
+		} elsif($self->{session}->{proxy_type} eq "HTTP") {
+		} else {
+			die "Unknown proxy_type - valid types are SOCKS4, SOCKS5, and HTTP\n";
+		}
+	} else {
+		$self->{ready} = 0;
+		$self->{connected} = 0
+		$self->set_blocking(0);
+
+		$self->{socket} = gensym;
+		socket($self->{socket}, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
+
+		my $addr = inet_aton($host) or return $self->{session}->crapout($self, "Couldn't resolve $host.");
+		if(!connect($self->{socket}, sockaddr_in($port, $addr))) {
+			return 1 if $! == EINPROGRESS;
+			return $self->{session}->crapout($self, "Couldn't connect to $host:$port: $!");
+		}
 	}
 
 	return 1;
