@@ -3,7 +3,7 @@
 use strict;
 use Net::OSCAR qw(:standard);
 use Data::Dumper;
-use vars qw($pid $oscar @chats @invites);
+use vars qw($pid $oscar @chats @invites $debug);
 
 #$Carp::Verbose = 1;
 $| = 1;
@@ -27,6 +27,15 @@ sub rate_alert($$$) {
 
 	$clear /= 1000;
 	print STDERR "We received a level $level rate alert.  Wait for about $clear seconds.\n";
+}
+
+sub buddylist_error($$$) {
+	my($oscar, $error, $what) = @_;
+	print STDERR "Error $error occured while trying to $what on your buddylist\n";
+}
+
+sub buddylist_ok($) {
+	print STDERR "Your buddylist was modified successfully.\n";
 }
 
 sub admin_error($$$$) {
@@ -119,7 +128,7 @@ sub evil($$$) {
 sub buddy_info($$$$) {
 	shift;
 	my($screenname, $buddat) = @_;
-	my $membersince = localtime($buddat->{membersince});
+	my $membersince = $buddat->{membersince} ? localtime($buddat->{membersince}) : "";
 	my $onsince = localtime($buddat->{onsince});
 
 	my $extra = "";
@@ -127,6 +136,9 @@ sub buddy_info($$$$) {
 	$extra .= " [AOL]" if $buddat->{aol};
 	$extra .= " [FREE]" if $buddat->{free};
 	$extra .= " [AWAY]" if $buddat->{away};
+
+	$extra .= "\nMember Since: $membersince" if $membersince;
+	$extra .= "\nIdle Time (secs): $buddat->{idle}" if exists($buddat->{idle}) and defined($buddat->{idle});
 
 	my $profile = "";
 	if($buddat->{awaymsg}) {
@@ -137,11 +149,6 @@ Away message
 $buddat->{awaymsg}
 EOF
 	} elsif($buddat->{profile}) {
-		if(exists($buddat->{idle}) and not $buddat->{idle}) {
-			$buddat->{idle} = 0;
-		} elsif(!exists($buddat->{idle})) {
-			$buddat->{idle} = "User does not report idle time." 
-		}
 		$profile = <<EOF
 ---------------------------------
 Profile
@@ -155,14 +162,14 @@ EOF
 Buddy info for $screenname
 ---------------------------------
 Flags: $extra
-Member Since: $membersince
 On Since: $onsince
-Idle Time (secs): $buddat->{idle}
 Evil Level: $buddat->{evil}%
 $profile
 =================================
 EOF
 }
+
+$debug = $ARGV[0] || 0;
 
 print "Username: ";
 my $username = <STDIN>;
@@ -174,20 +181,18 @@ print "\n";
 chomp $username;
 chomp $password;
 
-=pod
-
-$pid = fork();
-if(!$pid) {
-	umask 022;
-	unlink "dormouse.pcap";
-	system("touch dormouse.pcap");
-	system("chown matthewg dormouse.pcap");
-	close STDOUT;
-	close STDERR;
-	exec("/home/matthewg/tethereal", "-n", "-p", "-w", "dormouse.pcap", "port", "5190");
+if($debug) {
+	$pid = fork();
+	if(!$pid) {
+		umask 022;
+		unlink "dormouse.pcap";
+		system("touch dormouse.pcap");
+		system("chown matthewg dormouse.pcap");
+		close STDOUT;
+		close STDERR;
+		exec("/home/matthewg/tethereal", "-n", "-p", "-w", "dormouse.pcap", "port", "5190");
+	}
 }
-
-=cut
 
 $oscar = Net::OSCAR->new();
 $oscar->set_callback_error(\&error);
@@ -202,11 +207,13 @@ $oscar->set_callback_chat_invite(\&chat_invite);
 $oscar->set_callback_buddy_info(\&buddy_info);
 $oscar->set_callback_evil(\&evil);
 $oscar->set_callback_chat_closed(\&chat_closed);
+$oscar->set_callback_buddylist_error(\&buddylist_error);
+$oscar->set_callback_buddylist_ok(\&buddylist_ok);
 $oscar->set_callback_admin_error(\&admin_error);
 $oscar->set_callback_admin_ok(\&admin_ok);
 $oscar->set_callback_rate_alert(\&rate_alert);
 $oscar->set_callback_signon_done(\&signon_done);
-#$oscar->debug(255);
+$oscar->debug($debug);
 $oscar->signon($username, $password);
 
 my $inline = "";
@@ -239,6 +246,7 @@ denylist
 get_permit_mode
 set_permit_mode
 list_permit_modes
+add/remove_permit/deny buddies
 send screenname msg
 ====buddies====
 info screenname
@@ -247,6 +255,9 @@ add_buddy group screennames
 remove_buddy group screennames
 evil screenname [anon]
 buddylist
+set_buddy_comment group buddy [comment]
+reorder_groups groups
+reorder_buddies group buddies
 ====chat====
 join chat_name
 accept_invite chat_URL
@@ -265,6 +276,7 @@ change_email email
 confirm_account
 set_idle time
 yourinfo
+lsbli
 ====debug====
 eval
 EOF
@@ -272,8 +284,22 @@ EOF
 			exit;
 		} elsif($cmd eq "add_buddy") {
 			$oscar->add_buddy(@params);
+			$oscar->commit_buddylist;
 		} elsif($cmd eq "remove_buddy") {
 			$oscar->remove_buddy(@params);
+			$oscar->commit_buddylist;
+		} elsif($cmd eq "add_permit") {
+			$oscar->add_permit(@params);
+			$oscar->commit_buddylist;
+		} elsif($cmd eq "add_deny") {
+			$oscar->add_deny(@params);
+			$oscar->commit_buddylist;
+		} elsif($cmd eq "remove_permit") {
+			$oscar->remove_permit(@params);
+			$oscar->commit_buddylist;
+		} elsif($cmd eq "remove_deny") {
+			$oscar->remove_deny(@params);
+			$oscar->commit_buddylist;
 		} elsif($cmd eq "send") {
 			my($who) = shift @params;
 			$oscar->send_im($who, join(" ", @params));
@@ -289,6 +315,7 @@ EOF
 			print $oscar->visibility, "\n";
 		} elsif($cmd eq "set_permit_mode") {
 			$oscar->set_visibility($params[0]);
+			$oscar->commit_buddylist;
 		} elsif($cmd eq "list_permit_modes") {
 			foreach my $permmode(VISMODE_PERMITALL, VISMODE_DENYALL, VISMODE_PERMITSOME, VISMODE_DENYSOME, VISMODE_PERMITBUDS) {
 				print "$permmode: ", 0+$permmode, "\n";
@@ -297,10 +324,14 @@ EOF
 			print join("\n", $oscar->get_permitlist), "\n";
 		} elsif($cmd eq "denylist") {
 			print join("\n", $oscar->get_denylist), "\n";
+		} elsif($cmd eq "set_buddy_comment") {
+			my $buddy = shift @params;
+			$oscar->set_buddy_comment($buddy, join(" ", @params));
+			$oscar->commit_buddylist;
 		} elsif($cmd eq "buddylist") {
-			foreach my $group(sort $oscar->groups) {
+			foreach my $group($oscar->groups) {
 				printf "%s\n", $group, $oscar->{buddies}->{$group}->{groupid};
-				foreach my $buddy(sort $oscar->buddies($group)) {
+				foreach my $buddy($oscar->buddies($group)) {
 					my $buddat = $oscar->buddy($buddy, $group);
 
 					my $extra = "";
@@ -310,6 +341,7 @@ EOF
 						$extra .= " [AOL]" if $buddat->{aol};
 						$extra .= " [FREE]" if $buddat->{free};
 						$extra .= " [AWAY]" if $buddat->{away};
+						$extra .= " {".$buddat->{comment}."}" if defined $buddat->{comment};
 					} else {
 						$buddat = {buddyid => 0};
 					}
@@ -317,6 +349,13 @@ EOF
 					printf "\t%s (0x%04X)%s\n", $buddy, $buddat->{buddyid}, $extra;
 				}
 			}
+		} elsif($cmd eq "reorder_groups") {
+			$oscar->reorder_groups(@params);
+			$oscar->commit_buddylist;
+		} elsif($cmd eq "reorder_buddies") {
+			my $group = shift @params;
+			$oscar->reorder_buddies($group, @params);
+			$oscar->commit_buddylist;
 		} elsif($cmd eq "join") {
 			$oscar->chat_join(join(" ", @params));
 		} elsif($cmd eq "accept_invite") {
@@ -336,6 +375,7 @@ EOF
 			splice @chats, $params[0], 1;
 		} elsif($cmd eq "set_profile") {
 			$oscar->set_info(join(" ", @params), "");
+			$oscar->commit_buddylist;
 		} elsif($cmd eq "set_away") {
 			$oscar->set_away(join(" ", @params));
 		} elsif($cmd eq "get_dir") {
@@ -358,6 +398,23 @@ EOF
 		} elsif($cmd eq "yourinfo") {
 			print "Screenname: ", $oscar->screenname, "\n";
 			print "Email: ", $oscar->email, "\n";
+		} elsif($cmd eq "lsbli") {
+			if(!@params) {
+				print "BLI types:\n\t";
+				print join("\n\t", map { sprintf "0x%04X", $_ } keys %{$oscar->{blinternal}}), "\n";
+			} elsif(@params == 1) {
+				print "BLI GIDs for type $params[0]:\n\t";
+				print join("\n\t", map { sprintf "0x%04X", $_ } keys %{$oscar->{blinternal}->{hex($params[0])}}), "\n";
+			} elsif(@params == 2) {
+				print "BLI BIDs for type $params[0]/$params[1]:\n\t";
+				print join("\n\t", map { sprintf "0x%04X", $_ } keys %{$oscar->{blinternal}->{hex($params[0])}->{hex($params[1])}}), "\n";
+			} elsif(@params == 3) {
+				print "BLI data for entry $params[0]/$params[1]/$params[2]:\n\t";
+				print "Name: ", $oscar->{blinternal}->{$params[0]}->{$params[1]}->{$params[2]}->{name}, "\n\t", join("\n\t", map { sprintf "0x%04X", $_ } keys %{$oscar->{blinternal}->{$params[0]}->{$params[1]}->{$params[2]}->{data}}), "\n";
+			} elsif(@params == 4) {
+				print "BLI type data for entry $params[0]/$params[1]/$params[2]/$params[3]:\n\t";
+				print Net::OSCAR::Common::hexdump($oscar->{blinternal}->{$params[0]}->{$params[1]}->{$params[2]}->{data}->{hex($params[3])}), "\n";
+			}
 		} elsif($cmd eq "") {
 			# Do nothing
 		} else {
@@ -368,4 +425,4 @@ EOF
 	}
 }
 
-#sub END { system("/home/matthewg/skill $pid"); }
+sub END { system("/home/matthewg/skill $pid") if $debug; }
