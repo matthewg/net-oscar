@@ -2,14 +2,7 @@
 
 use lib "./blib/lib";
 use strict;
-
-
-eval {
-	require Net::OSCAR;
-	Net::OSCAR->import(qw(:standard));
-};
-die $@ if $@;
-
+use Net::OSCAR qw(:standard);
 use Digest::MD5 qw(md5);
 eval {
 	require Data::Dumper;
@@ -398,7 +391,7 @@ EOF
 			$oscar->set_visibility($params[0]);
 			$oscar->commit_buddylist;
 		} elsif($cmd eq "list_permit_modes") {
-			foreach my $permmode(VISMODE_PERMITALL(), VISMODE_DENYALL(), VISMODE_PERMITSOME(), VISMODE_DENYSOME(), VISMODE_PERMITBUDS()) {
+			foreach my $permmode(VISMODE_PERMITALL, VISMODE_DENYALL, VISMODE_PERMITSOME, VISMODE_DENYSOME, VISMODE_PERMITBUDS) {
 				print "$permmode: ", 0+$permmode, "\n";
 			}
 		} elsif($cmd eq "permitlist") {
