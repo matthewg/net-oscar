@@ -123,6 +123,7 @@ sub _num_to_packlen($$) {
 #			Arbitrary data
 #			If prefix isn't present, all available data will be gobbled.
 #			len (optional): Size of datum, in bytes
+#			null_terminated (optional): Data is terminated by a null (0x00) byte
 #		If type = "ref":
 #			name: Name of protocol bit to punt to
 #		If type = "tlvchain":
