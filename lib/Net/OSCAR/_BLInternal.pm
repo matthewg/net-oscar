@@ -390,6 +390,7 @@ sub BLI_to_OSCAR($$) {
 		delete $session->{budmods};
 		$session->callback_buddylist_ok();
 	} else {
+		$session->svcdo(CONNTYPE_BOS, family => 0x13, subtype => 0x11); # Start buddylist modifications
 		$session->svcdo(CONNTYPE_BOS, %{shift @{$session->{budmods}}}); # Send the first modification
 	}
 }

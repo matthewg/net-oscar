@@ -337,6 +337,7 @@ remove_buddy group screennames
 evil screenname [anon]
 buddylist
 set_buddy_comment group buddy [comment]
+set_buddy_alias group buddy [alias]
 reorder_groups groups
 reorder_buddies group buddies
 ====chat====
@@ -414,6 +415,10 @@ EOF
 			my $buddy = shift @params;
 			$oscar->set_buddy_comment($buddy, join(" ", @params));
 			$oscar->commit_buddylist;
+		} elsif($cmd eq "set_buddy_alias") {
+			my $buddy = shift @params;
+			$oscar->set_buddy_alias($buddy, join(" ", @params));
+			$oscar->commit_buddylist;
 		} elsif($cmd eq "buddylist") {
 			foreach my $group($oscar->groups) {
 				printf "%s\n", $group, $oscar->{buddies}->{$group}->{groupid};
@@ -430,6 +435,7 @@ EOF
 						$extra .= " [FREE]" if $buddat->{free};
 						$extra .= " [AWAY]" if $buddat->{away};
 						$extra .= " {".$buddat->{comment}."}" if defined $buddat->{comment};
+						$extra .= " {{".$buddat->{alias}."}}" if defined $buddat->{alias};
 						$extra .= " (".$buddat->{extended_status}.")" if defined $buddat->{extended_status};
 					} else {
 						$buddat = {buddyid => 0};
