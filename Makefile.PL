@@ -15,9 +15,9 @@ sub MY::postamble {
 	<<EOF;
 
 ifdef OSCARVER
-VERSION = $(OSCARVER)
-VERSION_SYM = $(OSCARVER)
-XS_VERSION = $(OSCARVER)
+VERSION = \$(OSCARVER)
+VERSION_SYM = \$(OSCARVER)
+XS_VERSION = \$(OSCARVER)
 CVS_TAG = RELEASE_\$(subst .,_,\$(OSCARVER))
 predist:
 	\@rcs2log -R > ~/tmp/rcslog
