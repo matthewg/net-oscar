@@ -190,7 +190,9 @@
 	<define name="self information" family="1" subtype="15"><ref name="userinfo" /></define>
 	<define name="minimum report interval" family="11" subtype="2" />
 	<define name="MOTD" family="1" subtype="19" />
-	<define name="server ready" family="1" subtype="3" />
+	<define name="server ready" family="1" subtype="3">
+		<word count="-1" name="families" />
+	</define>
 	<define name="set service versions" family="1" subtype="23">
 		<data count="-1" name="service">
 			<word name="service_id" />
@@ -823,5 +825,21 @@
 		<word name="language">0</word>
 		<data length="64" pad="0" name="filename" />
 	</define>
+
+
+	<!-- Migration: See http://iserverd1.khstu.ru/oscar/sequences.html#migration -->
+	<define name="pause" family="1" subtype="11" />
+	<define name="pause_ack" family="1" subtype="12">
+		<word count="-1" name="families" />
+	</define>
+	<define name="unpause" family="1" subtype="13" />
+	<define name="migrate" family="1" subtype="18">
+		<word count_prefix="word" name="families" />
+		<tlvchain>
+			<tlv type="5"><data name="peer" /></tlv>
+			<tlv type="6"><data name="cookie" /></tlv>
+		</tlvchain>
+	</define>
+	
 </oscar>
 

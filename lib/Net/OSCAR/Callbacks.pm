@@ -225,8 +225,9 @@ sub process_snac($$) {
 			while(($key, $val) = each(%chatdata)) { $session->{chats}->{$reqid}->{$key} = $val; }
 		}
 	} elsif($protobit eq "server ready") {
+		$connection->{families} = { map { $_ => 1 } @{$data{families}} };
 		send_versions($connection, 0);
-		$connection->proto_send(protobit => "rate info request");
+		$connection->proto_send(protobit => "rate info request", nopause => 1);
 	} elsif($protobit eq "incoming IM") {
 		my $sender = $data{screenname};
 		my $sender_info = $session->{userinfo}->{$sender} ||= {};
@@ -571,6 +572,57 @@ sub process_snac($$) {
 		$user_info->{icon_checksum} = $data{checksum};
 		$user_info->{icon} = $data{icon};
 		$session->callback_buddy_icon_downloaded($screenname, $data{icon});
+	} elsif($protobit eq "pause") {
+		$connection->log_print(OSCAR_DBG_WARN, "Server initiated migration.  Migration support is experimental.  Please tell matthewg\@zevils.com that this happened and whether or not it worked!  Include the information below.");
+		$connection->log_print(OSCAR_DBG_WARN, "Migration families sent: ", join(" ", keys %{$connection->{families}}));
+		$connection->proto_send(protobit => "pause_ack", protodata => {
+			families => [keys %{$connection->{families}}]
+		});
+		$connection->pause();
+	} elsif($protobit eq "unpause") {
+		$connection->log_print(OSCAR_DBG_WARN, "Migration cancelled by server!");
+		$connection->unpause();
+	} elsif($protobit eq "migrate") {
+		$connection->log_print(OSCAR_DBG_WARN, "Migration families received: ", join(" ", @{$data{families}}));
+
+		my $pause_queue;
+		if(@{$data{families}} == keys %{$connection->{families}}) {
+			$connection->log_print(OSCAR_DBG_WARN, "Full migration, disconnecting...");
+			$pause_queue = $connection->{pause_queue};
+			$session->delconn($connection);
+		} else {
+			$connection->log_print(OSCAR_DBG_WARN, "Partial migration");
+		
+			# Get the list of families which aren't being migrated
+			my @all_families = keys %{$connection->{families}};
+			$connection->{families} = {};
+			foreach my $fam (@all_families) {
+				next if grep { $_ == $fam } @{$data{families}};
+				$connection->{families}->{$fam} = 1;
+			}
+
+			# Filter the pause queue according to the migration split
+			my $all_pause_queue = $connection->{pause_queue};
+			$connection->{pause_queue} = [];
+			foreach my $item (@$all_pause_queue) {
+				if(grep { $item->{family} == $_ } @{$data{families}}) {
+					push @$pause_queue, $item;
+				} else {
+					push @{$connection->{pause_queue}}, $item;
+				}
+			}
+
+			$connection->log_printf(OSCAR_DBG_WARN, "Migration pause queue: %d/%d", @$pause_queue, @{$connection->{pause_queue}});
+		}
+
+		my $newconn = $session->addconn(
+			auth => $data{cookie},
+			conntype => $connection->{conntype},
+			description => $connection->{description},
+			peer => $data{peer},
+			paused => 1,
+			pause_queue => $pause_queue
+		);
 	} elsif($protobit eq "ICQ meta response") {
 		my $uin = $data{our_uin};
 

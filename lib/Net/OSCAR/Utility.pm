@@ -265,9 +265,9 @@ sub send_versions($$) {
 	}
 
 	if($send_tools) {
-		$connection->proto_send(protobit => "set tool versions", protodata => \%protodata);
+		$connection->proto_send(protobit => "set tool versions", protodata => \%protodata, nopause => 1);
 	} else {
-		$connection->proto_send(protobit => "set service versions", protodata => \%protodata);
+		$connection->proto_send(protobit => "set service versions", protodata => \%protodata, nopause => 1);
 	}
 }
 

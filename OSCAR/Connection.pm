@@ -46,10 +46,33 @@ sub new($@) {
 	$self->{paused} = 0;
 	$self->{outbuff} = "";
 	$self->{state} ||= "write";
+	$self->{paused} = 0;
+	$self->{families} = {};
 
 	$self->connect($self->{peer}) if exists($self->{peer});
 
 	return $self;
+}
+
+sub pause($) {
+	my $self = shift;
+	$self->{pause_queue} ||= [];
+	$self->{paused} = 1;
+}
+
+sub unpause($) {
+	my $self = shift;
+	return unless $self->{paused};
+	$self->{paused} = 0;
+
+	$self->log_print(OSCAR_DBG_WARN, "Flushing pause queue");
+	foreach my $item(@{$self->{pause_queue}}) {
+		$self->log_printf(OSCAR_DBG_WARN, "Flushing SNAC 0x%04X/0x%04X", $item->{family}, $item->{subtype});
+		$self->snac_put(%$item);
+	}
+	$self->log_print(OSCAR_DBG_WARN, "Pause queue flushed");
+
+	delete $self->{pause_queue};
 }
 
 sub proto_send($%) {
@@ -66,8 +89,13 @@ sub proto_send($%) {
 	}
 
 	if(exists($snac{family})) {
-		$self->log_printf(OSCAR_DBG_DEBUG, "Put SNAC 0x%04X/0x%04X: %s", $snac{family}, $snac{subtype}, $data{protobit});
-		$self->snac_put(%snac);
+		if($self->{paused} and !$data{nopause}) {
+			$self->log_printf(OSCAR_DBG_WARN, "Adding SNAC 0x%04X/0x%04X to pause queue", $snac{family}, $snac{subtype});
+			push @{$self->{pause_queue}}, \%snac;
+		} else {
+			$self->log_printf(OSCAR_DBG_DEBUG, "Put SNAC 0x%04X/0x%04X: %s", $snac{family}, $snac{subtype}, $data{protobit});
+			$self->snac_put(%snac);
+		}
 	} else {
 		$snac{channel} ||= 0+FLAP_CHAN_SNAC;
 		$self->log_printf(OSCAR_DBG_DEBUG, "Putting raw FLAP: %s", $data{protobit});
@@ -210,9 +238,20 @@ sub snac_encode($%) {
 
 sub snac_put($%) {
 	my($self, %snac) = @_;
-	$snac{channel} ||= 0+FLAP_CHAN_SNAC;
-	confess "No family/subtype" unless exists($snac{family}) and exists($snac{subtype});
-	$self->flap_put($self->snac_encode(%snac), $snac{channel});
+
+	if($snac{family} and !$self->{families}->{$snac{family}}) {
+		$self->log_printf(OSCAR_DBG_WARN, "Tried to send unsupported SNAC 0x%04X/0x%04X", $snac{family}, $snac{subtype});
+		foreach my $connection (@{$self->{session}->{connections}}) {
+			next unless $connection->{families}->{$snac{family}};
+			$connection->log_print(OSCAR_DBG_WARN, "Found connection for unsupported SNAC.");
+			return $connection->snac_put(%snac);
+		}
+		$self->{session}->crapout($self, "Couldn't find supported connection for SNAC 0x%04X/0x%04X", $snac{family}, $snac{subtype});
+	} else {
+		$snac{channel} ||= 0+FLAP_CHAN_SNAC;
+		confess "No family/subtype" unless exists($snac{family}) and exists($snac{subtype});
+		$self->flap_put($self->snac_encode(%snac), $snac{channel});
+	}
 }
 
 sub snac_get($) {
@@ -388,22 +427,26 @@ sub process_one($;$$$) {
 			$self->flap_put(pack("N", 1), FLAP_CHAN_NEWCONN) unless $self->{session}->{svcdata}->{hashlogin};
 			$self->log_print(OSCAR_DBG_SIGNON, "Connected to login server.");
 			$self->{ready} = 1;
+			$self->{families} = {23 => 1};
 
 			if(!$self->{session}->{svcdata}->{hashlogin}) {
 				$self->proto_send(protobit => "initial signon request",
-					protodata => {screenname => $self->{session}->{screenname}}
+					protodata => {screenname => $self->{session}->{screenname}},
+					nopause => 1
 				);
 			} else {
 				$self->proto_send(protobit => "ICQ signon request",
-					protodata => {signon_tlv($self->{session}, $self->{auth})}
+					protodata => {signon_tlv($self->{session}, $self->{auth})},
+					nopause => 1
 				);
 			}
 		} else {
 			$self->log_print(OSCAR_DBG_NOTICE, "Sending BOS-Signon.");
 			$self->proto_send(protobit => "BOS signon",
 				reqid => 0x01000000 | (unpack("n", substr($self->{auth}, 0, 2)))[0],
-				protodata => {cookie => substr($self->{auth}, 2)}
-			)
+				protodata => {cookie => substr($self->{auth}, 2)},
+				nopause => 1
+			);
 		}
 		$self->log_print(OSCAR_DBG_DEBUG, "SNAC time.");
 		return $self->{ready} = 1;
@@ -439,6 +482,7 @@ sub ready($) {
 
 	return if $self->{sentready}++;
 	send_versions($self, 1);
+	$self->unpause();
 }
 
 sub session($) { return shift->{session}; }
