@@ -916,6 +916,11 @@ sub im_parse($$) {
 			$chat = $1;
 			$chat =~ s/%([0-9A-Z]{1,2})/chr(hex($1))/eig;
 		}
+
+		$self->{chatinvites}->{$chaturl} = {
+			cookie => $cookie,
+			sender => $from
+		};
 	}
 
 	return ($from, $msg, $away, $chat, $chaturl);
@@ -1147,14 +1152,35 @@ sub chat_join($$; $) {
 
 Use this to accept an invitation to join a chatroom.
 
+=item chat_decline (CHAT)
+
+Use this to decline an invitation to join a chatroom.
+
 =cut
 
 sub chat_accept($$) {
 	my($self, $chat) = @_;
 
-	$self->log_print(OSCAR_DBG_INFO, "Accepting chat invite for $chat.");
+	delete $self->{chatinvites}->{$chat};
+	$self->log_print(OSCAR_DBG_NOTICE, "Accepting chat invite for $chat.");
 	$self->svcdo(CONNTYPE_CHATNAV, family => 0x0D, subtype => 0x04, data =>
 		pack("nca* Cn", 4, length($chat), $chat, 0, 2)
+	);
+}
+
+sub chat_decline($$) {
+	my($self, $chat) = @_;
+
+	my($invite) = delete $self->{chatinvites}->{$chat} or do {
+		$self->log_print(OSCAR_DBG_WARN, "Chat invite for $chat doesn't exist, so we can't decline it.");
+		return;
+	};
+	$self->log_print(OSCAR_DBG_NOTICE, "Declining chat invite for $chat.");
+	$self->{bos}->snac_put(family => 0x04, subtype => 0x0B, data =>
+		$invite->{cookie} .
+		pack("n", 2) .
+		pack("Ca*", length($invite->{sender}), $invite->{sender}) .
+		pack("nnn", 3, 2, 1)
 	);
 }
 

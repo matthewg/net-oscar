@@ -261,6 +261,7 @@ reorder_buddies group buddies
 ====chat====
 join chat_name
 accept_invite chat_URL
+decline_invite chat_URL
 invite user chat_number message
 chatlist
 part chat_number
@@ -360,6 +361,8 @@ EOF
 			$oscar->chat_join(join(" ", @params));
 		} elsif($cmd eq "accept_invite") {
 			$oscar->chat_accept($invites[$params[0]]);
+		} elsif($cmd eq "decline_invite") {
+			$oscar->chat_decline($invites[$params[0]]);
 		} elsif($cmd eq "invite") {
 			my($who, $what) = (shift @params, shift @params);
 			$chats[$what]->invite($who, join(" ", @params));
