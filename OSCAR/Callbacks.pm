@@ -13,8 +13,8 @@ use Net::OSCAR::Buddylist;
 use Net::OSCAR::_BLInternal;
 
 use constant MAJOR => 4;
-use constant MINOR => 3;
-use constant BUILD => 2229;
+use constant MINOR => 7;
+use constant BUILD => 2480;
 
 sub capabilities() {
 	my $caps;
@@ -52,7 +52,7 @@ sub process_snac($$) {
 			0x18 => pack("n", MINOR),
 			0x19 => pack("n", 0),
 			0x1A => pack("n", BUILD),
-			0x14 => pack("N", 0x8C),
+			0x14 => pack("N", 0x9F),
 			0x0F => "en", # lang
 			0x0E => "us", # country
 			0x4A => pack("C", 1),
@@ -81,7 +81,6 @@ sub process_snac($$) {
 				$tlv{0x05}
 			);
 		}
-
 	} elsif($family == 0x1 and $subtype == 0x7) {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Got Rate Info Resp.");
 		$connection->log_print(OSCAR_DBG_NOTICE, "Sending Rate Ack.");
@@ -98,7 +97,7 @@ sub process_snac($$) {
 			$connection->snac_put(family => 0x13, subtype => 0x2);
 
 			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting buddylist.");
-			$connection->snac_put(family => 0x13, subtype => 0x4);
+			$connection->snac_put(family => 0x13, subtype => 0x5, data => chr(0)x6);
 
 			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting locate rights.");
 			$connection->snac_put(family => 0x2, subtype => 0x2);
@@ -151,7 +150,7 @@ sub process_snac($$) {
 		return if $errno == 0;
 		my $tlv = tlv_decode($data) if $data;
 		$error .= (ERRORS)[$errno] || "unknown error $errno";
-		$error .= "(".$tlv->{4}.")." if $tlv;
+		$error .= "(".$tlv->{4}.")." if $tlv and $tlv->{4};
 		send_error($session, $connection, $errno, (ERRORS)[$errno] || "unknown error $errno", 0, $reqdata);
 	} elsif($family == 0x1 and $subtype == 0xf) {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Got user information response.");
@@ -216,7 +215,7 @@ sub process_snac($$) {
 	} elsif($family == 0x1 and $subtype == 0x3) {
 		$connection->log_print($connection->{conntype} == CONNTYPE_BOS ? OSCAR_DBG_SIGNON : OSCAR_DBG_NOTICE, "Got server ready.  Sending set versions.");
 
-		if($connection->{conntype} == CONNTYPE_ADMIN or $connection->{conntype} == CONNTYPE_CHAT) {
+		if($connection->{conntype} != CONNTYPE_BOS) {
 			$connection->snac_put(family => 0x1, subtype => 0x17, data =>
 				pack("n*", 1, 3, $connection->{conntype}, 1)
 			);
@@ -271,25 +270,28 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got memory request.");
 	} elsif($family == 0x13 and $subtype == 0x3) {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Got buddylist 0x0003.");
+		#$connection->snac_put(family => 0x13, subtype => 0x7);
+	} elsif($family == 0x13 and $subtype == 0x6) {
+		$connection->log_print(OSCAR_DBG_SIGNON, "Got buddylist.");
+
+		return unless Net::OSCAR::_BLInternal::blparse($session, $data);
 		$connection->snac_put(family => 0x13, subtype => 0x7);
 
 		$session->set_info("");
+
+		$connection->log_print(OSCAR_DBG_DEBUG, "Adding ICBM parameters.");
+		$connection->snac_put(family => 0x4, subtype => 0x2, data =>
+			pack("n*", 0, 0, 3, 0x1F40, 0x3E7, 0x3E7, 0, 0)
+		);
 
 		$connection->log_print(OSCAR_DBG_DEBUG, "Setting idle.");
 		$connection->snac_put(family => 0x1, subtype => 0x11, data => pack("N", 0));
 
 		$connection->ready();
 
-		$connection->log_print(OSCAR_DBG_DEBUG, "Adding ICBM parameters.");
-		$connection->snac_put(family => 0x4, subtype => 0x2, data =>
-			pack("n*", 0, 0, 3, 0x1F40, 0x3E7, 0x3E7, 0, 0)
-		);
-	} elsif($family == 0x13 and $subtype == 0x6) {
-		$connection->log_print(OSCAR_DBG_SIGNON, "Got buddylist.");
-
-		return unless Net::OSCAR::_BLInternal::blparse($session, $data);
-		$connection->snac_put(family => 0x13, subtype => 0x7);
 		$session->callback_signon_done() unless $session->{sent_done}++;
+
+		$connection->snac_put(family => 0x2, subtype => 0xB, data => pack("Ca*", length(normalize($session->screenname)), normalize($session->screenname)));
 	} elsif($family == 0x13 and $subtype == 0x0E) {
 		$session->{budmods}--;
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got blmod ack ($session->{budmods} left).");

@@ -27,6 +27,7 @@ sub new($$$$$$) { # Think you got enough parameters there, Chester?
 	$self->{conntype} = shift;
 	$self->{description} = shift;
 	$self->connect(shift);
+
 	return $self;
 }
 
@@ -128,7 +129,8 @@ sub snac_encode($%) {
 
 sub snac_put($%) {
 	my($self, %snac) = @_;
-	$self->flap_put($self->snac_encode(%snac));
+	$snac{channel} ||= FLAP_CHAN_SNAC;
+	$self->flap_put($self->snac_encode(%snac), $snac{channel});
 }
 
 sub snac_get($) {
@@ -267,8 +269,13 @@ sub process_one($) {
 			$self->flap_put(tlv_encode(\%tlv));
 		} else {
 			$self->log_print(OSCAR_DBG_NOTICE, "Sending BOS-Signon.");
-			%tlv = (0x06 =>$self->{auth});
-			$self->flap_put(pack("N", 1) . tlv_encode(\%tlv), FLAP_CHAN_NEWCONN);
+			#%tlv = (0x06 =>$self->{auth});
+			#$self->flap_put(pack("N", 1) . tlv_encode(\%tlv), FLAP_CHAN_NEWCONN);
+			$self->snac_put(family => 0, subtype => 1,
+				flags2 => 0x6,
+				reqid => 0x01000000 | (unpack("n", substr($self->{auth}, 0, 2)))[0],
+				data => substr($self->{auth}, 2),
+				channel => FLAP_CHAN_NEWCONN);
 		}
 		$self->log_print(OSCAR_DBG_DEBUG, "SNAC time.");
 		return $self->{ready} = 1;

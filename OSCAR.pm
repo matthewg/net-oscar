@@ -264,6 +264,7 @@ sub delconn($$) {
 		splice @{$self->{connections}}, $i, 1;
 		if(!$connection->{sockerr}) {
 			eval {
+				$connection->flap_put("", FLAP_CHAN_CLOSE) if $connection->{socket};
 				close $connection->{socket} if $connection->{socket};
 			};
 		} else {
@@ -948,7 +949,8 @@ sub capabilities($) {
 	my $caps;
 
 	#AIM_CAPS_CHAT
-	$caps .= pack("C*", map{hex($_)} split(/[ \t\n]+/, "0x74 0x8F 0x24 0x20 0x62 0x87 0x11 0xD1 0x82 0x22 0x44 0x45 0x53 0x54 0x00 0x00"));
+	$caps .= pack("C*", map{hex($_)} split(/[ \t\n]+/,
+		"74 8F 24 20  62 87 11 D1   82 22 44 45  53 54 00 00"));	
 
 	return $caps;
 }

@@ -245,7 +245,8 @@ sub tlv_decode($;$) {
 
 	tie %retval, "Net::OSCAR::TLV";
 
-	while(length($tlv) >= 4 and (not $tlvcnt or $currtlv < $tlvcnt)) {
+	$tlvcnt = 0 unless $tlvcnt;
+	while(length($tlv) >= 4 and (!$tlvcnt or $currtlv < $tlvcnt)) {
 		($type, $len) = unpack("nn", $tlv);
 		$len = 0x2 if $type == 0x13;
 		$strpos += 4;
