@@ -11,8 +11,6 @@ sub BEGIN {
 		require "net/bpf.ph";
 	};
 	die "Couldn't find net/bpf.ph.\nPlease create it by doing cd /usr/include ; h2ph net/bpf.h\n" if $@;
-
-	do "Net/OSCAR/Common.pm";
 }
 
 my $file = shift or die "Usage: snacsnatcher pcapfile [verbose]\n";
