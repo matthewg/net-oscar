@@ -99,6 +99,7 @@ sub BLI_to_NO($) {
 		$session->{profile} = $typedata->{0x0100} if exists($typedata->{0x0100});
 		($session->{icon_checksum}) = unpack("n", $typedata->{0x0101}) if exists($typedata->{0x0101});
 		($session->{icon_timestamp}) = unpack("N", $typedata->{0x0102}) if exists($typedata->{0x0102});
+		($session->{icon_length}) = unpack("N", $typedata->{0x0103}) if exists($typedata->{0x0103});
 
 		delete $typedata->{0xCB};
 		delete $typedata->{0xCA};
@@ -205,6 +206,7 @@ sub NO_to_BLI($) {
 	$bli->{4}->{0}->{$vistype}->{data}->{0x0100} = $session->{profile} if $session->{profile};
 	$bli->{4}->{0}->{$vistype}->{data}->{0x0101} = pack("n", $session->{icon_checksum}) if $session->{icon_checksum};
 	$bli->{4}->{0}->{$vistype}->{data}->{0x0102} = pack("N", $session->{icon_timestamp}) if $session->{icon_timestamp};
+	$bli->{4}->{0}->{$vistype}->{data}->{0x0103} = pack("N", $session->{icon_length}) if $session->{icon_length};
 
 	foreach my $appdata(keys %{$session->{appdata}}) {
 		$bli->{4}->{0}->{$vistype}->{data}->{$appdata} = $session->{appdata}->{$appdata};

@@ -1092,7 +1092,7 @@ sub send_im($$$;$) {
 		$self->log_print(OSCAR_DBG_DEBUG, "Informing $to about our buddy icon.");
 		$self->{userinfo}->{$to} ||= {};
 		$self->{userinfo}->{$to}->{icon_timestamp_received} = $self->{icon_timestamp};
-		$packet .= tlv_encode(tlv(8 => pack("NnnN", length($self->{icon}), 1, $self->{icon_checksum}, $self->{icon_timestamp})));
+		$packet .= tlv_encode(tlv(8 => pack("NnnN", $self->{icon_length}, 1, $self->{icon_checksum}, $self->{icon_timestamp})));
 	}
 
 	my $flags2 = $self->{capabilities}->{typing_status} ? 0xB : 0;
@@ -1371,11 +1371,13 @@ sub set_icon($$) {
 		$self->{icon_md5sum} = pack("n", 0x10) . md5($icon);
 		$self->{icon_checksum} = $self->icon_checksum($icon);
 		$self->{icon_timestamp} = time;
+		$self->{icon_length} = length($icon);
 	} else {
 		delete $self->{icon};
 		delete $self->{icon_md5sum};
 		delete $self->{icon_checksum};
 		delete $self->{icon_timestamp};
+		delete $self->{icon_length};
 	}
 }
 
