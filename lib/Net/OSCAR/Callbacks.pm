@@ -510,9 +510,12 @@ sub got_buddylist($$) {
 
 	$session->set_info("") unless $session->profile;
 
+	my $icbm_parm = 0x3;
+	$icbm_parm |= 0xB if $session->{typing_status};
+
 	$connection->log_print(OSCAR_DBG_DEBUG, "Adding ICBM parameters.");
 	$connection->snac_put(family => 0x4, subtype => 0x2, data =>
-		pack("n*", 0, 0, 0x3 | 0xB , 0x1F40, 0x3E7, 0x3E7, 0, 0)
+		pack("n*", 0, 0, $icbm_parm, 0x1F40, 0x3E7, 0x3E7, 0, 0)
 	);
 
 	$connection->log_print(OSCAR_DBG_DEBUG, "Setting idle.");

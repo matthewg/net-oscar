@@ -219,6 +219,12 @@ Screenname and password are mandatory.  The other keys are optional.
 In the special case of password being present but undefined, the
 auth_challenge callback will be used - see L<"auth_challenge"> for details.
 
+=item typing_status
+
+Set this key if your client supports typing status notification.
+This will cause your client to receive these messages from other
+users.
+
 =item host
 
 =item port
@@ -288,10 +294,10 @@ sub signon($@) {
 	$args{port} ||= 5190;
 
 
-	($self->{screenname}, $password, $host, $self->{port},
+	($self->{screenname}, $password, $host, $self->{port}, $self->{typing_status},
 		$self->{proxy_type}, $self->{proxy_host}, $self->{proxy_port},
 		$self->{proxy_username}, $self->{proxy_password}) =
-			delete @args{qw(screenname password host port proxy_type proxy_host proxy_port proxy_username proxy_password)};
+			delete @args{qw(screenname password host port typing_status proxy_type proxy_host proxy_port proxy_username proxy_password)};
 
 	$self->{svcdata} = \%args;
 
@@ -1018,7 +1024,8 @@ sub send_im($$$;$) {
 		$packet .= tlv(3 => ""); #request server confirmation
 	}
 
-	$self->{bos}->snac_put(reqid => $reqid, reqdata => $to, family => 0x4, subtype => 0x6, data => $packet, flags2 => 0xB);
+	my $flags2 = $self->{typing_status} ? 0xB : 0;
+	$self->{bos}->snac_put(reqid => $reqid, reqdata => $to, family => 0x4, subtype => 0x6, data => $packet, flags2 => $flags2);
 	return $reqid;
 }
 
