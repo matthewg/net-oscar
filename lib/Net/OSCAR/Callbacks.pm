@@ -121,13 +121,19 @@ sub process_snac($$) {
 			$connection->ready();
 
 			$session->callback_chat_joined($connection->name, $connection) unless $connection->{sent_joined}++;
+		} elsif($conntype == CONNTYPE_ICON) {
+			$session->{icon_service} = $connection;
+			if($session->{icon_service_queue}) {
+				foreach my $snac(@{$session->{icon_service_queue}}) {
+					$connection->log_print(OSCAR_DBG_DEBUG, "Putting SNAC.");
+					$connection->snac_put(%$snac);
+				}
+			}
+			$connection->ready();
+			delete $session->{icon_service_queue};
 		}
 	} elsif($family == 0x1 and $subtype == 0x21) {
 		my($infotype, $flags, $len) = unpack("nCC", substr($data, 0, 4, ""));
-		if($infotype == 6) {
-			substr($data, 0, 4) = "";
-			($infotype, $flags, $len) = unpack("nCC", substr($data, 0, 4, ""));
-		}
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got extended information message $infotype/$flags.");
 
 		if($infotype == 0 or $infotype == 1) { # Buddy icon upload request
@@ -226,13 +232,16 @@ sub process_snac($$) {
 			$conntype = "admin";
 		} elsif($svctype == CONNTYPE_BOS) {
 			$conntype = "BOS";
+		} elsif($svctype == CONNTYPE_ICON) {
+			$conntype = "icon";
 		} else {
 			$svctype = sprintf "unknown (0x%04X)", $svctype;
 		}
 		$connection->log_print(OSCAR_DBG_NOTICE, "Got redirect for $svctype.");
 
-		$session->{chats}->{$reqid} = $session->addconn($tlv->{0x6}, $svctype, $conntype, $tlv->{0x5});
+		my $newconn = $session->addconn($tlv->{0x6}, $svctype, $conntype, $tlv->{0x5});
 		if($svctype == CONNTYPE_CHAT) {
+			$session->{chats}->{$reqid} = $newconn;
 			my($key, $val);
 			while(($key, $val) = each(%chatdata)) { $session->{chats}->{$reqid}->{$key} = $val; }
 		}

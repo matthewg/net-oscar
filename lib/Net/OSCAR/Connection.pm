@@ -168,6 +168,12 @@ sub snac_decode($$) {
 	my($self, $snac) = @_;
 	my($family, $subtype, $flags1, $flags2, $reqid, $data) = (unpack("nnCCNa*", $snac));
 
+	if($flags1 & 0x80) {
+		my($minihdr_len) = unpack("n", $data);
+		$self->log_print(OSCAR_DBG_DEBUG, "Got miniheader of length $minihdr_len");
+		substr($data, 0, 2+$minihdr_len) = "";
+	}
+
 	return {
 		family => $family,
 		subtype => $subtype,
@@ -378,13 +384,14 @@ sub ready($) {
 	$self->log_print(OSCAR_DBG_DEBUG, "Sending client ready.");
 	if($self->{conntype} != CONNTYPE_BOS) {
 		my $conntype = sprintf("0x%04X", $self->{conntype});
+		warn "Conntype $conntype, not ", $self->{conntype}, "\n";
 		$self->snac_put(family => 0x1, subtype => 0x2, data => pack("n*",
 			0x0001, OSCAR_TOOLDATA()->{0x0001}->{version}, OSCAR_TOOLDATA()->{0x0001}->{toolid}, OSCAR_TOOLDATA()->{0x0001}->{toolversion},
 			$self->{conntype}, OSCAR_TOOLDATA()->{$conntype}->{version}, OSCAR_TOOLDATA()->{$conntype}->{toolid}, OSCAR_TOOLDATA()->{$conntype}->{toolversion}
 		));
 	} else {
 		my $data = "";
-		$data .= pack("n*", $_, OSCAR_TOOLDATA()->{$_}->{version}, OSCAR_TOOLDATA()->{$_}->{toolid}, OSCAR_TOOLDATA()->{$_}->{toolversion}) foreach sort {hex($b) <=> hex($a)} grep {not OSCAR_TOOLDATA()->{$_}->{nobos}} keys %{OSCAR_TOOLDATA()};
+		$data .= pack("n*", hex($_), OSCAR_TOOLDATA()->{$_}->{version}, OSCAR_TOOLDATA()->{$_}->{toolid}, OSCAR_TOOLDATA()->{$_}->{toolversion}) foreach sort {hex($b) <=> hex($a)} grep {not OSCAR_TOOLDATA()->{$_}->{nobos}} keys %{OSCAR_TOOLDATA()};
 		$self->snac_put(family => 0x1, subtype => 0x2, data => $data);
 	}
 }

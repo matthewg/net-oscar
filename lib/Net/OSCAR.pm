@@ -415,6 +415,8 @@ sub addconn($$$$$) {
 		$self->{admin} = 1; # We're not quite ready yet - add to queue but don't send svcreq
 	} elsif($_[1] == CONNTYPE_CHATNAV) {
 		$self->{chatnav} = 1;
+	} elsif($_[1] == CONNTYPE_ICON) {
+		$self->{icon_service} = 1;
 	}
 	push @{$self->{connections}}, $connection;
 	$self->callback_connection_changed($connection, "write");
@@ -446,6 +448,8 @@ sub delconn($$) {
 				$self->callback_admin_error("all", ADMIN_ERROR_CONNREF, undef) if scalar(keys(%{$self->{adminreq}}));
 			} elsif($connection->{conntype} == CONNTYPE_CHAT) {
 				$self->callback_chat_closed($connection, "Lost connection to chat");
+			} elsif($connection->{conntype} == CONNTYPE_ICON) {
+				delete $self->{icon_service};
 			}
 		}
 		delete $connection->{socket};
@@ -1399,7 +1403,7 @@ sub svcdo($$%) {
 	} elsif($service == CONNTYPE_CHATNAV) {
 		$svcname = "chatnav";
 	} elsif($service == CONNTYPE_ICON) {
-		$svcname = "icon";
+		$svcname = "icon_service";
 	}
 
 	if($self->{$svcname} and ref($self->{$svcname})) {
