@@ -875,11 +875,13 @@ sub im_parse($$) {
 		substr($data, 0, 26) = "";
 		my $tlv = $self->{bos}->tlv_decode($data);
 		$msg = $tlv->{0xC};
-		($chaturl) = unpack("xx C/a*", $tlv->{0x2711});
+		if($tlv->{0x2711}) {
+			($chaturl) = unpack("xx C/a*", $tlv->{0x2711});
 
-		$chaturl =~ /-.*?-(.*)/;
-		$chat = $1;
-		$chat =~ s/%([0-9A-Z]{1,2})/chr(hex($1))/eig;
+			$chaturl =~ /-.*?-(.*)/;
+			$chat = $1;
+			$chat =~ s/%([0-9A-Z]{1,2})/chr(hex($1))/eig;
+		}
 	}
 
 	return ($from, $msg, $away, $chat, $chaturl);
