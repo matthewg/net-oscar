@@ -15,12 +15,12 @@ OSCAR/Callbacks.pm
 OSCAR/Common.pm
 OSCAR/Connection.pm
 OSCAR/Constants.pm
-OSCAR/OldPerl.pm
-OSCAR/Protocol.dtd
-OSCAR/Protocol.xml
 OSCAR/Proxy.pm
 OSCAR/Screenname.pm
 OSCAR/TLV.pm
 OSCAR/Utility.pm
+OSCAR/XML.pm
 OSCAR/Connection/Chat.pm
+OSCAR/XML/Protocol.dtd
+OSCAR/XML/Protocol.xml
 META.yml                                 Module meta-data (added by MakeMaker)
