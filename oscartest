@@ -174,7 +174,7 @@ print "\n";
 chomp $username;
 chomp $password;
 
-#=pod
+=pod
 
 $pid = fork();
 if(!$pid) {
@@ -187,7 +187,7 @@ if(!$pid) {
 	exec("/home/matthewg/tethereal", "-n", "-p", "-w", "dormouse.pcap", "port", "5190");
 }
 
-#=cut
+=cut
 
 $oscar = Net::OSCAR->new();
 $oscar->set_callback_error(\&error);
@@ -368,4 +368,4 @@ EOF
 	}
 }
 
-sub END { system("/home/matthewg/skill $pid"); }
+#sub END { system("/home/matthewg/skill $pid"); }
