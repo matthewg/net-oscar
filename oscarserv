@@ -1,0 +1,67 @@
+#!/usr/bin/perl -w
+
+use lib "./blib/lib";
+use strict;
+use warnings;
+use Getopt::Long;
+use Net::OSCAR qw(:standard :loglevels);
+use IO::Poll;
+eval {
+	require Data::Dumper;
+};
+use vars qw($oscar %fdmap $poll);
+
+#$Carp::Verbose = 1;
+$| = 1;
+
+sub connection_changed($$$) {
+	my($oscar, $connection, $status) = @_;
+
+	my $h = $connection->get_filehandle();
+	$connection->log_printf(OSCAR_DBG_DEBUG, "State changed (FD %d) to %s", fileno($h), $status);
+	my $mask = 0;
+
+	if($status eq "deleted") {
+		delete $fdmap{fileno($h)};
+	} else {
+		$fdmap{fileno($h)} = $connection;
+		if($status eq "read") {
+			$mask = POLLIN;
+		} elsif($status eq "write") {
+			$mask = POLLOUT;
+		} elsif($status eq "readwrite") {
+			$mask = POLLIN | POLLOUT;
+		}
+	}
+
+	$poll->mask($h => $mask);
+}
+
+$poll = IO::Poll->new();
+#$poll->mask(STDIN => POLLIN);
+
+$oscar = Net::OSCAR->new();
+$oscar->set_callback_connection_changed(\&connection_changed);
+$oscar->loglevel(10);
+$oscar->server(local_port => 5190);
+
+while(1) {
+	next unless $poll->poll();
+
+	my $got_stdin = 0;
+	my @handles = $poll->handles(POLLIN | POLLOUT | POLLHUP | POLLERR | POLLNVAL);
+	foreach my $handle (@handles) {
+		if(fileno($handle) == fileno(STDIN)) {
+			$got_stdin = 1;
+		} else {
+			my($read, $write, $error) = (0, 0, 0);
+			my $events = $poll->events($handle);
+			$read = 1 if $events & POLLIN;
+			$write = 1 if $events & POLLOUT;
+			$error = 1 if $events & (POLLNVAL | POLLERR | POLLHUP);
+
+			$fdmap{fileno($handle)}->log_print(OSCAR_DBG_DEBUG, "Got r=$read, w=$write, e=$error");
+			$fdmap{fileno($handle)}->process_one($read, $write, $error);
+		}
+	}
+}

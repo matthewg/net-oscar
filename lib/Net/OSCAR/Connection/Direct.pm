@@ -32,35 +32,6 @@ sub new($@) {
 	return $self;
 }
 
-sub listen($$) {
-	my($self, $port) = @_;
-	my $temp;
-
-	$self->{host} = "0.0.0.0";
-	$self->{port} = $port;
-
-	$self->log_print(OSCAR_DBG_NOTICE, "Listening.");
-	if(defined($self->{session}->{proxy_type})) {
-		die "Proxying not support for listening sockets.\n";
-	} else {
-		$self->{socket} = gensym;
-		socket($self->{socket}, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
-
-		setsockopt($self->{socket}, SOL_SOCKET, SO_REUSEADDR, pack("l", 1)) or return $self->{session}->crapout($self, "Couldn't set listen socket options: $!");
-		
-		my $sockaddr = sockaddr_in($self->{session}->{local_port} || 0, inet_aton($self->{session}->{local_ip} || 0));
-		bind($self->{socket}, $sockaddr) or return $self->{session}->crapout("Couldn't bind to desired IP: $!");
-		$self->set_blocking(0);
-		listen($self->{socket}, SOMAXCONN) or return $self->{session}->crapout("Couldn't listen: $!");
-
-		$self->{state} = "read";
-		$self->{rv}->{ft_state} = "listening";
-	}
-
-	binmode($self->{socket}) or return $self->{session}->crapout("Couldn't set binmode: $!");
-	return 1;
-}
-
 sub process_one($;$$$) {
 	my($self, $read, $write, $error) = @_;
 	my $snac;

@@ -8,6 +8,7 @@ TODO
 HACKING
 PROTOCOL
 oscartest
+oscarserv
 snacsnatcher
 xmlcache
 t/01_basic.t
@@ -23,11 +24,13 @@ OSCAR/Connection.pm
 OSCAR/Constants.pm
 OSCAR/Proxy.pm
 OSCAR/Screenname.pm
+OSCAR/ServerCallbacks.pm
 OSCAR/TLV.pm
 OSCAR/Utility.pm
 OSCAR/XML.pm
 OSCAR/Connection/Chat.pm
 OSCAR/Connection/Direct.pm
+OSCAR/Connection/Server.pm
 OSCAR/XML/Template.pm
 OSCAR/XML/Protocol.dtd
 OSCAR/XML/Protocol.xml

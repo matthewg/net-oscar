@@ -232,7 +232,12 @@
 		<ref name="userinfo" />
 	</define>
 	<define name="memory request" family="1" subtype="31" /> <!-- This was an attempt to block third-party clients by requesting MD5s of portions of the AIM.EXE binary; it is no longer used, huzzah -->
-	<define name="host versions" family="1" subtype="24" />
+	<define name="host versions" family="1" subtype="24">
+		<data count="-1" name="server">
+			<word name="service_id" />
+			<word name="service_version" />
+		</data>
+	</define>
 	<define name="session was opened elsewhere" family="9" subtype="2" /> <!-- Before routing (multiple signons of the same screenname) support was added, this error would be sent when the screenname was signed on elsewhere -->
 	<define name="add IM parameters" family="4" subtype="2">
 		<word name="channel">0</word>

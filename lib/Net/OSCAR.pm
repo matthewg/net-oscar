@@ -128,6 +128,7 @@ use Net::OSCAR::Utility;
 use Net::OSCAR::Connection;
 use Net::OSCAR::Connection::Chat;
 use Net::OSCAR::Connection::Direct;
+use Net::OSCAR::Connection::Server;
 use Net::OSCAR::Callbacks;
 use Net::OSCAR::TLV;
 use Net::OSCAR::Buddylist;
@@ -3736,6 +3737,8 @@ sub addconn($@) {
 	} elsif($conntype == CONNTYPE_DIRECT_IN) {
 		$connection = Net::OSCAR::Connection::Direct->new(%data);
 		$connection->listen();
+	} elsif($conntype == CONNTYPE_SERVER) {
+		$connection = Net::OSCAR::Connection::Server->new(%data);
 	} else {
 		$connection = Net::OSCAR::Connection->new(%data);
 		# We set the connection to 1 to indicate that it is in progress but not ready for SNAC-sending yet.
@@ -4062,6 +4065,13 @@ sub must_be_on($) {
 	send_error($self, $self->{services}->{0+CONNTYPE_BOS}, 0, "You have not finished signing on.", 0);
 }
 
+
+sub server($%) {
+	my $self = shift;
+	my %data = @_;
+	$self->{$_} = $data{$_} foreach keys %data;
+	$self->addconn(conntype => CONNTYPE_SERVER);
+}
 
 1;
 

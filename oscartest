@@ -305,14 +305,16 @@ my $do_md5 = 0;
 my $stealth = 0;
 my $screenname = undef;
 my $password = undef;
+my $host = undef;
 if(!GetOptions(
 	"l|loglevel=i" => \$loglevel,
 	"m|md5" => \$do_md5,
 	"s|stealth" => \$stealth,
 	"u|screenname=s" => \$screenname,
-	"p|password=s" => \$password
+	"p|password=s" => \$password,
+	"host=s" => \$host,
 ) or @ARGV) {
-	die "Usage: $0 [--loglevel=NUM] [--md5] [--stealth] [--screenname S] [--password P]\n";
+	die "Usage: $0 [--loglevel=NUM] [--md5] [--stealth] [--screenname S] [--password P] [--host h]\n";
 }
 
 if(!defined($screenname)) {
@@ -368,11 +370,20 @@ $oscar->set_callback_buddylist_in(\&buddylist_in);
 $oscar->loglevel($loglevel) if defined($loglevel);
 # I specify local_port 5190 so that I can sniff that one port and get all OSCAR
 # traffic, including direct connections.
+my %so_opts;
 if($do_md5) {
-	$oscar->signon(screenname => $screenname, password => undef, stealth => $stealth, local_port => 5190);
+	%so_opts = (screenname => $screenname, password => undef, stealth => $stealth, local_port => 5190);
 } else {
-	$oscar->signon(screenname => $screenname, password => $password, stealth => $stealth, local_port => 5190);
+	%so_opts = (screenname => $screenname, password => $password, stealth => $stealth, local_port => 5190);
 }
+
+if(defined($host)) {
+	$so_opts{host} = $host;
+}
+
+$oscar->signon(%so_opts);
+
+
 
 my $inline = "";
 my $inchar = "";

@@ -88,9 +88,13 @@ sub proto_send($%) {
 	$snac{data} = protoparse($self->{session}, $data{protobit})->pack(%{$data{protodata}});
 	foreach (qw(reqdata reqid flags1 flags2)) {
 		$snac{$_} = $data{$_} if exists($data{$_});
-}
+	}
 
 	if(exists($snac{family})) {
+		if($snac{family} == -1 and exists($data{family})) {
+			$snac{family} = $data{family};
+		}
+
 		if($self->{paused} and !$data{nopause}) {
 			$self->log_printf(OSCAR_DBG_WARN, "Adding SNAC 0x%04X/0x%04X to pause queue", $snac{family}, $snac{subtype});
 			push @{$self->{pause_queue}}, \%snac;
@@ -350,6 +354,7 @@ sub set_blocking($$) {
 	return $self->{socket};
 }
 
+
 sub connect($$) {
 	my($self, $host) = @_;
 	my $temp;
@@ -425,6 +430,37 @@ sub connect($$) {
 	binmode($self->{socket}) or return $self->{session}->crapout($self, "Couldn't set binmode: $!");
 	return 1;
 }
+
+sub listen($$) {
+	my($self, $port) = @_;
+	my $temp;
+
+	$self->{host} = $self->{local_addr} || "0.0.0.0";
+	$self->{port} = $port;
+
+	$self->log_print(OSCAR_DBG_NOTICE, "Listening.");
+	if(defined($self->{session}->{proxy_type})) {
+		die "Proxying not support for listening sockets.\n";
+	} else {
+		$self->{socket} = gensym;
+		socket($self->{socket}, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
+
+		setsockopt($self->{socket}, SOL_SOCKET, SO_REUSEADDR, pack("l", 1)) or return $self->{session}->crapout($self, "Couldn't set listen socket options: $!");
+		
+		my $sockaddr = sockaddr_in($self->{session}->{local_port} || $port || 0, inet_aton($self->{session}->{local_ip} || 0));
+		bind($self->{socket}, $sockaddr) or return $self->{session}->crapout("Couldn't bind to desired IP: $!");
+		$self->set_blocking(0);
+		listen($self->{socket}, SOMAXCONN) or return $self->{session}->crapout("Couldn't listen: $!");
+
+		$self->{state} = "read";
+		$self->{rv}->{ft_state} = "listening";
+	}
+
+	binmode($self->{socket}) or return $self->{session}->crapout("Couldn't set binmode: $!");
+	return 1;
+}
+
+
 
 sub get_filehandle($) { shift->{socket}; }
 

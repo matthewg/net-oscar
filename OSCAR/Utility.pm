@@ -239,12 +239,12 @@ sub encode_password($$;$) {
 	}
 }
 
-sub send_versions($$) {
-	my($connection, $send_tools) = @_;
+sub send_versions($$;$) {
+	my($connection, $send_tools, $server) = @_;
 	my $conntype = $connection->{conntype};
 	my @services;
 
-	if($conntype != CONNTYPE_BOS) {
+	if($conntype != CONNTYPE_BOS and !$server) {
 		@services = (1, $conntype);
 	} else {
 		@services = sort {$b <=> $a} grep {not OSCAR_TOOLDATA()->{$_}->{nobos}} keys %{OSCAR_TOOLDATA()};
@@ -266,6 +266,8 @@ sub send_versions($$) {
 
 	if($send_tools) {
 		$connection->proto_send(protobit => "set tool versions", protodata => \%protodata, nopause => 1);
+	} elsif($server) {
+		$connection->proto_send(protobit => "host versions", protodata => \%protodata, nopause => 1);
 	} else {
 		$connection->proto_send(protobit => "set service versions", protodata => \%protodata, nopause => 1);
 	}
