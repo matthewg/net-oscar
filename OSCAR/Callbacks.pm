@@ -56,8 +56,8 @@ sub process_snac($$) {
 			$session->crapout($connection, "Invalid screenname.") if $error == 0x01;
 			$session->crapout($connection, "Invalid password.") if $error == 0x05;
 			$session->crapout($connection, "You've been connecting too frequently.") if $error == 0x18;
-			my $errstr = (ERRORS)[$error] or "Unknown error";
-			$errstr .= ": $tlv{0x04}";
+			my($errstr) = ((ERRORS)[$error]) || "unknown error";
+			$errstr .= " ($tlv{0x04})" if $tlv{0x04};
 			$session->crapout($connection, $errstr, $error);
 			return 0;
 		} else {
@@ -143,9 +143,9 @@ sub process_snac($$) {
 		$session->log_printf(OSCAR_DBG_DEBUG, "Got error %d on req 0x%04X/0x%08X.", $errno, $family, $reqid);
 		return if $errno == 0;
 		my $tlv = tlv_decode($data) if $data;
-		$error .= (ERRORS)[$errno] || "unknown error $errno";
-		$error .= "(".$tlv->{4}.")." if $tlv and $tlv->{4};
-		send_error($session, $connection, $errno, (ERRORS)[$errno] || "unknown error $errno", 0, $reqdata);
+		$error .= (ERRORS)[$errno] || "unknown error";
+		$error .= " (".$tlv->{4}.")." if $tlv and $tlv->{4};
+		send_error($session, $connection, $errno, $error, 0, $reqdata);
 	} elsif($family == 0x1 and $subtype == 0xf) {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Got user information response.");
 	} elsif($family == 0x9 and $subtype == 0x3) {
