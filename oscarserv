@@ -42,7 +42,7 @@ $poll = IO::Poll->new();
 
 $oscar = Net::OSCAR->new();
 $oscar->set_callback_connection_changed(\&connection_changed);
-$oscar->loglevel(10);
+$oscar->loglevel(OSCAR_DBG_WARN);
 $oscar->server(local_port => 5190);
 
 while(1) {
@@ -60,8 +60,25 @@ while(1) {
 			$write = 1 if $events & POLLOUT;
 			$error = 1 if $events & (POLLNVAL | POLLERR | POLLHUP);
 
-			$fdmap{fileno($handle)}->log_print(OSCAR_DBG_DEBUG, "Got r=$read, w=$write, e=$error");
-			$fdmap{fileno($handle)}->process_one($read, $write, $error);
+			my $conn = $fdmap{fileno($handle)};
+			#$conn->log_print(OSCAR_DBG_DEBUG, "Got r=$read, w=$write, e=$error");
+			$conn->process_one($read, $write, $error);
+
+			next unless $write;
+			my $hash = $Net::OSCAR::ServerCallbacks::SESSIONS;
+			next unless $hash->{somedude};
+			next unless $hash->{somedude}->{sessions}->[0];
+			next unless $conn == $hash->{somedude}->{sessions}->[0];
+
+			$conn->proto_send(protobit => "buddy status update", protodata => {
+				screenname => "Other Dude",
+				evil => 0,
+				flags => 0x20,
+				onsince => 0,
+				membersince => 0,
+				idle => 0,
+				capabilities => "",
+			});
 		}
 	}
 }

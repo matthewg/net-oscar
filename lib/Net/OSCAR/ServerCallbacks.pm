@@ -109,7 +109,8 @@ sub process_snac($$) {
 	} elsif($protobit eq "BOS signon") {
 		my $cookie = pack("n", $reqid & 0xFFFF) . $data{cookie};
 		if($COOKIES{$cookie}) {
-			$screenname = delete $COOKIES{$cookie};
+			my $peer = delete $COOKIES{$cookie};
+			my $screenname = $peer->{sn};
 			print "$screenname initiating BOS handshake.\n";
 			$connection->{screenname} = $screenname;
 

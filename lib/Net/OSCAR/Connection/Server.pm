@@ -61,8 +61,8 @@ sub process_one($;$$$) {
 	} elsif($write and $self->{oscar_state} eq "new") {
 		$self->log_print(OSCAR_DBG_DEBUG, "Putting connack.");
 		$self->flap_put(pack("N", 1), FLAP_CHAN_NEWCONN);
-		$self->{state} = "read";
-		$self->{session}->callback_connection_changed($self, "read");
+		$self->{state} = "readwrite";
+		$self->{session}->callback_connection_changed($self, "readwrite");
 		$self->{oscar_state} = "ready";
 
 		$self->{families} = {};
