@@ -506,6 +506,7 @@ sub process_snac($$) {
 		$session->{userinfo}->{$screenname} ||= {};
 		$session->{userinfo}->{icon_checksum} = $checksum;
 		$session->{userinfo}->{icon} = $icon;
+		$session->callback_buddy_icon($screenname, $icon);
 	} else {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Unknown SNAC: ".hexdump($snac->{data}));
 	}
