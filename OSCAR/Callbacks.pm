@@ -4,7 +4,7 @@ $VERSION = 0.06;
 
 use strict;
 use vars qw($VERSION);
-use warnigs;
+use warnings;
 use Carp;
 
 use Net::OSCAR::Common qw(:all);
