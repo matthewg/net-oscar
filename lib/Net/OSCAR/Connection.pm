@@ -200,7 +200,8 @@ sub connect($$) {
 	$self->{connected} = 0;
 
 	$self->set_blocking(0);
-	if(!connect($self->{socket}, sockaddr_in($port, inet_aton($host)))) {
+	my $addr = inet_aton($host) or return $self->{session}->crapout($self, "Couldn't resolve $host.");
+	if(!connect($self->{socket}, sockaddr_in($port, $addr))) {
 		return 1 if $!{EINPROGRESS};
 		croak "Couldn't connect to $host:$port: $!";
 	}
