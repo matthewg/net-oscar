@@ -2913,7 +2913,7 @@ same terms as Perl itself.  B<AOL> and B<AMERICA ONLINE> are registered trademar
 owned by America Online, Inc.  The B<INSTANT MESSENGER> mark is owned by America
 Online, Inc.  B<ICQ> is a trademark and/or servicemark of ICQ.  C<Net::OSCAR> is not
 endorsed by, or affiliated with, America Online, Inc or ICQ.  B<iChat> and B<Apple Computer>
-are reigstered trademarks of Apple Computer, Inc.  C<Net::OSCAR> is not endorsed by,
+are registered trademarks of Apple Computer, Inc.  C<Net::OSCAR> is not endorsed by,
 or affiliated with, Apple Computer, Inc or iChat.
 
 =cut
