@@ -287,6 +287,19 @@ sub buddylist_in($$$) {
 	}
 }
 
+sub buddylist_changed($@) {
+	my($oscar, @changes) = @_;
+
+	print "Buddylist was changed:\n";
+	foreach (@changes) {
+		printf("\t%s: %s %s\n",
+			$_->{action},
+			$_->{type},
+			($_->{type} == MODBL_WHAT_BUDDY) ? ($_->{group} . "/" . $_->{buddy}) : $_->{group}
+		);
+	}
+}
+
 my $loglevel = undef;
 my $do_md5 = 0;
 my $stealth = 0;
@@ -335,6 +348,7 @@ $oscar->set_callback_evil(\&evil);
 $oscar->set_callback_chat_closed(\&chat_closed);
 $oscar->set_callback_buddylist_error(\&buddylist_error);
 $oscar->set_callback_buddylist_ok(\&buddylist_ok);
+$oscar->set_callback_buddylist_changed(\&buddylist_changed);
 $oscar->set_callback_admin_error(\&admin_error);
 $oscar->set_callback_admin_ok(\&admin_ok);
 $oscar->set_callback_rate_alert(\&rate_alert);

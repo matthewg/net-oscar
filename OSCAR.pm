@@ -210,6 +210,9 @@ sub new($) {
 
 	$self->{LOGLEVEL} = OSCAR_DBG_WARN;
 	$self->{SNDEBUG} = 0;
+	$self->{__BLI_locked} = 0;
+	$self->{__BLI_commit_later} = 0;
+
 	$self->{description} = "OSCAR session";
 	$self->{userinfo} = bltie;
 	$self->{services} = tlv;
@@ -460,6 +463,14 @@ Call L<"commit_buddylist"> to save the new order on the OSCAR server.
 sub commit_buddylist($) {
 	my($self) = shift;
 	return must_be_on($self) unless $self->{is_on};
+
+	if($self->{__BLI_locked}) {
+		# If the server is modifying the buddylist,
+		# wait until its done to do the commit.
+		$self->{__BLI_commit_later} = 1;
+		return;
+	}
+
 	Net::OSCAR::_BLInternal::NO_to_BLI($self);
 
 	# If user set icon to same as old icon, server won't request an upload.
@@ -663,6 +674,49 @@ changes take effect.
 =item buddylist_ok (OSCAR)
 
 This is called when your changes to the buddylist have been successfully commited.
+
+=item buddylist_changed (OSCAR, CHANGES)
+
+This is called when your buddylist is changed by the server.
+The most common reason for this to happen is if the screenname you are signed
+on with is also signed on somewhere else, and the buddylist is changed in
+the other session.
+
+Currently, only changes to buddies and groups will be listed in C<CHANGES>.
+Changes to privacy settings and any other portions of the buddylist will
+not be included in the list in the current version of C<Net::OSCAR>.
+
+C<CHANGES> is a list of hash references, one for each change to the buddylist,
+with the following keys:
+
+=over 4
+
+=item *
+
+type: Either C<MODBL_WHAT_BUDDY> or C<MODBL_WHAT_GROUP>.  This indicates
+if the change was to a buddy or a group.
+
+=item *
+
+action: Either C<MODBL_ACTION_DEL> or C<MODBL_ACTION_ADD>.  This indicates
+whether the change was an addition/modification or a deletion.
+
+=item *
+
+group: The name of the group which the modification took place in.  For
+C<MODBL_WHAT_BUDDY>, this will be the name of the group which the
+changed buddy was changed in; for C<MODBL_WHAT_GROUP>, this will
+be the name of the group which was changed.
+
+=item *
+
+buddy: This key is only present for C<MODBL_WHAT_BUDDY>.  It's the name
+of the buddy which was changed.
+
+=back
+
+The C<MODBL_*> constants come from C<Net::OSCAR::Common>, and
+are included in the C<:standard> export list.
 
 =back
 
@@ -2160,6 +2214,7 @@ sub callback_evil(@) { do_callback("evil", @_); }
 sub callback_chat_closed(@) { do_callback("chat_closed", @_); }
 sub callback_buddylist_error(@) { do_callback("buddylist_error", @_); }
 sub callback_buddylist_ok(@) { do_callback("buddylist_ok", @_); }
+sub callback_buddylist_changed(@) { do_callback("buddylist_changed", @_); }
 sub callback_admin_error(@) { do_callback("admin_error", @_); }
 sub callback_admin_ok(@) { do_callback("admin_ok", @_); }
 sub callback_new_buddy_icon(@) { do_callback("new_buddy_icon", @_); }
@@ -2193,6 +2248,7 @@ sub set_callback_evil($\&) { set_callback("evil", @_); }
 sub set_callback_chat_closed($\&) { set_callback("chat_closed", @_); }
 sub set_callback_buddylist_error($\&) { set_callback("buddylist_error", @_); }
 sub set_callback_buddylist_ok($\&) { set_callback("buddylist_ok", @_); }
+sub set_callback_buddylist_changed($\&) { set_callback("buddylist_changed", @_); }
 sub set_callback_admin_error($\&) { set_callback("admin_error", @_); }
 sub set_callback_admin_ok($\&) { set_callback("admin_ok", @_); }
 sub set_callback_new_buddy_icon($\&) {

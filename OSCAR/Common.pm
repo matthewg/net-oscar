@@ -36,6 +36,12 @@ require Exporter;
 		VISMODE_PERMITSOME
 		VISMODE_DENYSOME
 		VISMODE_PERMITBUDS
+		MODBL_ACTION_ADD
+		MODBL_ACTION_DEL
+		MODBL_WHAT_BUDDY
+		MODBL_WHAT_GROUP
+		MODBL_WHAT_PERMIT
+		MODBL_WHAT_DENY
 		TYPINGSTATUS_STARTED
 		TYPINGSTATUS_TYPING
 		TYPINGSTATUS_FINISHED
@@ -76,6 +82,14 @@ use constant OSCAR_DBG_DEBUG => 6;
 use constant OSCAR_DBG_PACKETS => 10;
 use constant OSCAR_DBG_XML => 30;
 use constant OSCAR_DBG_XML2 => 35;
+
+# Buddylist modification
+use constant MODBL_ACTION_ADD => dualvar(1, "add");
+use constant MODBL_ACTION_DEL => dualvar(2, "delete");
+use constant MODBL_WHAT_BUDDY => dualvar(1, "buddy");
+use constant MODBL_WHAT_GROUP => dualvar(2, "group");
+use constant MODBL_WHAT_PERMIT => dualvar(3, "permit");
+use constant MODBL_WHAT_DENY => dualvar(4, "deny");
 
 # Typing statuses
 use constant TYPINGSTATUS_STARTED => dualvar(2, "typing started");

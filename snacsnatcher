@@ -17,7 +17,7 @@ sub BEGIN {
 	eval {
 		require "net/bpf.ph";
 	};
-	die "Couldn't find net/bpf.ph.\nPlease create it by doing cd /usr/include ; h2ph net/bpf.h\n" if $@;
+	die "Couldn't find net/bpf.ph.\nPlease create it by doing cd /usr/include ; h2ph net/bpf.h\n$@\n" if $@;
 }
 
 my $file = shift or die "Usage: snacsnatcher pcapfile\n";
@@ -269,6 +269,9 @@ sub process_snac {
 	} else {
 		print " == $protobit\n";
 		my %data = protoparse($session, $protobit)->unpack($snac_data{data});
+		if($protobit =~ /^buddylist (add|modify|delete)$/) {
+			%data = protoparse($session, "buddylist change")->unpack($snac_data{data});
+		}
 
 		if($protobit =~ /^(incoming|outgoing) IM$/) {
 			my $channel_data;

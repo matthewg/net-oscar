@@ -266,6 +266,14 @@
 	<define name="buddylist add" family="19" subtype="8"><data name="mods" /></define>
 	<define name="buddylist modify" family="19" subtype="9"><data name="mods" /></define>
 	<define name="buddylist delete" family="19" subtype="10"><data name="mods" /></define>
+
+	<!-- We also provide this more regular version for use in parsing changes sent by the server -->
+	<define name="buddylist change">
+		<data name="changes" count="-1">
+			<ref name="buddylist modification" />
+		</data>
+	</define>
+
 	<define name="start buddylist modifications" family="19" subtype="17" />
 	<define name="end buddylist modifications" family="19" subtype="18" />
 	

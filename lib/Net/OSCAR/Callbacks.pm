@@ -377,7 +377,7 @@ sub process_snac($$) {
 		} else {
 			delete $session->{gotbl};
 
-			return unless Net::OSCAR::_BLInternal::blparse($session, join("", reverse @{$session->{blarray}}));
+			Net::OSCAR::_BLInternal::blparse($session, join("", reverse @{$session->{blarray}}));
 			delete $session->{blarray};
 			got_buddylist($session, $connection);
 		}
@@ -429,6 +429,32 @@ sub process_snac($$) {
 		} else {
 			$connection->log_print_cond(OSCAR_DBG_INFO, sub { "Buddylist error:", hexdump($data{data}) });
 		}
+
+	} elsif($protobit eq "start buddylist modifications") {
+		# Someone else is modifying our buddylist.
+		# Lock it so that commit_buddylist() is deferred.
+		$session->{__BLI_locked} = 1;
+	} elsif($protobit eq "end buddylist modifications") {
+		$session->{__BLI_locked} = 0;
+		$session->callback_buddylist_changed(Net::OSCAR::_BLInternal::BLI_to_NO($session));
+
+		if($session->{__BLI_commit_later}) {
+			$session->{__BLI_commit_later} = 0;
+			$session->commit_buddylist();
+		}
+	} elsif($protobit =~ /^buddylist (add|modify|delete)$/) {
+		my $type = $1;
+		%data = protoparse($session, "buddylist change")->unpack($snac->{data});
+
+		foreach my $change (@{$data{changes}}) {
+			$connection->log_print_cond(OSCAR_DBG_DEBUG, sub { "Buddylist change $type:\n", Data::Dumper::Dumper($change) });
+			if($type eq "delete") {
+				Net::OSCAR::_BLInternal::blentry_clear($session, %$change);
+			} else {
+				Net::OSCAR::_BLInternal::blentry_set($session, %$change);
+			}
+		}
+
 	} elsif($protobit eq "incoming profile") {
 		$session->postprocess_userinfo(\%data);
 		$session->callback_buddy_info($data{screenname}, \%data);
