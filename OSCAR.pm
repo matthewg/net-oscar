@@ -640,6 +640,7 @@ sub do_one_loop($) {
 	}
 	$ein = $rin | $win;
 
+	return unless $ein;
 	my $nfound = select($rin, $win, $ein, $timeout);
 	$self->process_connections(\$rin, \$win, \$ein) if $nfound;
 }
