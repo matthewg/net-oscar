@@ -175,7 +175,7 @@ sub process_snac($$) {
 			$session->{buddies}->{$group}->{members}->{$screenname}->{$key} = $buddy->{$key};
 		}
 
-		$session->callback_buddy_in($screenname, $group, $buddy);
+		$session->callback_buddy_in($screenname, $group, $session->{buddies}->{$group}->{members}->{$screenname});
 	} elsif($family == 0x3 and $subtype == 0xC) {
 		my ($buddy) = unpack("C/a*", $data);
 		my $group = $session->findbuddy($buddy);
