@@ -217,13 +217,13 @@ sub connect($$) {
 
 	tie %tlv, "Net::OSCAR::TLV";
 
-	confess "Empty host!" unless $host;
+	croak "Empty host!" unless $host;
 	$host =~ s/:(.+)//;
 	if(!$1) {
-		if(exists($self->{session}) and $self->{session}->{port}) {
+		if(exists($self->{session})) {
 			$port = $self->{session}->{port};
 		} else {
-			$port = 5190;
+			croak "No port!";
 		}
 	} else {
 		$port = $1;

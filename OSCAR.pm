@@ -199,8 +199,7 @@ sub signon($$$;$$) {
 
 	# We set BOS to the login connection so that our error handlers pick up errors on this connection as fatal.
 	$host ||= "login.oscar.aol.com";
-	$port ||= 5190;
-	$self->{port} = $port;
+	$self->{port} = $port || 5190;
 	$self->{bos} = $self->addconn($password, CONNTYPE_LOGIN, "login", $host);
 	push @{$self->{connections}}, $self->{bos};
 }
@@ -1105,6 +1104,7 @@ sub chat_accept($$) {
 sub crapout($$$) {
 	my($self, $connection, $reason) = @_;
 	$self->callback_error($connection, $reason, 0, "", "", 0, 0, 1);
+	$self->signoff();
 }
 
 =pod
