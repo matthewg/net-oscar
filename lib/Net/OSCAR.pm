@@ -1376,7 +1376,47 @@ sub set_idle($$) {
 
 =back
 
-<<<<<<< OSCAR.pm
+=head3 CALLBACKS
+
+=over 4
+
+=item admin_error (OSCAR, REQTYPE, ERROR, ERRURL)
+
+This is called when there is an error performing an administrative function - changing
+your password, formatting your screenname, changing your email address, or confirming your
+account.  REQTYPE is a string describing the type of request which generated the error.
+ERROR is an error message.  ERRURL is an http URL which the user may visit for more
+information about the error.
+
+=item admin_ok (OSCAR, REQTYPE)
+
+This is called when an administrative function succeeds.  See L<admin_error> for more info.
+
+=item buddy_icon_uploaded (OSCAR)
+
+This is called when the user's buddy icon is successfully uploaded to the server.
+
+=item stealth_changed (OSCAR, NEW_STEALTH_STATE)
+
+This is called when the user's stealth state changes.  See L<"is_stealth"> and L<"set_stealth">
+for information on stealth.
+
+=item extended_status (OSCAR, STATUS)
+
+Called when the user's extended status changes.  This will normally
+be sent in response to a successful L<set_extended_status> call.
+
+=item evil (OSCAR, NEWEVIL[, FROM])
+
+Called when your evil level changes.  NEWEVIL is your new evil level,
+as a percentage (accurate to tenths of a percent.)  ENEMY is undef
+if the evil was anonymous (or if the message was triggered because
+your evil level naturally decreased), otherwise it is the screenname
+of the person who sent us the evil.  See the L<"evil"> method for
+more information on evils.
+
+=back
+
 =head2 FILE TRANSFER AND DIRECT CONNECTIONS
 
 =over 4
@@ -1439,53 +1479,11 @@ sub file_send($$@) {
 
 =pod
 
-=head2 EVENT-PROCESSING METHODS
-=======
-=head3 CALLBACKS
-
-=over 4
-
-=item admin_error (OSCAR, REQTYPE, ERROR, ERRURL)
-
-This is called when there is an error performing an administrative function - changing
-your password, formatting your screenname, changing your email address, or confirming your
-account.  REQTYPE is a string describing the type of request which generated the error.
-ERROR is an error message.  ERRURL is an http URL which the user may visit for more
-information about the error.
-
-=item admin_ok (OSCAR, REQTYPE)
-
-This is called when an administrative function succeeds.  See L<admin_error> for more info.
-
-=item buddy_icon_uploaded (OSCAR)
-
-This is called when the user's buddy icon is successfully uploaded to the server.
-
-=item stealth_changed (OSCAR, NEW_STEALTH_STATE)
-
-This is called when the user's stealth state changes.  See L<"is_stealth"> and L<"set_stealth">
-for information on stealth.
-
-=item extended_status (OSCAR, STATUS)
-
-Called when the user's extended status changes.  This will normally
-be sent in response to a successful L<set_extended_status> call.
-
-=item evil (OSCAR, NEWEVIL[, FROM])
-
-Called when your evil level changes.  NEWEVIL is your new evil level,
-as a percentage (accurate to tenths of a percent.)  ENEMY is undef
-if the evil was anonymous (or if the message was triggered because
-your evil level naturally decreased), otherwise it is the screenname
-of the person who sent us the evil.  See the L<"evil"> method for
-more information on evils.
-
 =back
 
 =head2 EVENT PROCESSING
 
 =head3 METHODS
->>>>>>> 1.173.2.18
 
 =over 4
 
@@ -2744,6 +2742,18 @@ For optimum performance, use the L<"connection_changed"> callback.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+1.907, 2004-09-22
+
+=over 4
+
+=item *
+
+Fixed assert failure on certain invalid input ("Buddy Trikill" crash)
+
+=back
 
 =item *
 
