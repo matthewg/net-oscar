@@ -220,6 +220,7 @@ sub BLI_to_OSCAR($$) {
 	my $oldbli = $session->{blinternal};
 	my $oscar = $session->{bos};
 	my $modcount = 0;
+	my @snacqueue = ();
 
 	$oscar->snac_put(family => 0x13, subtype => 0x11); # Begin BL mods
 
@@ -242,7 +243,7 @@ sub BLI_to_OSCAR($$) {
 					$session->log_print(OSCAR_DBG_DEBUG, "Modifying.");
 					$modcount++;
 
-					$oscar->snac_put(family => 0x13, subtype => 0x9, reqdata => {desc => "modifying ".(BUDTYPES)[$type]." $newentry->{name}", type => $type, gid => $gid, bid => $bid}, data =>
+					push @snacqueue, $oscar->snac_encode(family => 0x13, subtype => 0x9, reqdata => {desc => "modifying ".(BUDTYPES)[$type]." $newentry->{name}", type => $type, gid => $gid, bid => $bid}, data =>
 						pack("na* nnn na*",
 							length($newentry->{name}),
 							$newentry->{name},
@@ -257,7 +258,7 @@ sub BLI_to_OSCAR($$) {
 					$session->log_print(OSCAR_DBG_DEBUG, "Deleting.");
 					$modcount++;
 
-					$oscar->snac_put(family => 0x13, subtype => 0xA, reqdata => {desc => "deleting ".(BUDTYPES)[$type]." $oldentry->{name}", type => $type, gid => $gid, bid => $bid}, data => 
+					push @snacqueue, $oscar->snac_encode(family => 0x13, subtype => 0xA, reqdata => {desc => "deleting ".(BUDTYPES)[$type]." $oldentry->{name}", type => $type, gid => $gid, bid => $bid}, data => 
 						pack("nnnnn", 0, $gid, $bid, $type, 0)
 					);
 				}
@@ -276,7 +277,7 @@ sub BLI_to_OSCAR($$) {
 				$session->log_printf(OSCAR_DBG_DEBUG, "New BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $entry->{name}, $type, $gid, $bid, length($data), hexdump($data));
 				$modcount++;
 
-				$oscar->snac_put(family => 0x13, subtype => 0x8, reqdata => {desc => "adding ".(BUDTYPES)[$type]." $entry->{name}", type => $type, gid => $gid, bid => $bid}, data =>
+				push @snacqueue, $oscar->snac_encode(family => 0x13, subtype => 0x8, reqdata => {desc => "adding ".(BUDTYPES)[$type]." $entry->{name}", type => $type, gid => $gid, bid => $bid}, data =>
 					pack("na* nnn na*",
 						length($entry->{name}),
 						$entry->{name},
@@ -291,10 +292,14 @@ sub BLI_to_OSCAR($$) {
 		}
 	}
 
-	$oscar->snac_put(family => 0x13, subtype => 0x12); # End BL mods
+	push @snacqueue, $oscar->snac_encode(family => 0x13, subtype => 0x12); # End BL mods
 
 	$session->{blold} = $oldbli;
 	$session->{blinternal} = $newbli;
+
+	$oscar->flap_put(shift @snacqueue);
+
+	$session->{snacqueue} = \@snacqueue;
 
 	# OSCAR doesn't send an 0x13/0xE if we don't actually modify anything.
 	$session->callback_buddylist_ok() unless $modcount;

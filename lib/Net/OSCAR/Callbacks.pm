@@ -316,6 +316,8 @@ sub process_snac($$) {
 			Net::OSCAR::_BLInternal::BLI_to_NO($session) if $session->{buderrors};
 			delete $session->{qw(blold buderrors)};
 		}
+
+		$connection->flap_put(shift @{$session->{snacqueue}});
 	} elsif($family == 0x13 and $subtype == 0x0F) {
 		if($session->{gotbl}) {
 			delete $session->{gotbl};
