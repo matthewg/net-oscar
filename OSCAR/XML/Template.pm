@@ -383,8 +383,11 @@ sub pack($%) {
 
 				$output .= chr(0) if $datum->{null_terminated};
 				if(exists($datum->{pad})) {
-					assert(exists($datum->{len}));
-					$output .= chr($datum->{pad}) x ($datum->{len} - length($output));
+					assert(exists($datum->{len}) and exists($datum->{pad}));
+
+					my $outlen = defined($output) ? length($output) : 0;
+					my $pad_needed = $datum->{len} - $outlen;
+					$output .= chr($datum->{pad}) x $pad_needed if $pad_needed;
 				}
 			}
 		} elsif($datum->{type} eq "tlvchain") {

@@ -4,12 +4,13 @@ use lib "./blib/lib";
 use strict;
 use warnings;
 use Getopt::Long;
-use Net::OSCAR qw(:standard);
+use Net::OSCAR qw(:standard :loglevels);
 use Digest::MD5 qw(md5);
+use IO::Poll;
 eval {
 	require Data::Dumper;
 };
-use vars qw($pid $oscar @chats @invites $loglevel $domd5 $password);
+use vars qw($pid $oscar @chats @invites $loglevel $domd5 $password %fdmap $poll);
 
 my $readline = 0;
 eval {
@@ -250,6 +251,29 @@ sub buddy_icq_info($$$) {
 	print "Got ICQ info for $uin: " . Data::Dumper::Dumper($info) . "\n";
 }
 
+sub connection_changed($$$) {
+	my($oscar, $connection, $status) = @_;
+
+	my $h = $connection->get_filehandle();
+	$connection->log_printf(OSCAR_DBG_DEBUG, "State changed (FD %d) to %s", fileno($h), $status);
+	my $mask = 0;
+
+	if($status eq "deleted") {
+		delete $fdmap{fileno($h)};
+	} else {
+		$fdmap{fileno($h)} = $connection;
+		if($status eq "read") {
+			$mask = POLLIN;
+		} elsif($status eq "write") {
+			$mask = POLLOUT;
+		} elsif($status eq "readwrite") {
+			$mask = POLLIN | POLLOUT;
+		}
+	}
+
+	$poll->mask($h => $mask);
+}
+
 my $loglevel = undef;
 my $do_md5 = 0;
 my $stealth = 0;
@@ -279,6 +303,10 @@ if(!defined($password)) {
 	chomp $password;
 }
 
+
+$poll = IO::Poll->new();
+$poll->mask(STDIN => POLLIN);
+
 $oscar = Net::OSCAR->new(capabilities => [qw(typing_status extended_status buddy_icons file_transfer)]);
 $oscar->set_callback_error(\&error);
 $oscar->set_callback_buddy_in(\&buddy_in);
@@ -307,23 +335,40 @@ $oscar->set_callback_auth_challenge(\&auth_challenge);
 $oscar->set_callback_im_ok(\&im_ok);
 $oscar->set_callback_stealth_changed(\&stealth_changed);
 $oscar->set_callback_buddy_icq_info(\&buddy_icq_info);
+$oscar->set_callback_connection_changed(\&connection_changed);
 
 $oscar->loglevel($loglevel) if defined($loglevel);
+# I specify local_port 5190 so that I can sniff that one port and get all OSCAR
+# traffic, including direct connections.
 if($do_md5) {
-	$oscar->signon(screenname => $screenname, password => undef, stealth => $stealth);
+	$oscar->signon(screenname => $screenname, password => undef, stealth => $stealth, local_port => 5190);
 } else {
-	$oscar->signon(screenname => $screenname, password => $password, stealth => $stealth);
+	$oscar->signon(screenname => $screenname, password => $password, stealth => $stealth, local_port => 5190);
 }
 
 my $inline = "";
 my $inchar = "";
 while(1) {
-	my($rin, $win) = $oscar->selector_filenos();
-	vec($rin, 0, 1) = 1;
-	my $ein = $rin | $win;
-	select($rin, $win, $ein, 0.01);
-	$oscar->process_connections(\$rin, \$win, \$ein);
-	next unless vec($rin, 0, 1);
+	next unless $poll->poll();
+
+	my $got_stdin = 0;
+	my @handles = $poll->handles(POLLIN | POLLOUT | POLLHUP | POLLERR | POLLNVAL);
+	foreach my $handle (@handles) {
+		if(fileno($handle) == fileno(STDIN)) {
+			$got_stdin = 1;
+		} else {
+			my($read, $write, $error) = (0, 0, 0);
+			my $events = $poll->events($handle);
+			$read = 1 if $events & POLLIN;
+			$write = 1 if $events & POLLOUT;
+			$error = 1 if $events & (POLLNVAL | POLLERR | POLLHUP);
+
+			$fdmap{fileno($handle)}->log_print(OSCAR_DBG_DEBUG, "Got r=$read, w=$write, e=$error");
+			$fdmap{fileno($handle)}->process_one($read, $write, $error);
+		}
+	}
+	next unless $got_stdin;
+
 	sysread(STDIN, $inchar, 1);
 	if($inchar eq "\n") {
 		my($cmd, @params) = split(/[ \t]+/, $inline);

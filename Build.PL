@@ -17,6 +17,7 @@ $build = Module::Build->new (
 	pm_files => {
 		'OSCAR.pm' => 'lib/Net/OSCAR.pm',
 		'OSCAR/Connection/Chat.pm' => 'lib/Net/OSCAR/Connection/Chat.pm',
+		'OSCAR/Connection/Direct.pm' => 'lib/Net/OSCAR/Connection/Direct.pm',
 		'OSCAR/Buddylist.pm' => 'lib/Net/OSCAR/Buddylist.pm',
 		'OSCAR/Callbacks.pm' => 'lib/Net/OSCAR/Callbacks.pm',
 		'OSCAR/Common.pm' => 'lib/Net/OSCAR/Common.pm',

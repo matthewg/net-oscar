@@ -24,6 +24,7 @@ OSCAR/TLV.pm
 OSCAR/Utility.pm
 OSCAR/XML.pm
 OSCAR/Connection/Chat.pm
+OSCAR/Connection/Direct.pm
 OSCAR/XML/Template.pm
 OSCAR/XML/Protocol.dtd
 OSCAR/XML/Protocol.xml

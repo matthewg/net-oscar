@@ -252,6 +252,11 @@ If you have more than one IP address with a route to the internet, this
 parameter can be used to specify which to use as the source IP for outgoing
 connections.
 
+=item local_port
+
+This controls which port Net::OSCAR will listen on for incoming direct connections.
+If not specified, a random port will be selected.
+
 =item host
 
 =item port
@@ -311,8 +316,8 @@ sub signon($@) {
 	($self->{screenname}, $password, $host, $self->{port},
 		$self->{proxy_type}, $self->{proxy_host}, $self->{proxy_port},
 		$self->{proxy_username}, $self->{proxy_password}, $self->{local_ip},
-		$self->{pass_is_hashed}, $self->{stealth}) =
-			delete @args{qw(screenname password host port proxy_type proxy_host proxy_port proxy_username proxy_password local_ip pass_is_hashed stealth)};
+		$self->{local_port}, $self->{pass_is_hashed}, $self->{stealth}) =
+			delete @args{qw(screenname password host port proxy_type proxy_host proxy_port proxy_username proxy_password local_ip local_port pass_is_hashed stealth)};
 
 	$self->{svcdata} = \%args;
 
@@ -812,7 +817,8 @@ sub send_im($$$;$) {
 		$flags2 = 0xB;
 	}
 
-	return $self->send_message($to, 1, protoparse($self, "standard IM footer")->pack(%protodata), $flags2);
+	my($req_id) = $self->send_message($to, 1, protoparse($self, "standard IM footer")->pack(%protodata), $flags2);
+	return $req_id;
 }
 
 =pod
@@ -1223,54 +1229,61 @@ sub set_idle($$) {
 
 =over 4
 
-=item file_send SCREENNAME MESSAGE FILENAME FILEDATA
+=item file_send SCREENNAME MESSAGE FILEREFS
 
 C<FILEDATA> can be undef to have Net::OSCAR read the file,
 a file handle, or the data to send.
 
 =cut
 
-sub file_send($$$)
-	my($self, $screenname, $message, $filename, $data) = @_;
+sub file_send($$@) {
+	my($self, $screenname, $message, @filerefs) = @_;
 
 	my $connection = $self->addconn(conntype => CONNTYPE_DIRECT_IN);
+	my($port) = sockaddr_in(getsockname($connection->{socket}));
+
+	open(DATA, "/etc/passwd");
+	my $data = join("", <DATA>);
+	close DATA;
 
 	my %svcdata = (
-		file_count_status => 1,
+		file_count_status => 1, #(@filerefs > 1 ? 2 : 1),
 		file_count => 1,
-		size => length(data),
-		files => [$filename]
+		size => length($data),
+		files => ["passwd"]
 	);
 
-        <define name="file transfer rendezvous data">
-                <!-- 1 if only sending a single file, otherwise 2 -->
-                <word name="file_count_status" />
-                <word name="file_count" />
-                <dword name="size" />
-                <data count="-1" null_terminated="yes" name="files" />
-        </define>
-
+	my $cookie = randchars(8);
 	my %protodata = (
 		capability => OSCAR_CAPS()->{filexfer}->{value},
+		cookie => $cookie,
 		invitation_msg => $message,
 		language => "en",
 		push_pull => 1,
 		status => 0,
 		client_1_ip => $self->{ip},
 		client_2_ip => $self->{ip},
+		port => $port,
 		svcdata_charset => "us-ascii",
 		svcdata => protoparse($self, "file transfer rendezvous data")->pack(%svcdata)
 	);
 
-	return unless exists($self->{rv_proposals}->{$cookie});
-	my $proposal = delete $self->{rv_proposals}->{$cookie};
+	my($req_id) = $self->send_message($screenname, 2, protoparse($self, "rendezvous IM")->pack(%protodata), 0, $cookie);
 
-	my %protodata;
-	$protodata{status} = 1;
-	$protodata{cookie} = $cookie;
-	$protodata{capability} = OSCAR_CAPS()->{$proposal->{type}} ? OSCAR_CAPS()->{$proposal->{type}}->{value} : $proposal->{type};
+	$self->{rv_proposals}->{$cookie} = $connection->{rv} = {
+		cookie => $cookie,
+		sender => $self->{screenname},
+		recipient => $screenname,
+		type => "filexfer",
+		connection => $connection,
+		ft_state => "listening",
+		direction => "send",
+		accepted => 0,
+		filenames => ["passwd"],
+		data => [$data],
+	};
 
-	return $self->send_message($proposal->{sender}, 2, protoparse($self, "rendezvous IM")->pack(%protodata));
+	return ($req_id, $cookie);
 }
 
 =pod
@@ -1567,15 +1580,18 @@ we care about writing to.  See the L<"process_connections"> method for details.
 =cut
 
 sub selector_filenos($) {
+	my $self = shift;
 	my($rin, $win) = ('', '');
 
-	foreach my $connection(@{shift->{connections}}) {
+	foreach my $connection(@{$self->{connections}}) {
 		next unless $connection->{socket};
 		if($connection->{connected}) {
-			vec($rin, fileno $connection->{socket}, 1) = 1;
+			my $n = fileno($connection->{socket});
+			vec($rin, $n, 1) = 1;
 		}
 		if(!$connection->{connected} or $connection->{outbuff}) {
-			vec($win, fileno $connection->{socket}, 1) = 1;
+			my $n = fileno($connection->{socket});
+			vec($win, $n, 1) = 1;
 		}
 	}
 	return ($rin, $win);
@@ -1988,6 +2004,8 @@ sub callback_connection_changed(@) { do_callback("connection_changed", @_); }
 sub callback_auth_challenge(@) { do_callback("auth_challenge", @_); }
 sub callback_stealth_changed(@) { do_callback("stealth_changed", @_); }
 sub callback_snac_unknown(@) { do_callback("snac_unknown", @_); }
+sub callback_rendezvous_reject(@) { do_callback("rendezvous_reject", @_); }
+sub callback_rendezvous_accept(@) { do_callback("rendezvous_accept", @_); }
 
 sub set_callback_error($\&) { set_callback("error", @_); }
 sub set_callback_buddy_in($\&) { set_callback("buddy_in", @_); }
@@ -2033,6 +2051,8 @@ sub set_callback_connection_changed($\&) { set_callback("connection_changed", @_
 sub set_callback_auth_challenge($\&) { set_callback("auth_challenge", @_); }
 sub set_callback_stealth_changed($\&) { set_callback("stealth_changed", @_); }
 sub set_callback_snac_unknown($\&) { set_callback("snac_unknown", @_); }
+sub set_callback_rendezvous_reject($\&) { set_callback("snac_rendezvous_reject", @_); }
+sub set_callback_rendezvous_accept($\&) { set_callback("snac_rendezvous_accept", @_); }
 
 =pod
 
@@ -3290,6 +3310,7 @@ sub addconn($@) {
 	$data{session} = $self;
 	my $connection;
 	my $conntype = $data{conntype};
+	$data{description} ||= $conntype;
 
 	if($conntype == CONNTYPE_CHAT) {
 		$connection = Net::OSCAR::Connection::Chat->new(%data);
@@ -3507,20 +3528,20 @@ sub postprocess_userinfo($$) {
 	}
 }
 
-sub send_message($$$$;$) {
-	my($self, $recipient, $channel, $body, $flags2) = @_;
+sub send_message($$$$;$$) {
+	my($self, $recipient, $channel, $body, $flags2, $cookie) = @_;
 	$flags2 ||= 0;
 
 	my $reqid = (8<<16) | (unpack("n", randchars(2)))[0];
 	my %protodata = (
-		cookie => randchars(8),
+		cookie => $cookie ? $cookie : randchars(8),
 		channel => $channel,
 		screenname => $recipient,
 		message_body => $body,
 	);
 	$self->svcdo(CONNTYPE_BOS, reqdata => $recipient, protobit => "outgoing IM", protodata => \%protodata, flags2 => $flags2);
 
-	return $reqid;
+	return ($reqid, $protodata{cookie});
 }
 
 sub rendezvous_reject($$) {

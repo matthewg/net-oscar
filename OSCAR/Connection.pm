@@ -89,20 +89,12 @@ sub flap_encode($$;$) {
 	);
 }
 
-sub flap_put($;$$) {
-	my($self, $msg, $channel) = @_;
-	my $emsg;
-	my $had_outbuff = 0;
+sub write($$) {
+	my($self, $data) = @_;
 
-	$channel ||= FLAP_CHAN_SNAC;
+	my $had_outbuff = 1 if $self->{outbuff};
+	$self->{outbuff} .= $data;
 
-	return unless $self->{socket} and CORE::fileno($self->{socket}) and getpeername($self->{socket}); # and !$self->{socket}->error;
-
-	$had_outbuff = 1 if $self->{outbuff};
-	if($msg) {
-		$emsg = $self->flap_encode($msg, $channel);
-		$self->{outbuff} .= $emsg;
-	}
 	my $nchars = syswrite($self->{socket}, $self->{outbuff}, length($self->{outbuff}));
 	if(!defined($nchars)) {
 		return "" if $! == EAGAIN;
@@ -110,17 +102,66 @@ sub flap_put($;$$) {
 		$self->{sockerr} = 1;
 		$self->disconnect();
 		return undef;
+	}
+
+	my $wrote = substr($self->{outbuff}, 0, $nchars, "");
+
+	if($self->{outbuff}) {
+		$self->log_print(OSCAR_DBG_NOTICE, "Couldn't do complete write - had to buffer ", length($self->{outbuff}), " bytes.");
+		$self->{state} = "readwrite";
+		$self->{session}->callback_connection_changed($self, "readwrite");
+		return 0;
+	} elsif($had_outbuff) {
+		$self->{state} = "read";
+		$self->{session}->callback_connection_changed($self, "read");
+		return 1;
+	}
+	$self->log_print(OSCAR_DBG_PACKETS, "Put '", hexdump($wrote), "'");
+
+	return 1;
+}
+
+sub flap_put($;$$) {
+	my($self, $msg, $channel) = @_;
+	my $had_outbuff = 0;
+
+	$channel ||= FLAP_CHAN_SNAC;
+
+	return unless $self->{socket} and CORE::fileno($self->{socket}) and getpeername($self->{socket}); # and !$self->{socket}->error;
+
+	$msg = $self->flap_encode($msg, $channel) if $msg;
+	$self->write($msg);
+}
+
+sub read($$) {
+	my($self, $len) = @_;
+
+	$self->{buffsize} ||= $len;
+	$self->{buffer} ||= "";
+
+	my $buffer = "";
+	my $nchars = sysread($self->{socket}, $buffer, $self->{buffsize} - length($self->{buffer}));
+	if(!defined($nchars)) {
+		return "" if $! == EAGAIN;
+		$self->log_print(OSCAR_DBG_NOTICE, "Couldn't read from socket: $!");
+		$self->{sockerr} = 1;
+		$self->disconnect();
+		return undef;
+	} elsif($nchars == 0) { # EOF
+		$self->log_print(OSCAR_DBG_NOTICE, "Got EOF on socket");
+		$self->{sockerr} = 1;
+		$self->disconnect();
+		return undef;
 	} else {
-		$emsg = substr($self->{outbuff}, 0, $nchars, "");
-		if($self->{outbuff}) {
-			$self->log_print(OSCAR_DBG_NOTICE, "Couldn't do complete write - had to buffer ", length($self->{outbuff}), " bytes.");
-			$self->{state} = "readwrite";
-			$self->{session}->callback_connection_changed($self, "readwrite");
-		} elsif($had_outbuff) {
-			$self->{state} = "read";
-			$self->{session}->callback_connection_changed($self, "read");
-		}
-		$self->log_print(OSCAR_DBG_PACKETS, "Put '", hexdump($emsg), "'");
+		$self->log_print(OSCAR_DBG_PACKETS, "Got '", hexdump($buffer), "'");
+		$self->{buffer} .= $buffer;
+	}
+
+	if(length($self->{buffer}) < $self->{buffsize}) {
+		return "";
+	} else {
+		delete $self->{buffsize};
+		return delete $self->{buffer};
 	}
 }
 
@@ -130,54 +171,20 @@ sub flap_get($) {
 	my ($buffer, $channel, $len);
 	my $nchars;
 
-	if(!exists($self->{buff_gotflap})) {
-		$self->{buffsize} ||= 6;
-		$self->{buffer} ||= "";
+	if(!$self->{buff_gotflap}) {
+		my $header = $self->read(6);
+		return $header unless $header;
 
-		$nchars = sysread($self->{socket}, $buffer, $self->{buffsize} - length($self->{buffer}));
-		if(!defined($nchars)) {
-			return "" if $! == EAGAIN;
-			$self->log_print(OSCAR_DBG_NOTICE, "Couldn't read from socket: $!");
-			$self->{sockerr} = 1;
-			$self->disconnect();
-			return undef;
-		} else {
-			$self->{buffer} .= $buffer;
-		}
-
-		if(length($self->{buffer}) == 6) {
-			$self->{buff_gotflap} = 1;
-			($buffer) = delete $self->{buffer};
-			(undef, $self->{channel}, undef, $self->{buffsize}) = unpack("CCnn", $buffer);
-			$self->{buffer} = "";
-		} else {
-			return "";
-		}
+		$self->{buff_gotflap} = 1;
+		(undef, $self->{channel}, undef, $self->{buffsize}) = unpack("CCnn", $header);
 	}
 
-	$nchars = sysread($self->{socket}, $buffer, $self->{buffsize} - length($self->{buffer}));
-	if(!defined($nchars)) {
-		return "" if $! == EAGAIN;
-		$self->log_print(OSCAR_DBG_NOTICE, "Couldn't read from socket: $!");
-		$self->{sockerr} = 1;
-		$self->disconnect();
-		return undef;
-	} else {
-		$self->{buffer} .= $buffer;
-	}
+	my $data = $self->read($self->{buffsize});
+	return $data unless $data;
 
-	if(length($self->{buffer}) == $self->{buffsize}) {
-		$self->log_print(OSCAR_DBG_PACKETS, "Got ", hexdump($self->{buffer}));
-		$buffer = $self->{buffer};
-
-		delete $self->{buffer};
-		delete $self->{buff_gotflap};
-		delete $self->{buffsize};
-
-		return $buffer;
-	} else {
-		return "";
-	}
+	$self->log_print(OSCAR_DBG_PACKETS, "Got ", hexdump($self->{buffer}));
+	delete $self->{buff_gotflap};
+	return $data;
 }
 
 sub snac_encode($%) {

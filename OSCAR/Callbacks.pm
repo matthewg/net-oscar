@@ -257,15 +257,38 @@ sub process_snac($$) {
 		} elsif($data{channel} == 2) {
 			%data = protoparse($session, "rendezvous IM")->unpack($data{message_body});
 			my $type = OSCAR_CAPS_INVERSE()->{$data{capability}};
-			$session->{rv_proposals}->{$data{cookie}} ||= {
-				sender => $sender,
-				type => $type || $data{capability}
-			};
+			$session->{rv_proposals}->{$data{cookie}} ||= {};
+			my $rv = $session->{rv_proposals}->{$data{cookie}};
+
+			if($data{status} == 1) {
+				$connection->log_print(OSCAR_DBG_DEBUG, "Peer rejected proposal.");
+				$session->callback_rendezvous_reject($data{cookie});
+				$session->delconn($rv->{connection}) if $rv->{connection};
+				delete $session->{rv_proposals}->{$data{cookie}};
+				return;
+			} elsif($data{status} == 2) {
+				$connection->log_print(OSCAR_DBG_DEBUG, "Peer accepted proposal.");
+				$rv->{accepted} = 1;
+
+				delete $session->{rv_proposals}->{$data{cookie}};
+				$session->callback_rendezvous_accept($data{cookie});
+				return;
+			}
 
 			if(!$type) {
 				$connection->log_print(OSCAR_DBG_INFO, "Unknown rendezvous type: ", hexdump($data{capability}));
 				$session->rendezvous_reject($data{cookie});
-			} elsif($type eq "chat") {
+				return;
+			}
+
+			if(!$rv->{cookie}) {
+				$rv->{type} = $type;
+				$rv->{sender} = $sender;
+				$rv->{recipient} = $session->{screenname};
+				$rv->{cookie} = $data{cookie};
+			}
+
+			if($type eq "chat") {
 				my %svcdata = protoparse($session, "chat invite rendezvous data")->unpack($data{svcdata});
 
 				# Ignore invites for chats that we're already in
@@ -281,7 +304,8 @@ sub process_snac($$) {
 					$session->callback_chat_invite($sender, $data{invitation_msg}, $chat, $svcdata{url});
 				}
 			} elsif($type eq "filexfer") {
-				
+				my %svcdata = protoparse($session, "file transfer rendezvous data")->unpack($data{svcdata});
+
 			} else {
 				$connection->log_print(OSCAR_DBG_INFO, "Unsupported rendezvous type '$type'");
 				$session->rendezvous_reject($data{cookie});
