@@ -49,7 +49,7 @@ sub flap_encode($$;$) {
 sub flap_put($$;$) {
 	my($self, $msg, $channel) = @_;
 
-	return unless $self->{socket} and $self->{socket}->opened and $self->{socket}->connected and !$self->{socket}->error and !$self->{socket}->eof;
+	return unless $self->{socket} and $self->{socket}->opened and $self->{socket}->connected and !$self->{socket}->error;
 
 	my $emsg = $self->flap_encode($msg, $channel);
 	syswrite($self->{socket}, $emsg, length($emsg)) or return $self->{session}->crapout($self, "Couldn't write to socket: $!");
