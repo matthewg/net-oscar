@@ -18,8 +18,10 @@ if(@{$data{families}} == keys %{$connection->{families}} or @migfamilies == 0) {
 	$pause_queue = $connection->{pause_queue};
 
 	# Don't let it think that we've lost the BOS connection
+	my $conntype = $connection->{conntype};
 	$connection->{conntype} = -1 if $connection->{conntype} == CONNTYPE_BOS;
 	$session->delconn($connection);
+	$connection->{conntype} = $conntype;
 } else {
 	$connection->log_print(OSCAR_DBG_WARN, "Partial migration");
 
