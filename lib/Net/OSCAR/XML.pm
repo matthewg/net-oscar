@@ -217,7 +217,7 @@ sub _protopack($$;@) {
 		my %data = @_;
 		my $packet = "";
 
-		$oscar->log_print(OSCAR_DBG_DEBUG, "Encoding:\n", join("\n", map { "\t$_ => $data{$_}" } keys %data));
+		$oscar->log_print(OSCAR_DBG_DEBUG, "Encoding:\n", join("\n", map { "\t$_ => ".hexdump($data{$_}) } keys %data));
 
 		foreach my $datum (@$template) {
 			my $value = undef;

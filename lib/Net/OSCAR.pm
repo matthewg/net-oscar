@@ -1221,7 +1221,7 @@ sub set_away($$) {
 	# Because we use !defined(awaymsg) to indicate
 	# that we just want to set the profile, force
 	# it to be defined.
-	if(!defined($awaymsg)) $awaymsg = "";
+	$awaymsg = "" unless defined($awaymsg);
 
 	shift->set_info(undef, $awaymsg);
 }
