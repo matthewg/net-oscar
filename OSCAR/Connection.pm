@@ -6,7 +6,7 @@ Net::OSCAR::Connection -- individual Net::OSCAR service connection
 
 package Net::OSCAR::Connection;
 
-$VERSION = '1.11';
+$VERSION = '1.999';
 $REVISION = '$Revision$';
 
 use strict;
@@ -121,7 +121,7 @@ sub write($$) {
 		$self->{session}->callback_connection_changed($self, "read");
 		return 1;
 	}
-	$self->log_print(OSCAR_DBG_PACKETS, "Put '", hexdump($wrote), "'");
+	$self->log_print_cond(OSCAR_DBG_PACKETS, sub { "Put '", hexdump($wrote), "'" });
 
 	return 1;
 }
@@ -158,7 +158,7 @@ sub read($$) {
 		$self->disconnect();
 		return undef;
 	} else {
-		$self->log_print(OSCAR_DBG_PACKETS, "Got '", hexdump($buffer), "'");
+		$self->log_print_cond(OSCAR_DBG_PACKETS, sub { "Got '", hexdump($buffer), "'" });
 		$self->{buffer} .= $buffer;
 	}
 
@@ -187,7 +187,7 @@ sub flap_get($) {
 	my $data = $self->read($self->{buffsize});
 	return $data unless $data;
 
-	$self->log_print(OSCAR_DBG_PACKETS, "Got ", hexdump($self->{buffer}));
+	$self->log_print_cond(OSCAR_DBG_PACKETS, sub { "Got ", hexdump($self->{buffer}) });
 	delete $self->{buff_gotflap};
 	return $data;
 }

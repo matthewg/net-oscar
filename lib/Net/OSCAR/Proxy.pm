@@ -1,6 +1,6 @@
 package Net::OSCAR::Proxy;
 
-$VERSION = '1.11';
+$VERSION = '1.999';
 $REVISION = '$Revision$';
 
 use strict;

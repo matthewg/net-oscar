@@ -6,7 +6,7 @@ Net::OSCAR::Callbacks -- Process responses from OSCAR server
 
 package Net::OSCAR::Callbacks;
 
-$VERSION = '1.11';
+$VERSION = '1.999';
 $REVISION = '$Revision$';
 
 use strict;
@@ -107,11 +107,16 @@ sub process_snac($$) {
 		}
 	} elsif($protobit eq "incoming extended information") {
 		if(exists($data{upload_checksum})) {
-			if($session->{icon} and $session->{is_on}) {
-				$connection->log_print(OSCAR_DBG_INFO, "Uploading buddy icon.");
-				$session->svcdo(CONNTYPE_ICON, protobit => "icon upload", protodata => {
-					icon => $session->{icon}
-				});
+			# OSCAR will send the upload request again on the icon connection.
+			# Since we already have the sending queued up on that connection,
+			# just ignore the repeat request.
+			if($connection->{conntype} != CONNTYPE_ICON) {
+				if($session->{icon} and $session->{is_on}) {
+					$connection->log_print(OSCAR_DBG_INFO, "Uploading buddy icon.");
+					$session->svcdo(CONNTYPE_ICON, protobit => "icon upload", protodata => {
+						icon => $session->{icon}
+					});
+				}
 			}
 		} elsif(exists($data{resend_checksum})) {
 			$connection->log_print(OSCAR_DBG_INFO, "Got icon resend request!");
@@ -276,7 +281,7 @@ sub process_snac($$) {
 			}
 
 			if(!$type) {
-				$connection->log_print(OSCAR_DBG_INFO, "Unknown rendezvous type: ", hexdump($data{capability}));
+				$connection->log_print_cond(OSCAR_DBG_INFO, sub { "Unknown rendezvous type: ", hexdump($data{capability}) });
 				$session->rendezvous_reject($data{cookie});
 				return;
 			}
@@ -314,6 +319,9 @@ sub process_snac($$) {
 				$session->rendezvous_reject($data{cookie});
 			}
 		}
+	} elsif($protobit eq "chat invitation decline") {
+		#$session->callback_rendezvous_reject($data{cookie});
+		delete $session->{rv_proposals}->{$data{cookie}};
 	} elsif($protobit eq "typing notification") {
 		$session->callback_typing_status($data{screenname}, $data{typing_status});
 	} elsif($protobit eq "rate change") {
@@ -405,7 +413,7 @@ sub process_snac($$) {
 			$connection->log_print(OSCAR_DBG_WARN, "Couldn't get your buddylist - probably because you don't have one.");
 			got_buddylist($session, $connection);			
 		} else {
-			$connection->log_print(OSCAR_DBG_INFO, "Buddylist error:", hexdump($data{data}));
+			$connection->log_print_cond(OSCAR_DBG_INFO, sub { "Buddylist error:", hexdump($data{data}) });
 		}
 	} elsif($protobit eq "incoming profile") {
 		$session->postprocess_userinfo(\%data);
@@ -590,7 +598,7 @@ sub got_buddylist($$) {
 
 sub default_snac_unknown($$$$) {
 	my($session, $connection, $snac, $data) = @_;
-	$session->log_printf(OSCAR_DBG_WARN, "Unknown SNAC %d/%d: %s", $snac->{family},$snac->{subtype}, hexdump($snac->{data}));
+	$session->log_printf_cond(OSCAR_DBG_WARN, sub { "Unknown SNAC %d/%d: %s", $snac->{family},$snac->{subtype}, hexdump($snac->{data}) });
 }
 
 1;

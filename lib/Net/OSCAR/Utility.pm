@@ -6,7 +6,7 @@ Net::OSCAR::Utility -- internal utility functions for Net::OSCAR
 
 package Net::OSCAR::Utility;
 
-$VERSION = '1.11';
+$VERSION = '1.999';
 $REVISION = '$Revision$';
 
 use strict;
@@ -21,7 +21,7 @@ use Net::OSCAR::Constants;
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(
-	randchars log_print log_printf hexdump normalize tlv_decode tlv_encode send_error bltie
+	randchars log_print log_printf log_print_cond log_printf_cond hexdump normalize tlv_decode tlv_encode send_error bltie
 	signon_tlv encode_password send_versions
 );
 
@@ -31,6 +31,7 @@ sub randchars($) {
 	for(my $i = 0; $i < $count; $i++) { $retval .= chr(int(rand(256))); }
 	return $retval;
 }
+
 
 sub log_print($$@) {
 	my($obj, $level) = (shift, shift);
@@ -53,6 +54,22 @@ sub log_printf($$$@) {
 	my($obj, $level, $fmtstr) = (shift, shift, shift);
 
 	$obj->log_print($level, sprintf($fmtstr, @_));
+}
+
+sub log_printf_cond($$&) {
+	my($obj, $level, $sub) = @_;
+	my $session = exists($obj->{session}) ? $obj->{session} : $obj;
+	return unless defined($session->{LOGLEVEL}) and $session->{LOGLEVEL} >= $level;
+
+	log_printf($obj, $level, &$sub);
+}
+
+sub log_print_cond($$&) {
+	my($obj, $level, $sub) = @_;
+	my $session = exists($obj->{session}) ? $obj->{session} : $obj;
+	return unless defined($session->{LOGLEVEL}) and $session->{LOGLEVEL} >= $level;
+
+	log_print($obj, $level, &$sub);
 }
 
 sub hexdump($;$) {

@@ -424,6 +424,14 @@ sub commit_buddylist($) {
 	my($self) = shift;
 	return must_be_on($self) unless $self->{is_on};
 	Net::OSCAR::_BLInternal::NO_to_BLI($self);
+
+	# If user set icon to same as old icon, server won't request an upload.
+	# Send a buddy_icon_uploaded callback anyway.
+	if($self->{icon_md5sum_old} and $self->{icon_md5sum} eq $self->{icon_md5sum_old}) {
+		$self->callback_buddy_icon_uploaded();
+	}
+
+	delete $self->{icon_md5sum_old};
 }
 
 sub rollback_buddylist($) {
@@ -1103,6 +1111,7 @@ sub set_icon($$) {
 
 	if($icon) {
 		$self->{icon} = $icon;
+		$self->{icon_md5sum_old} = $self->{icon_md5sum} || "";
 		$self->{icon_md5sum} = pack("n", 0x10) . md5($icon);
 		$self->{icon_checksum} = $self->icon_checksum($icon);
 		$self->{icon_timestamp} = time;
@@ -1472,7 +1481,12 @@ sub chat_decline($$) {
 	my($rv) = grep { $_->{chat_url} eq $url } values %{$self->{rv_proposals}};
 	return unless $rv;
 
-	$self->rendezvous_reject($rv->{cookie});
+	$self->svcdo(CONNTYPE_BOS, protobit => "chat invitation decline", protodata => {
+		cookie => $rv->{cookie},
+		screenname => $rv->{sender},
+	});
+
+	delete $self->{rv_proposals}->{$rv->{cookie}};
 }
 
 =pod
@@ -2666,6 +2680,22 @@ For optimum performance, use the L<"connection_changed"> callback.
 
 =item *
 
+1.902, 2004-08-26
+
+=over 4
+
+=item *
+
+Fixes to buddy icon upload and chat invitation decline
+
+=item *
+
+Increase performance by doing lazy generation of certain debugging info
+
+=back
+
+=item *
+
 1.901, 2004-08-24
 
 =over 4
@@ -3625,7 +3655,7 @@ sub postprocess_userinfo($$) {
 				$self->log_print(OSCAR_DBG_DEBUG, "Got capability $capname.");
 				$userinfo->{capabilities}->{$capname} = OSCAR_CAPS()->{$capname}->{description};
 			} else {
-				$self->log_print(OSCAR_DBG_INFO, "Unknown capability: ", hexdump($capability));
+				$self->log_print_cond(OSCAR_DBG_INFO, sub { "Unknown capability: ", hexdump($capability) });
 			}
 		}
 	}

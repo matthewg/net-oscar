@@ -45,7 +45,7 @@ sub unpack($$) {
 
 	my %data = ();
 
-	$oscar->log_print(OSCAR_DBG_XML, "Decoding:\n", hexdump($packet), "\n according to: ", Data::Dumper::Dumper($template));
+	$oscar->log_print_cond(OSCAR_DBG_XML, sub { "Decoding:\n", hexdump($packet), "\n according to: ", Data::Dumper::Dumper($template) });
 
 	assert(ref($template) eq "ARRAY");
 	foreach my $datum (@$template) {
@@ -326,7 +326,7 @@ sub unpack($$) {
 		}
 	}
 
-	$oscar->log_print(OSCAR_DBG_XML, "Decoded:\n", join("\n", map { "\t$_ => ".(defined($data{$_}) ? hexdump($data{$_}) : 'undef') } keys %data));
+	$oscar->log_print_cond(OSCAR_DBG_XML, sub { "Decoded:\n", join("\n", map { "\t$_ => ".(defined($data{$_}) ? hexdump($data{$_}) : 'undef') } keys %data) });
 
 	# Remember, passing in a ref to packet in place of actual packet data == in-place editing...
 	$$x_packet = $packet if ref($x_packet);
@@ -341,7 +341,7 @@ sub pack($%) {
 	my $oscar = $self->{oscar};
 	my $template = $self->{template};
 
-	$oscar->log_print(OSCAR_DBG_XML, "Encoding:\n", join("\n", map { "\t$_ => ".(defined($data{$_}) ? hexdump($data{$_}) : 'undef') } keys %data), "\n according to: ", Data::Dumper::Dumper($template));
+	$oscar->log_print_cond(OSCAR_DBG_XML, sub { "Encoding:\n", join("\n", map { "\t$_ => ".(defined($data{$_}) ? hexdump($data{$_}) : 'undef') } keys %data), "\n according to: ", Data::Dumper::Dumper($template) });
 
 	assert(ref($template) eq "ARRAY");
 	foreach my $datum (@$template) {
@@ -459,7 +459,7 @@ sub pack($%) {
 		$packet .= $output if defined($output);
 	}
 
-	$oscar->log_print(OSCAR_DBG_XML, "Encoded:\n", hexdump($packet));
+	$oscar->log_print_cond(OSCAR_DBG_XML, sub { "Encoded:\n", hexdump($packet) });
 	return $packet;
 }
 

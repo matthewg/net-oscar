@@ -17,7 +17,7 @@ use Net::OSCAR::TLV;
 use Net::OSCAR::XML;
 
 use vars qw($VERSION $REVISION);
-$VERSION = '1.901';
+$VERSION = '1.999';
 $REVISION = '$Revision$';
 
 sub init_entry($$$$) {
@@ -49,7 +49,7 @@ sub blparse($$) {
 		while(my($key, $value) = each %$typedata) {
 			$session->{blinternal}->{$type}->{$gid}->{$bid}->{data}->{$key} = $value;
 		}
-		$session->log_printf(OSCAR_DBG_DEBUG, "Got BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $name, $type, $gid, $bid, $sublen, hexdump(tlv_encode($typedata)));
+		$session->log_printf_cond(OSCAR_DBG_DEBUG, sub { "Got BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $name, $type, $gid, $bid, $sublen, hexdump(tlv_encode($typedata)) });
 	}
 
 	return BLI_to_NO($session);
@@ -301,12 +301,12 @@ sub BLI_to_OSCAR($$) {
 				my $oldentry = $oldbli->{$type}->{$gid}->{$bid};
 
 				my $olddata = tlv_encode($oldentry->{data});
-				$session->log_printf(OSCAR_DBG_DEBUG, "Old BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $oldentry->{name}, $type, $gid, $bid, length($olddata), hexdump($olddata));
+				$session->log_printf_cond(OSCAR_DBG_DEBUG, sub { "Old BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $oldentry->{name}, $type, $gid, $bid, length($olddata), hexdump($olddata) });
 				my $delete = 0;
 				if(exists($newbli->{$type}) and exists($newbli->{$type}->{$gid}) and exists($newbli->{$type}->{$gid}->{$bid})) {
 					my $newentry = $newbli->{$type}->{$gid}->{$bid};
 					my $newdata = tlv_encode($newentry->{data});
-					$session->log_printf(OSCAR_DBG_DEBUG, "New BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $newentry->{name}, $type, $gid, $bid, length($newdata), hexdump($newdata));
+					$session->log_printf_cond(OSCAR_DBG_DEBUG, sub { "New BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $newentry->{name}, $type, $gid, $bid, length($newdata), hexdump($newdata) });
 
 					next if
 						$newentry->{name} eq $oldentry->{name}
@@ -362,7 +362,7 @@ sub BLI_to_OSCAR($$) {
 				my $entry = $newbli->{$type}->{$gid}->{$bid};
 				my $data = tlv_encode($entry->{data});
 
-				$session->log_printf(OSCAR_DBG_DEBUG, "New BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $entry->{name}, $type, $gid, $bid, length($data), hexdump($data));
+				$session->log_printf_cond(OSCAR_DBG_DEBUG, sub { "New BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $entry->{name}, $type, $gid, $bid, length($data), hexdump($data) });
 
 				push @{$budmods{add}}, {
 					reqdata => {desc => "adding $budtype $entry->{name}", type => $type, gid => $gid, bid => $bid},
