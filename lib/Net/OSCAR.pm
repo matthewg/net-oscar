@@ -3,6 +3,8 @@ package Net::OSCAR;
 $VERSION = '1.99';
 $REVISION = '$Revision$';
 
+=pod
+
 =head1 NAME
 
 Net::OSCAR - Implementation of AOL's OSCAR protocol for instant messaging (for interacting with AIM a.k.a. AOL IM a.k.a. AOL Instant Messenger - and ICQ, too!)
@@ -1482,6 +1484,22 @@ sub buddyhash($) { bltie; }
 
 =pod
 
+=item findconn (FILENO)
+
+Finds the connection that is using the specified file number, or undef
+if the connection could not be found.  Returns a C<Net::OSCAR::Connection>
+object.
+
+=cut
+
+sub findconn($$) {
+	my($self, $target) = @_;
+	my($conn) = grep { fileno($_->{socket}) == $target } @{$self->{connections}};
+	return $conn;
+}
+
+=pod
+
 =item selector_filenos
 
 Returns a list whose first element is a vec of all filehandles that we care
@@ -2474,6 +2492,8 @@ As per above.
 
 =back
 
+=back
+
 =cut
 
 sub callback_buddy_icq_info(@) { do_callback("buddy_icq_info", @_); }
@@ -3264,22 +3284,6 @@ sub delconn($$) {
 	return 0;
 }
 
-=pod
-
-=item findconn (FILENO)
-
-Finds the connection that is using the specified file number, or undef
-if the connection could not be found.  Returns a C<Net::OSCAR::Connection>
-object.
-
-=cut
-
-sub findconn($$) {
-	my($self, $target) = @_;
-	my($conn) = grep { fileno($_->{socket}) == $target } @{$self->{connections}};
-	return $conn;
-}
-
 sub DESTROY {
 	my $self = shift;
 
@@ -3503,3 +3507,4 @@ sub must_be_on($) {
 
 
 1;
+
