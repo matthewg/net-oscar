@@ -194,7 +194,7 @@ print "\n";
 chomp $username;
 chomp $password;
 
-if($loglevel >= 10) {
+if($loglevel > 10) {
 	$pid = fork();
 	if(!$pid) {
 		umask 022;
@@ -446,4 +446,4 @@ EOF
 	}
 }
 
-sub END { system("/home/matthewg/skill $pid") if $loglevel >= 10; }
+sub END { system("/home/matthewg/skill $pid") if $loglevel > 10; }
