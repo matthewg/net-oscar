@@ -1396,10 +1396,6 @@ sub icon_checksum($$) {
 sub svcdo($$%) {
 	my($self, $service, %data) = @_;
 
-	my %snac = %data;
-	($snac{family}, $snac{subtype}) = protobit_to_snacfam($data{protobit}) or croak "Couldn't find protobit $data{protobit}";
-	$snac{data} = protoparse($self, $data{protobit})->(%{$data{protodata}});
-
 	if($self->{services}->{$service} and ref($self->{services}->{$service})) {
 		$self->{services}->{$service}->proto_send(%data);
 	} else {

@@ -68,6 +68,7 @@ sub hexdump($) {
 	my $retbuff = "";
 	my @stuff;
 
+	confess "No stuff" unless defined($stuff);
 	for(my $i = 0; $i < length($stuff); $i++) {
 		push @stuff, substr($stuff, $i, 1);
 	}

@@ -48,11 +48,11 @@ sub new($@) {
 sub proto_send($%) {
 	my($self, %data) = @_;
 
-	my %snac = %data;
+	my %snac;
 	($snac{family}, $snac{subtype}) = protobit_to_snacfam($data{protobit}) or croak "Couldn't find protobit $data{protobit}";
 	$snac{data} = protoparse($self->{session}, $data{protobit})->(%{$data{protodata}});
 
-	$self->log_print(OSCAR_DBG_DEBUG, "Put SNAC 0x%04X/0x%04X: %s", $snac{family}, $snac{subtype}, $data{protobit});
+	$self->log_printf(OSCAR_DBG_DEBUG, "Put SNAC 0x%04X/0x%04X: %s", $snac{family}, $snac{subtype}, $data{protobit});
 	$self->snac_put(%snac);
 }
 
@@ -60,11 +60,7 @@ sub proto_send($%) {
 
 sub fileno($) {
 	my $self = shift;
-	if(!$self->{socket}) {
-		$self->{sockerr} = 1;
-		$self->disconnect();
-		return undef;
-	}
+	return undef unless $self->{socket};
 	return fileno $self->{socket};
 }
 
@@ -110,7 +106,7 @@ sub flap_put($;$$) {
 			$self->{state} = "read";
 			$self->{session}->callback_connection_changed($self, "read");
 		}
-		$self->log_print(OSCAR_DBG_PACKETS, "Put ", hexdump($emsg));
+		$self->log_print(OSCAR_DBG_PACKETS, "Put '", hexdump($emsg), "'");
 	}
 }
 
@@ -182,9 +178,8 @@ sub snac_encode($%) {
 	$snac{reqid} ||= ($snac{subtype}<<16) | (unpack("n", randchars(2)))[0];
 	$self->{reqdata}->[$snac{family}]->{pack("N", $snac{reqid})} = $snac{reqdata} if $snac{reqdata};
 
-	#print "===\n", hexdump($snac{data}), "\n===\n";
-	#print hexdump(pack("a*", $snac{data})), "\n===\n";
-	return protoparse($self->{session}, "snac")->(%snac);
+	my $snac = protoparse($self->{session}, "snac")->(%snac);
+	return $snac;
 }
 
 sub snac_put($%) {
@@ -202,8 +197,6 @@ sub snac_get($) {
 sub snac_decode($$) {
 	my($self, $snac) = @_;
 	my(%data) = protoparse($self->{session}, "snac")->($snac);
-
-	my($family, $subtype, $flags1, $flags2, $reqid, $data) = (unpack("nnCCNa*", $snac));
 
 	if($data{flags1} & 0x80) {
 		my($minihdr_len) = unpack("n", $data{data});

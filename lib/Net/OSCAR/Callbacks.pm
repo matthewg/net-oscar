@@ -29,7 +29,7 @@ sub process_snac($$) {
 	my $session = $connection->{session};
 
 	my $protobit = snacfam_to_protobit($family, $subtype);
-	die "Unknown SNAC: $family/$subtype\n";
+	die "Unknown SNAC: $family/$subtype\n" unless $protobit;
 	my %data = protoparse($session, $protobit)->($data);
 	$connection->log_printf(OSCAR_DBG_DEBUG, "Got SNAC 0x%04X/0x%04X: %s", $snac->{family}, $snac->{subtype}, $protobit);
 
@@ -38,8 +38,10 @@ sub process_snac($$) {
 	} elsif($protobit eq "authentication key") {
 		if(defined($connection->{auth})) {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Sending password.");
-			my %signon_data = signon_tlv($session, $connection->{auth}, $data{key});
-			$session->svcdo(CONNTYPE_BOS, protobit => delete $data{protobit}, protodata => {%signon_data});
+			my(%signon_data) = signon_tlv($session, $connection->{auth}, $data{key});
+			my $protobit = delete $signon_data{protobit};
+
+			$session->svcdo(CONNTYPE_BOS, protobit => $protobit, protodata => \%signon_data);
 		} else {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Giving client authentication challenge.");
 			$session->callback_auth_challenge($data{key}, "AOL Instant Messenger (SM)");
@@ -56,16 +58,16 @@ sub process_snac($$) {
 			return 0;
 		} else {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Login OK - connecting to BOS");
-			$connection->{closing} = 1;
-			$connection->disconnect;
-			$session->{screenname} = $data{screenname};
-			$session->{email} = $data{email};
 			$session->addconn(
 				auth => $data{auth_cookie},
 				conntype => CONNTYPE_BOS,
 				description => "basic OSCAR service",
 				peer => $data{server_ip}
 			);
+			$connection->{closing} = 1;
+			$connection->disconnect;
+			$session->{screenname} = $data{screenname};
+			$session->{email} = $data{email};
 		}
 	} elsif($protobit eq "rate info response") {
 		$connection->proto_send(protobit => "rate acknowledgement");

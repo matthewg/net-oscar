@@ -41,6 +41,7 @@ use Memoize;
 memoize('protoparse');
 
 use Net::OSCAR::Common qw(:loglevels);
+use Net::OSCAR::Utility qw(hexdump tlv);
 
 require Exporter;
 @ISA = qw(Exporter);
@@ -116,12 +117,14 @@ sub _protopack($$;@) {
 		my $packet = shift;
 		my %data = ();
 
+		$oscar->log_print(OSCAR_DBG_DEBUG, "Decoding:\n", hexdump($packet));
+
 		foreach my $datum (@$template) {
 			if($datum->{type} eq "num") {
 				my $count = $datum->{count} || 1;
 				my @results;
 
-				for(my $i = 0; $packet and ($datum->{count} == -1 or $i < $datum->{count}); $i++) {
+				for(my $i = 0; $packet and ($count == -1 or $i < $count); $i++) {
 					push @results, unpack($datum->{packlet}, substr($packet, 0, $datum->{len}, ""));
 				}
 
@@ -130,7 +133,7 @@ sub _protopack($$;@) {
 				my $count = $datum->{count} || 1;
 				my @results;
 
-				for(my $i = 0; $packet and ($datum->{count} == -1 or $i < $datum->{count}); $i++) {
+				for(my $i = 0; $packet and ($count == -1 or $i < $count); $i++) {
 					if($datum->{packlet}) {
 						my(%tmp) = _protopack($oscar, [{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, name => "len"}], substr($packet, 0, $datum->{len}, ""));
 						if($datum->{name}) {
@@ -148,10 +151,10 @@ sub _protopack($$;@) {
 					}
 				}
 
-				if($data{$datum->{name}}) {
+				if($datum->{name}) {
 					if($datum->{count}) {
 						$data{$datum->{name}} = \@results;
-					} elsif($datum->{items}) {
+					} elsif(ref($datum->{items}) and @{$datum->{items}}) {
 						$data{$_} = $results[0]->{$_} foreach keys %{$results[0]};
 					} else {
 						$data{$datum->{name}} = $results[0];
@@ -203,14 +206,16 @@ sub _protopack($$;@) {
 							$data{$_} = $tmp{$_} foreach keys %tmp;
 						}
 					} else {
-						my(%tmp) = _protopack($oscar, [$val], $val->{data});
-						$data{$_} = $tmp{$_} foreach keys %tmp;
+						if(defined($val->{data})) {
+							my(%tmp) = _protopack($oscar, [$val], $val->{data});
+							$data{$_} = $tmp{$_} foreach keys %tmp;
+						}
 					}
 				}
 			}
 		}
 
-		$oscar->log_print(OSCAR_DBG_DEBUG, "Decoded:\n", join("\n", map { "\t$_ => $data{$_}" } keys %data));
+		$oscar->log_print(OSCAR_DBG_DEBUG, "Decoded:\n", join("\n", map { "\t$_ => ".hexdump($data{$_}) } keys %data));
 		return %data;
 	} else { # Pack
 		confess "WAHH!", Data::Dumper::Dumper($template) if @_ == 1;
@@ -226,14 +231,14 @@ sub _protopack($$;@) {
 			next unless defined($value);
 
 			if($datum->{type} eq "num") {
-				my $count = $datum->{count} || -1;
+				my $count = $datum->{count} || 1;
 
 				for(my $i = 0; ($count != -1 and $i < $count) or (ref($value) and @$value); $i++) {
 					my $val = ref($value) ? shift(@$value) : $value;
 					$packet .= pack($datum->{packlet}, $val);
 				}
 			} elsif($datum->{type} eq "data") {
-				my $count = $datum->{count} || -1;
+				my $count = $datum->{count} || 1;
 
 				for(my $i = 0; ($count != -1 and $i < $count) or (ref($value) and @$value); $i++) {
 					my $val = ref($value) ? shift(@$value) : $value;
@@ -255,7 +260,7 @@ sub _protopack($$;@) {
 				foreach (@{$datum->{items}}) {
 					$tlvcount++;
 
-					if(@$_ == 1) { # TLV contains a single element
+					if(ref($_->{items}) and @{$_->{items}} == 1) { # TLV contains a single element
 						# If the TLV contains a single element,
 						# AND that element has a name,
 						# AND that name doesn't exist in our input hash...
@@ -313,6 +318,7 @@ sub _protopack($$;@) {
 			}
 		}
 
+		confess "flags1" if $packet =~ /flags1/;
 		return $packet;
 	}
 }
@@ -454,7 +460,7 @@ sub protobit_to_snacfam($) {
 
 # Map a SNAC (family, subtype) to "protobit" (XML <define name="foo">)
 sub snacfam_to_protobit($$) {
-	my($family, $subtype) = $_;
+	my($family, $subtype) = @_;
 	if($xml_revmap{$family} and $xml_revmap{$family}->{$subtype}) {
 		return $xml_revmap{$family}->{$subtype};
 	} elsif($xml_revmap{0} and $xml_revmap{0}->{$subtype}) {
