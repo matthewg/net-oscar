@@ -8,8 +8,9 @@ TODO
 HACKING
 oscartest
 snacsnatcher
-t/basic.t
-t/xml_parse.t
+t/01_basic.t
+t/30_xml_parse.t
+t/40_xml_process.t
 t/test.xml
 OSCAR/_BLInternal.pm
 OSCAR/Buddylist.pm
