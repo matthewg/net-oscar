@@ -413,7 +413,7 @@ sub process_snac($$) {
 			$session->callback_chat_buddy_in($occupant->{screenname}, $connection, $occupant);
 		}
 	} elsif($family == 0x0E and $subtype == 0x04) {
-		while(substr($data, 0, 1) ne chr(0)) {
+		while($data and substr($data, 0, 1) ne chr(0)) {
 			my($emigree) = unpack("C/a*", $data);
 			substr($data, 0, 1+length($emigree)) = "";
 			$session->callback_chat_buddy_out($emigree, $connection);
