@@ -38,11 +38,13 @@ use vars qw(@ISA @EXPORT $VERSION);
 use XML::Parser;
 use Carp;
 use Memoize;
-memoize('protoparse');
+#memoize('protoparse', NORMALIZER => 'protoparse_normalizer');
+sub protoparse_normalizer { $_[1]; } # Ignore OSCAR object
 
 use Net::OSCAR::Common qw(:loglevels);
 use Net::OSCAR::Utility qw(hexdump);
 use Net::OSCAR::TLV;
+our(%xmlmap, %xml_revmap, $PROTOPARSE_DEBUG);
 
 require Exporter;
 @ISA = qw(Exporter);
@@ -50,48 +52,56 @@ require Exporter;
 	protoparse protobit_to_snacfam snacfam_to_protobit
 );
 
+$PROTOPARSE_DEBUG = 0;
 
 sub _protopack($$;@);
 sub _xmlnode_to_template($$);
 
-my $xmlparser = new XML::Parser(Style => "Tree");
-my $xmlfile = "";
-foreach (@INC) {
-	next unless -f "$_/Net/OSCAR/XML/Protocol.xml";
-	$xmlfile = "$_/Net/OSCAR/XML/Protocol.xml";
-	last;
-}
-croak "Couldn't find Net/OSCAR/XML/Protocol.xml in search path: " . join(" ", @INC) unless $xmlfile;
-open(XMLFILE, $xmlfile) or croak "Couldn't open $xmlfile: $!";
-my $xml = join("", <XMLFILE>);
-close XMLFILE;
-my $xmlparse = $xmlparser->parse($xml) or croak "Couldn't parse XML from $xmlfile: $@";
-my %xmlmap = ();
-my %xml_revmap;
-# We set the autovivification so that keys of xml_revmap are Net::OSCAR::TLV hashrefs.
-tie %xml_revmap, "Net::OSCAR::TLV", 'tie %$value, ref($self)';
+sub load_xml(;$) {
+	my $xmlparser = new XML::Parser(Style => "Tree");
 
-my @tags = @{$xmlparse->[1]}; # Get contents of <oscar>
-shift @tags;
-while(@tags) {
-	my($name, $value);
-	(undef, undef, $name, $value) = splice(@tags, 0, 4);
-	next unless $name and $name eq "define";
-	
-	$xmlmap{$value->[0]->{name}} = {xml => $value};
-	if($value->[0]->{family}) {
-		$xmlmap{$value->[0]->{name}}->{family} = $value->[0]->{family};
-		$xmlmap{$value->[0]->{name}}->{subtype} = $value->[0]->{subtype};
-		$xmlmap{$value->[0]->{name}}->{channel} = $value->[0]->{channel};
-		$xml_revmap{$value->[0]->{family}}->{$value->[0]->{subtype}} = $value->[0]->{name};
+	my $xmlfile = "";
+	if($_[0]) {
+		$xmlfile = shift;
+	} else {
+		foreach (@INC) {
+			next unless -f "$_/Net/OSCAR/XML/Protocol.xml";
+			$xmlfile = "$_/Net/OSCAR/XML/Protocol.xml";
+			last;
+		}
+		croak "Couldn't find Net/OSCAR/XML/Protocol.xml in search path: " . join(" ", @INC) unless $xmlfile;
 	}
+
+	open(XMLFILE, $xmlfile) or croak "Couldn't open $xmlfile: $!";
+	my $xml = join("", <XMLFILE>);
+	close XMLFILE;
+	my $xmlparse = $xmlparser->parse($xml) or croak "Couldn't parse XML from $xmlfile: $@";
+	%xmlmap = ();
+	%xml_revmap = ();
+	# We set the autovivification so that keys of xml_revmap are Net::OSCAR::TLV hashrefs.
+	if(!tied(%xml_revmap)) {
+		tie %xml_revmap, "Net::OSCAR::TLV", 'tie %$value, ref($self)';
+	}
+
+	my @tags = @{$xmlparse->[1]}; # Get contents of <oscar>
+	shift @tags;
+	while(@tags) {
+		my($name, $value);
+		(undef, undef, $name, $value) = splice(@tags, 0, 4);
+		next unless $name and $name eq "define";
+	
+		$xmlmap{$value->[0]->{name}} = {xml => $value};
+		if($value->[0]->{family}) {
+			$xmlmap{$value->[0]->{name}}->{family} = $value->[0]->{family};
+			$xmlmap{$value->[0]->{name}}->{subtype} = $value->[0]->{subtype};
+			$xmlmap{$value->[0]->{name}}->{channel} = $value->[0]->{channel};
+			$xml_revmap{$value->[0]->{family}}->{$value->[0]->{subtype}} = $value->[0]->{name};
+		}
+	}
+
+	return 1;
 }
 
-sub _xmldump {
-	require Data::Dumper;
-	print Data::Dumper::Dumper(\%xml_revmap);
-	exit;
-}
 
 # Specification for _protopack "pack template":
 #	-Listref whose elements are hashrefs.
@@ -519,6 +529,7 @@ sub protoparse($$) {
 		push @template, _xmlnode_to_template($tag, $value);
 	}
 
+	return @template if $PROTOPARSE_DEBUG;
 	return sub { _protopack($oscar, \@template, @_); };
 }
 

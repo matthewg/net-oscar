@@ -164,6 +164,8 @@ require Exporter;
 @EXPORT_OK = @Net::OSCAR::Common::EXPORT_OK;
 %EXPORT_TAGS = %Net::OSCAR::Common::EXPORT_TAGS;
 
+Net::OSCAR::XML::load_xml();
+
 =pod
 
 =item new ([capabilities => CAPABILITIES])

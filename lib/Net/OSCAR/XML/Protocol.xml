@@ -392,9 +392,9 @@
 	<define name="chat navigator request" family="13" subtype="8">
 		<word name="exchange" />
 		<data length_prefix="byte">create</data>
-		<word>0xFFFF</word>
-		<word>0x0100</word>
-		<byte>0x03</byte>
+		<word>65535</word>
+		<word>256</word>
+		<byte>3</byte>
 		<tlvchain>
 			<tlv type="215"><data>en</data></tlv>
 			<tlv type="214"><data>us-ascii</data></tlv>

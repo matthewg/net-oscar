@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<!DOCTYPE oscar SYSTEM "Protocol.dtd">
+
+<oscar>
+	<!-- Simple primitives -->
+	<define name="just_byte"><byte /></define>
+	<define name="just_word"><word /></define>
+	<define name="just_dword"><dword /></define>
+	<define name="just_data"><data /></define>
+
+	<!-- Naming -->
+	<define name="named_element"><data name="foo" /></define>
+
+	<!-- Fixed values -->
+	<define name="fixed_value"><word>123</word></define>
+
+	<!-- Length prefixes, counts -->
+	<define name="length_prefix"><data length_prefix="word" /></define>
+	<define name="vax_prefix"><data length_prefix="word" prefix_order="vax" /></define>
+	<define name="count_prefix"><data count_prefix="word" /></define>
+	<define name="repeated_data"><data count="-1" /></define>
+	<define name="fixed_width_data"><data length="10" /></define>
+
+	<!-- TLVs -->
+	<define name="basic_tlv">
+		<tlvchain>
+			<tlv type="1"><data /></tlv>
+			<tlv type="2"><data /></tlv>
+		</tlvchain>
+	</define>
+	<define name="named_tlv">
+		<tlvchain>
+			<tlv type="1" name="foo"><data /></tlv>
+			<tlv type="2" name="bar"><data /></tlv>
+		</tlvchain>
+	</define>
+	<define name="complex_data_tlv">
+		<tlvchain>
+			<tlv type="1">
+				<data name="foo" />
+				<word name="bar" />
+				<dword />
+				<byte name="baz" />
+			</tlv>
+		</tlvchain>
+	</define>
+	<define name="subtyped_tlv">
+		<tlvchain subtyped="yes">
+			<tlv type="1" subtype="1" name="foo"><data /></tlv>
+			<tlv type="1" subtype="2" name="bar"><data /></tlv>
+		</tlvchain>
+	</define>
+	<define name="count_prefic_tlv">
+		<tlvchain count_prefix="word">
+			<tlv type="1"><data /></tlv>
+		</tlvchain>
+	</define>
+
+	<!-- ref -->
+	<define name="ref_foo"><data /></define>
+	<define name="ref_bar"><data /></define>
+	<define name="ref"><ref name="ref_foo" /><ref name="ref_bar" /></define>
+
+	<!-- SNAC -->
+	<define name="snac" family="1" subtype="2"><data /></define>
+
+	<!-- Miscellaneous -->
+	<define name="empty_def" />
+
+</oscar>
