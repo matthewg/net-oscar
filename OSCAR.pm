@@ -282,7 +282,7 @@ sub delconn($$) {
 				$self->callback_chat_closed($connection, "Lost connection to chat");
 			}
 		}
-		$self->callback_connection_changed($connection, "delete");
+		$self->callback_connection_changed($connection, "deleted");
 		delete $connection->{socket};
 		return 1;
 	}
@@ -1628,11 +1628,13 @@ allows you to get or set the loglevel.
 
 =item connection_changed OSCAR CONNECTION STATUS
 
-Called when the status of a connection changes.  The status is C<"read"> if we
+Called when the status of a connection changes.  The status is "read" if we
 should call C<process_one> on the connection when C<select> indicates that
-the connection is ready for reading, C<"write"> if we should call
-C<process_one> when the connection is ready for writing, or C<"delete"> if the
+the connection is ready for reading, "write" if we should call
+C<process_one> when the connection is ready for writing, or "deleted" if the
 connection has been deleted.
+
+C<CONNECTION> is a C<Net::OSCAR::Connection> object.
 
 Users of this callback may also be interested in the L<"get_filehandle">
 method of C<Net::OSCAR::Connection>.
