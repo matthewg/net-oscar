@@ -126,9 +126,6 @@ use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::Constants;
 use Net::OSCAR::Utility;
 use Net::OSCAR::Connection;
-use Net::OSCAR::Connection::Chat;
-use Net::OSCAR::Connection::Direct;
-use Net::OSCAR::Connection::Server;
 use Net::OSCAR::Callbacks;
 use Net::OSCAR::TLV;
 use Net::OSCAR::Buddylist;
@@ -3734,11 +3731,14 @@ sub addconn($@) {
 	$data{description} ||= $conntype;
 
 	if($conntype == CONNTYPE_CHAT) {
+		require Net::OSCAR::Connection::Chat;
 		$connection = Net::OSCAR::Connection::Chat->new(%data);
 	} elsif($conntype == CONNTYPE_DIRECT_IN) {
+		require Net::OSCAR::Connection::Direct;
 		$connection = Net::OSCAR::Connection::Direct->new(%data);
 		$connection->listen();
 	} elsif($conntype == CONNTYPE_SERVER) {
+		require Net::OSCAR::Connection::Server;
 		$connection = Net::OSCAR::Connection::Server->new(%data);
 	} else {
 		$connection = Net::OSCAR::Connection->new(%data);
