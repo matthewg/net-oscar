@@ -8,13 +8,12 @@ use vars qw($pid $oscar @chats @invites);
 #$Carp::Verbose = 1;
 $| = 1;
 
-sub error($$$$$$$$;$) {
-	my($oscar, $connection, $error, $errno, $url, $reqdata, $family, $subtype, $fatal) = @_;
-	$error = "{$reqdata} $error" if $reqdata;
+sub error($$$$$) {
+	my($oscar, $connection, $errno, $error, $fatal) = @_;
 	if($fatal) {
-		die "Fatal error in ".$connection->{description}.": $error\n";
+		die "Fatal error $errno in ".$connection->{description}.": $error\n";
 	} else {
-		print STDERR "$error\n";
+		print STDERR "Error $errno: $error\n";
 	}
 }
 
@@ -359,6 +358,8 @@ EOF
 		} elsif($cmd eq "yourinfo") {
 			print "Screenname: ", $oscar->screenname, "\n";
 			print "Email: ", $oscar->email, "\n";
+		} elsif($cmd eq "") {
+			# Do nothing
 		} else {
 			print "Invalid command.\n";
 		}

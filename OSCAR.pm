@@ -1222,7 +1222,7 @@ sub chat_accept($$) {
 
 sub crapout($$$) {
 	my($self, $connection, $reason) = @_;
-	$self->callback_error($connection, $reason, 0, "", "", 0, 0, 1);
+	send_error($self, $connection, 0, $reason, 1);
 	$self->signoff();
 }
 

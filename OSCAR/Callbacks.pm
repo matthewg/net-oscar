@@ -309,7 +309,7 @@ sub process_snac($$) {
 
 				if($type == 4) {
 					$tlv = tlv_decode($typedata);
-					($session->{visibility}) = unpack("C", $tlv->{0xCA});
+					($session->{visibility}) = unpack("C", $tlv->{0xCA}) if $tlv->{0xCA};
 
 
 					$groupperms = $tlv->{0xCB};

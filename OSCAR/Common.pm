@@ -46,7 +46,7 @@ require Exporter;
 		GROUP_PERMIT GROUP_DENY GROUPPERM_OSCAR GROUPPERM_AOL
 		ENCODING
 		ERRORS
-		randchars debug_print debug_printf hexdump normalize tlv_decode tlv_encode tlv
+		randchars debug_print debug_printf hexdump normalize tlv_decode tlv_encode tlv send_error
 	)]
 );
 @EXPORT_OK = map { @$_ } values %EXPORT_TAGS;
