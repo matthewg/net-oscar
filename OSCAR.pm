@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = 0.25;
+$VERSION = 0.50;
 
 =head1 NAME
 
@@ -1899,6 +1899,38 @@ of C<Net::OSCAR::Connection>, not C<Net::OSCAR>.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+0.50, 2001-12-23
+
+=over 4
+
+=item *
+
+Fixes for the "crap out on 'connection reset by peer'" and "get stuck and slow down in Perl_sv_2bool" bugs!
+
+=item *
+
+Correct handling of very large (over 100 items) buddylists.
+
+=item *
+
+We can now join exchange 5 chats.
+
+=item *
+
+Fixes in modifying permit mode.
+
+=item *
+
+Updated copyright notice courtesy of AOL's lawyers.
+
+=item *
+
+Switch to IO::Socket for portability in set_blocking.
+
+=back
 
 =item *
 
