@@ -212,7 +212,9 @@ sub signoff($) {
 	foreach my $connection(@{$self->{connections}}) {
 		$self->delconn($connection);
 	}
+	my $screenname = $self->{screenname};
 	%$self = ();
+	$self->{screename} = $screenname; # Useful for post-mortem processing in multiconnection apps
 }
 
 =pod
