@@ -22,7 +22,7 @@ use constant BLI_AUTOVIV =>
 	q!
 		tie %$value, ref($self), q#
 			tie %$value, ref($self), q^
-				$value->{name} = ""; $value->{data} = tlvtie;
+				$value->{name} = ""; $value->{data} = Net::OSCAR::Common::tlvtie;
 			^
 		#
 	!;
