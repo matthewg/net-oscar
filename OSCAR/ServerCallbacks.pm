@@ -181,6 +181,12 @@ sub process_snac($$) {
 			idle => 0,
 			capabilities => ""
 		});
+	} elsif($protobit eq "outgoing IM") {
+		$connection->proto_send(reqid => $reqid, protobit => "IM acknowledgement", protodata => {
+			cookie => $data{cookie},
+			channel => $data{channel},
+			screenname => $data{screenname}
+		});
 	} else {
 		#srv_send_error($connection, $family, 1);
 		print "Unhandled protobit: $protobit\n";
