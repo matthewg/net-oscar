@@ -27,13 +27,12 @@ $REVISION = '$Revision$';
 
 use strict;
 use vars qw(@ISA @EXPORT $VERSION);
-use XML::Parser;
 use Carp;
 use Data::Dumper;
 
 use Net::OSCAR::TLV;
 use Net::OSCAR::XML::Template;
-our(%xmlmap, %xml_revmap, $PROTOPARSE_DEBUG);
+our(%xmlmap, %xml_revmap, $PROTOPARSE_DEBUG, $NO_XML_CACHE);
 
 require Exporter;
 @ISA = qw(Exporter);
@@ -42,11 +41,33 @@ require Exporter;
 );
 
 $PROTOPARSE_DEBUG = 0;
+$NO_XML_CACHE = 0;
 
 sub _protopack($$;@);
 sub _xmlnode_to_template($$);
 
 sub load_xml(;$) {
+	# Look for parsed-xml file
+	if(!$NO_XML_CACHE) {
+		foreach (@INC) {
+			next unless -f "$_/Net/OSCAR/XML/Protocol.parsed-xml";
+
+			open(XMLCACHE, "$_/Net/OSCAR/XML/Protocol.parsed-xml") or next;
+			my $xmlcache = join("", <XMLCACHE>);
+			close(XMLCACHE);
+
+			my $xmlparse;
+			eval $xmlcache or die "Coldn't load xml cache: $@\n";
+			die $@ if $@;
+			return parse_xml($xmlparse);
+		}
+	}
+
+	eval {
+		require XML::Parser;
+	} or die "Couldn't load XML::Parser ($@)\n";
+	die $@ if $@;
+
 	my $xmlparser = new XML::Parser(Style => "Tree");
 
 	my $xmlfile = "";
@@ -65,6 +86,13 @@ sub load_xml(;$) {
 	my $xml = join("", <XMLFILE>);
 	close XMLFILE;
 	my $xmlparse = $xmlparser->parse($xml) or croak "Couldn't parse XML from $xmlfile: $@";
+
+	parse_xml($xmlparse);
+}
+
+sub parse_xml($) {
+	my $xmlparse = shift;
+
 	%xmlmap = ();
 	%xml_revmap = ();
 	# We set the autovivification so that keys of xml_revmap are Net::OSCAR::TLV hashrefs.

@@ -6,7 +6,7 @@ package Net::OSCAR::XML::Template;
 use strict;
 use warnings;
 
-use Net::OSCAR::XML qw(protoparse);
+use Net::OSCAR::XML;
 use Net::OSCAR::Common qw(:loglevels);
 use Net::OSCAR::Utility qw(hexdump);
 use Net::OSCAR::TLV;

@@ -1,16 +1,27 @@
 #!/usr/bin/perl
 
-use Test::More tests => 27;
+eval {
+	require Test::More;
+	require XML::Parser;
+};
+if($@) {
+	print "1..0 # Skipped: Couldn't load Test::More or XML::Parser\n";
+	exit 0;
+}
+
 use File::Basename;
 use strict;
 use lib "./blib/lib";
 no warnings;
+
+Test::More->import(tests => 27);
 
 require_ok("Net::OSCAR");
 require_ok("Net::OSCAR::XML");
 Net::OSCAR::XML->import('protoparse');
 
 my $oscar = Net::OSCAR->new();
+$Net::OSCAR::XML::NO_XML_CACHE = 1;
 is(Net::OSCAR::XML::load_xml(dirname($0)."/test.xml"), 1, "loading XML test file");
 
 is_deeply([sort keys(%Net::OSCAR::XML::xmlmap)], [sort qw(

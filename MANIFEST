@@ -9,9 +9,11 @@ HACKING
 PROTOCOL
 oscartest
 snacsnatcher
+xmlcache
 t/01_basic.t
 t/30_xml_parse.t
 t/40_xml_process.t
+t/41_xml_cornercases.t
 t/test.xml
 OSCAR/_BLInternal.pm
 OSCAR/Buddylist.pm
@@ -29,4 +31,5 @@ OSCAR/Connection/Direct.pm
 OSCAR/XML/Template.pm
 OSCAR/XML/Protocol.dtd
 OSCAR/XML/Protocol.xml
+OSCAR/XML/Protocol.parsed-xml
 META.yml                                 Module meta-data (added by MakeMaker)

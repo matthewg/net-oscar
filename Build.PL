@@ -9,11 +9,16 @@ $build = Module::Build->new (
                 'perl' => '5.6.1',
                 'Digest::MD5' => '>= 2.0',
                 'Scalar::Util' => '>= 1.0',
+	},
+	recommends => {
 		'Test::More' => '>= 0.01',
 		'XML::Parser' => '>= 0.01',
 	},
 	create_makefile_pl => "traditional",
 	dist_version_from => "OSCAR.pm",
+	PL_files => {
+		'xmlcache' => 'lib/xmlcache'
+	},
 	pm_files => {
 		'OSCAR.pm' => 'lib/Net/OSCAR.pm',
 		'OSCAR/Connection/Chat.pm' => 'lib/Net/OSCAR/Connection/Chat.pm',
@@ -31,7 +36,8 @@ $build = Module::Build->new (
 		'OSCAR/XML.pm' => 'lib/Net/OSCAR/XML.pm',
 		'OSCAR/XML/Template.pm' => 'lib/Net/OSCAR/XML/Template.pm',
 		'OSCAR/XML/Protocol.xml' => 'lib/Net/OSCAR/XML/Protocol.xml',
-		'OSCAR/XML/Protocol.dtd' => 'lib/Net/OSCAR/XML/Protocol.dtd'
+		'OSCAR/XML/Protocol.dtd' => 'lib/Net/OSCAR/XML/Protocol.dtd',
+		'OSCAR/XML/Protocol.parsed-xml' => 'lib/Net/OSCAR/XML/Protocol.parsed-xml'
 	},
 );
 $build->create_build_script;
