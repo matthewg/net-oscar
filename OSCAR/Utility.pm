@@ -110,7 +110,7 @@ sub _protopack($$@) {
 		my $packet = shift;
 		my %data = ();
 
-		foreach my $datum (@$packet) {
+		foreach my $datum (@$template) {
 			if($datum->{type} eq "num") {
 				if($datum->{name}) {
 					($data{$datum->{name}}) = unpack($datum->{packlet}, substr($packet, 0, $datum->{len}, ""));
@@ -189,7 +189,7 @@ sub _protopack($$@) {
 
 		$oscar->log_print(OSCAR_DBG_DEBUG, "Encoding:\n", join("\n", map { "\t$_ => $data{$_}" } keys %data));
 
-		foreach my $datum (@$packet) {
+		foreach my $datum (@$template) {
 			my $value = $data{$datum->{name}} || $datum->{value};
 			next unless defined($value);
 
@@ -308,7 +308,7 @@ sub _xmlnode_to_template($$) {
 
 sub protoparse($$) {
 	my ($oscar, $wanted) = @_;
-	my $xml = $xmlmap{shift} or croak "Couldn't find requested protocol element '$wanted'.";
+	my $xml = $xmlmap{$wanted} or croak "Couldn't find requested protocol element '$wanted'.";
 
 	my $attrs = shift @$xml;
 
