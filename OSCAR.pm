@@ -1027,7 +1027,7 @@ sub extract_userinfo($$) {
 
 	($retval->{membersince}) = unpack("N", $tlv->{2}) if exists($tlv->{2});
 	($retval->{onsince}) = unpack("N", $tlv->{3}) if exists($tlv->{3});
-	($retval->{idle}) = unpack("n", $tlv->{4}) if exists($tlv->{4});
+	($retval->{idle}) = unpack("n", $tlv->{4})*60 if exists($tlv->{4});
 	if(exists($tlv->{0xD})) {
 		$self->log_print(OSCAR_DBG_DEBUG, "Got capabilities block.");
 		$retval->{capabilities} = {};
