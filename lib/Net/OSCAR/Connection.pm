@@ -306,7 +306,6 @@ sub snac_put($%) {
 			if($key) {
 				my $rinfo = $self->{rate_limits}->{$key};
 				if($rinfo) {
-					print Data::Dumper::Dumper($rinfo), "\n";
 					$rinfo->{current_state} = max(
 						$rinfo->{max},
 						$self->{session}->_compute_rate($rinfo)
