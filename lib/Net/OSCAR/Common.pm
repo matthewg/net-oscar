@@ -106,9 +106,9 @@ use constant ENCODING => 'text/aolrtf; charset="us-ascii"';
 use constant ERRORS => split(/\n/, <<EOF);
 Invalid error
 Invalid SNAC
-Rate to host
-Rate to client
-Not logged in
+Sending too fast to host
+Sending too fast to client
+%s is not logged in, so the attempted operation (sending an IM, getting user information) was unsuccessful
 Service unavailable
 Service not defined
 Obsolete SNAC
@@ -120,7 +120,7 @@ Responses lost
 Request denied
 Busted SNAC payload
 Insufficient rights
-In local permit/deny
+%s is in your permit or deny list
 Too evil (sender)
 Too evil (receiver)
 User temporarily unavailable
@@ -270,6 +270,12 @@ sub tlv_encode($) {
 
 	}
 	return $buffer;
+}
+
+sub send_error($$$$$;@) {
+	my($oscar, $connection, $error, $desc, $fatal, @reqdata) = @_;
+	$desc = sprintf $desc, @reqdata;
+	$oscar->callback_error($connection, $error, $desc, $fatal);
 }
 
 1;

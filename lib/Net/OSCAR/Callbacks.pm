@@ -147,7 +147,7 @@ sub process_snac($$) {
 		my $tlv = tlv_decode($data) if $data;
 		$error .= (ERRORS)[$errno] || "unknown error $errno";
 		$error .= "(".$tlv->{4}.")." if $tlv;
-		$session->callback_error($connection, $error, $errno, $tlv->{4}, $reqdata, $family, $subtype);
+		send_error($session, $connection, $errno, (ERRORS)[$errno] || "unknown error $errno", 0, $reqdata);
 	} elsif($family == 0x1 and $subtype == 0xf) {
 		$connection->debug_print("Got user information response.");
 	} elsif($family == 0x9 and $subtype == 0x3) {

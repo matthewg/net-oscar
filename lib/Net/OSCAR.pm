@@ -1440,23 +1440,16 @@ when using multiple C<Net::OSCAR> objects.
 
 =over 4
 
-=item error (OSCAR, CONNECTION, DESCRIPTION, ERRNO, URL, REQDATA, FAMILY, SUBTYPE[, FATAL])
+=item error (OSCAR, CONNECTION, ERROR, DESCRIPTION, FATAL)
 
-Called when any sort of error occurs (except see L<admin_error> below.)  Note that most
-of these parameters, except for OSCAR, DESCRIPTION, and FATAL, are optional.
+Called when any sort of error occurs (except see L<admin_error> below.)
 
-CONNECTION is the particular connection which generated the error - the C<debug_print> method of
+C<CONNECTION> is the particular connection which generated the error - the C<debug_print> method of
 C<Net::OSCAR::Connection> may be useful, as may be getting C<$connection->{description}>.
-DESCRIPTION is a somewhat nicely formatted error message.  It is recommended that you just
-use this and ignore all the other parameters (except for FATAL) unless you want to get fancy.
+C<DESCRIPTION> is a nicely formatted description of the error.  C<ERROR> is an error number.
 
-ERRNO is the error number - a list of error descriptions indexed by error number is returned
-by C<Net::OSCAR::Common::ERRORS>.  URL is an http URL which the user can visit for more information
-about the error.  REQDATA is some data the was associated with the request which generated the error.
-At present, it is a screenname for errors sending IMs or retrieving user information.  FAMILY and
-SUBTYPE are the SNAC numbers of the request which generated the error and probably aren't too useful
-to you.  FATAL is non-zero if the error was fatal - something like an invalid password on signon or
-the connection to OSCAR being severed.
+If C<FATAL> is non-zero, the error was fatal and the connection to OSCAR has been
+closed.
 
 =item rate_alert (OSCAR, LEVEL, CLEAR, WINDOW)
 
