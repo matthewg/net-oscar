@@ -146,6 +146,8 @@ use Digest::MD5 qw(md5);
 use Socket;
 use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::Connection;
+use Net::OSCAR::Connection::Direct;
+use Net::OSCAR::Connection::Direct::Listener;
 use Net::OSCAR::Callbacks;
 use Net::OSCAR::TLV;
 use Net::OSCAR::Buddylist;
