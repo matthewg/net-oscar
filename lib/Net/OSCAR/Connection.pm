@@ -67,7 +67,7 @@ sub flap_get($) {
 
 		if(!sysread($self->{socket}, $buffer, $self->{buffsize} - length($self->{buffer}))) {
 			if($self == $self->{session}->{bos}) {
-				$self->{session}->crapout($self, "$!");
+				return $self->{session}->crapout($self, "$!");
 			} else {
 				$self->log_print(OSCAR_DBG_NOTICE, "Lost connection.");
 				$self->{sockerr} = 1;
@@ -256,7 +256,7 @@ sub process_one($) {
 		} else {
 			$self->log_print(OSCAR_DBG_DEBUG, "Got connack.");
 		}
-		$self->{session}->crapout($self, "Got bad connack from server") unless $self->{channel} == FLAP_CHAN_NEWCONN;
+		return $self->{session}->crapout($self, "Got bad connack from server") unless $self->{channel} == FLAP_CHAN_NEWCONN;
 
 		if($self->{conntype} == CONNTYPE_LOGIN) {
 			$self->log_print(OSCAR_DBG_DEBUG, "Got connack.  Sending connack.");

@@ -272,7 +272,9 @@ sub delconn($$) {
 			};
 		} else {
 			if($connection->{conntype} == CONNTYPE_BOS) {
-				$self->crapout($connection, "Lost connection to BOS");
+				$self->callback_connection_changed($connection, "deleted");
+				delete $connection->{socket};
+				return $self->crapout($connection, "Lost connection to BOS");
 			} elsif($connection->{conntype} == CONNTYPE_CHATNAV) {
 				delete $self->{chatnav};
 			} elsif($connection->{conntype} == CONNTYPE_ADMIN) {
