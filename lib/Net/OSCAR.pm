@@ -223,6 +223,12 @@ sub new($) {
 	$self->{stealth} = 0;
 	$self->{icq_meta_info_cache} = {};
 	$self->{ip} = 0;
+	$self->{bl_limits} = {
+		buddies => 0,
+		groups => 0,
+		permits => 0,
+		denies => 0
+	};
 
 	$self->{timeout} = 0.01;
 	$self->{capabilities} = {};
@@ -656,6 +662,43 @@ sub set_buddy_alias($$$;$) {
 	$bud->{alias} = $alias;
 	$bud->{__BLI_DIRTY} = 1;
 }
+
+=pod
+
+=item buddylist_limits
+
+Returns a hash containing the maximum number of buddylist entries
+of various types.  The keys in the hash are:
+
+=over 4
+
+=item *
+
+buddies
+
+=item *
+
+groups
+
+=item *
+
+permits
+
+=item *
+
+denies
+
+=back
+
+So, the maximum number of buddies allowed on a buddylist is stored in the C<buddies> key.
+Please note that buddylist storage has some overhead, so the actual number of items you
+can have on a buddylist may be slightly less than advertised.
+
+If the OSCAR server did not inform us of the limits, values of 0 will be used.
+
+=cut
+
+sub buddylist_limits($) { return %{shift->{bl_limits}}; }
 
 =pod
 

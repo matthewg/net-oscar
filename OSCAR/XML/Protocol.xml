@@ -244,7 +244,11 @@
 
 	<!-- Buddylist stuff -->
 
-	<define name="buddylist 3 response" family="19" subtype="3" />
+	<define name="buddylist 3 response" family="19" subtype="3">
+		<tlvchain>
+			<tlv type="4"><word count="-1" name="maximums" /></tlv>
+		</tlvchain>
+	</define>
 	<define name="buddylist" family="19" subtype="6"> <!-- This is supremely weird and fucked up, no bloody way we'll be able to get it in the XML; notably, it is split across multiple SNACs, but not on any sort of coherent boundary, and you have to slice random bits off the front and back...  See OSCAR/Callbacks.pm handler for this protobit. -->
 		<data name="data" />		
 	</define>

@@ -434,6 +434,7 @@ set_buddy_comment group buddy [comment]
 set_buddy_alias group buddy [alias]
 reorder_groups groups
 reorder_buddies group buddies
+buddylist_limits
 ====chat====
 join chat_name
 accept_invite chat_URL
@@ -558,6 +559,11 @@ EOF
 			my $group = shift @params;
 			$oscar->reorder_buddies($group, @params);
 			$oscar->commit_buddylist;
+		} elsif($cmd eq "buddylist_limits") {
+			my %limits = $oscar->buddylist_limits();
+			foreach (sort keys %limits) {
+				print "$_: $limits{$_}\n";
+			}
 		} elsif($cmd eq "join") {
 			$oscar->chat_join(join(" ", @params));
 		} elsif($cmd eq "accept_invite") {

@@ -370,6 +370,12 @@ sub process_snac($$) {
 		$session->callback_im_ok($reqdata, $reqid);
 	} elsif($protobit eq "buddylist 3 response") {
 		$session->{gotbl} = 1;
+		$session->{bl_limits} = {
+			buddies => $data{maximums}->[0],
+			groups => $data{maximums}->[1],
+			permits => $data{maximums}->[2],
+			denies => $data{maximums}->[3]
+		};
 	} elsif($protobit eq "buddylist") {
 		$session->{blarray} ||= [];
 		substr($data{data}, 0, 3) = "";
