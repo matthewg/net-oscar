@@ -194,17 +194,15 @@ sub set_blocking($$) {
 	my $blocking = shift;
 	my $flags = 0;
 
-	my $socket = $self->{socket};
-
-	fcntl($socket, F_GETFL, $flags);
+	fcntl($self->{socket}, F_GETFL, $flags);
 	if($blocking) {
 		$flags &= ~O_NONBLOCK;
 	} else {
 		$flags |= O_NONBLOCK;
 	}
-	fcntl($socket, F_SETFL, $flags);
+	fcntl($self->{socket}, F_SETFL, $flags);
 
-	return $socket;
+	return $self->{socket};
 }
 
 sub connect($$) {
@@ -267,18 +265,18 @@ sub connect($$) {
 			die "Unknown proxy_type - valid types are SOCKS4, SOCKS5, and HTTP\n";
 		}
 	} else {
-		$self->{ready} = 0;
-		$self->{connected} = 0;
-		$self->set_blocking(0);
-
 		$self->{socket} = gensym;
 		socket($self->{socket}, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
+		$self->set_blocking(0);
 
 		my $addr = inet_aton($host) or return $self->{session}->crapout($self, "Couldn't resolve $host.");
 		if(!connect($self->{socket}, sockaddr_in($port, $addr))) {
 			return 1 if $! == EINPROGRESS;
 			return $self->{session}->crapout($self, "Couldn't connect to $host:$port: $!");
 		}
+
+		$self->{ready} = 0;
+		$self->{connected} = 0;
 	}
 
 	return 1;
