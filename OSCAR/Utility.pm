@@ -45,7 +45,7 @@ use Carp;
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(
-	randchars log_print log_printf hexdump normalize tlv_decode tlv_encode tlv send_error bltie signon_tlv encode_password protoparse
+	randchars log_print log_printf hexdump normalize tlv_decode tlv_encode tlv send_error bltie signon_tlv encode_password protoparse protobit_to_snacfam snacfam_to_protobit
 );
 
 use Memoize;
@@ -316,7 +316,7 @@ sub _xmlnode_to_template($$) {
 
 sub protoparse($$) {
 	my ($oscar, $wanted) = @_;
-	my $xml = $xmlmap{$wanted} or croak "Couldn't find requested protocol element '$wanted'.";
+	my $xml = $xmlmap{$wanted}->{xml} or croak "Couldn't find requested protocol element '$wanted'.";
 
 	my $attrs = shift @$xml;
 
@@ -332,6 +332,17 @@ sub protoparse($$) {
 	return sub { _protopack($oscar, \@template, @_); };
 }
 
+# Map a "protobit" (XML <define name="foo">) to SNAC (family, subtype)
+sub protobit_to_snacfam($) {
+	my $protobit = shift;
+	return ($xmlmap{$protobit}->{family}, $xmlmap{$protobit}->{subtype});
+}
+
+# Map a SNAC (family, subtype) to "protobit" (XML <define name="foo">)
+sub snacfam_to_protobit($$) {
+	my($family, $subtype) = $_;
+	return $xml_revmap{$family} ? $xml_revmap{$family}->{$subtype} : undef;
+}
 
 
 sub tlv(;@) {
@@ -476,36 +487,28 @@ sub bltie(;$) {
 sub signon_tlv($;$$) {
 	my($session, $password, $key) = @_;
 
-	my $tlv = tlv(
-		0x01 => $session->{screenname},
-		0x03 => $session->{svcdata}->{clistr},
-		0x16 => pack("n", $session->{svcdata}->{supermajor}),
-		0x17 => pack("n", $session->{svcdata}->{major}),
-		0x18 => pack("n", $session->{svcdata}->{minor}),
-		0x19 => pack("n", $session->{svcdata}->{subminor}),
-		0x1A => pack("n", $session->{svcdata}->{build}),
-		0x14 => pack("N", $session->{svcdata}->{subbuild}),
-		0x0F => "en", # lang
-		0x0E => "us", # country
-		0x4A => pack("C", 1), # Use SSI
+	my %protodata = (
+		screenname => $session->{screenname},
+		clistr => $session->{svcdata}->{clistr},
+		supermajor => $session->{svcdata}->{supermajor},
+		major => $session->{svcdata}->{major},
+		minor => $session->{svcdata}->{minor},
+		subminor => $session->{svcdata}->{subminor},
+		build => $session->{svcdata}->{build},
+		subbuild => $session->{svcdata}->{subbuild},
 	);
 
 	if($session->{svcdata}->{hashlogin}) {
-		$tlv->{0x02} = encode_password($session, $password);
+		$protodata{password} = encode_password($session, $password);
 	} else {
 		if($session->{auth_response}) {
-			($tlv->{0x25}) = delete $session->{auth_response};
+			$protodata{auth_response} = delete $session->{auth_response};
 		} else {
-			$tlv->{0x25} = encode_password($session, $password, $key);
-		}
-		$tlv->{0x4A} = pack("C", 1);
-
-		if($session->{svcdata}->{betainfo}) {
-			$tlv->{0x4C} = $session->{svcinfo}->{betainfo};
+			$protodata{auth_response} = encode_password($session, $password, $key);
 		}
 	}
 
-	return $tlv;
+	return %protodata;
 }
 
 sub encode_password($$;$) {

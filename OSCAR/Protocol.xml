@@ -17,6 +17,46 @@
 		<data name="data" />
 	</define>
 
+	<define name="get info" family="2" subtype="21">
+		<word>0</word>
+		<word>1</word>
+		<data length_prefix="byte" name="screenname" />
+	</define>
+	<define name="get away" family="2" subtype="21">
+		<word>0</word>
+		<word>3</word>
+		<data length_prefix="byte" name="screenname" />
+	</define>
+
+	<define name="signon_TLV">
+		<tlvchain>
+			<tlv type="1"><data name="screenname" /></tlv>
+			<tlv type="3"><data name="clistr" /></tlv>
+			<tlv type="22"><word name="supermajor" /></tlv>
+			<tlv type="23"><word name="major" /></tlv>
+			<tlv type="24"><word name="minor" /></tlv>
+			<tlv type="25"><word name="subminor" /></tlv>
+			<tlv type="26"><word name="build" /></tlv>
+			<tlv type="20"><dword name="subbuild" /></tlv>
+			<tlv type="15"><data>en</data></tlv>
+			<tlv type="14"><data>us</data></tlv>
+			<tlv type="74"><byte>1</byte></tlv>
+		</tlvchain>
+	</define>
+	<define name="signon" family="23" subtype="2">
+		<ref name="signon_TLV" />
+		<tlvchain>
+			<tlv type="37"><data name="auth_response" /></tlv>
+			<tlv type="76"><data name="betainfo" /></tlv>
+		</tlvchain>
+	</define>
+	<define name="signon_ICQ" family="23" subtype="2">
+		<ref name="signon_TLV" />
+		<tlvchain>
+			<tlv type="2"><data name="password" /></tlv>
+		</tlvchain>
+	</define>
+
 	<define name="userinfo">
 		<data name="screenname" length_prefix="byte" />
 		<word name="evil" />
@@ -28,15 +68,15 @@
 			<tlv name="capabilities" type="13"><data length="16" count="-1" /></tlv>
 			<tlv type="29">
 				<tlvchain short="yes">
-					<tlv name="icon_md5sum" type="1" shortno="1"><data /></tlv>
-					<tlv name="extended_status" type="2"><data length_prefix="word" /></tlv>
+					<tlv type="1" shortno="1"><data name="icon_md5sum" /></tlv>
+					<tlv type="2"><data length_prefix="word" name="extended_status" /></tlv>
 				</tlvchain>
 			</tlv>
 		</tlvchain>
 		<tlvchain>
-			<tlv name="profile" type="2"><data /></tlv>
-			<tlv name="awaymsg" type="4"><data /></tlv>
-			<tlv name="chatdata" type="5"><data /></tlv>
+			<tlv type="2"><data name="profile" /></tlv>
+			<tlv type="4"><data name="awaymsg" /></tlv>
+			<tlv type="5"><data name="chatdata" /></tlv>
 		</tlvchain>
 	</define>
 </oscar>

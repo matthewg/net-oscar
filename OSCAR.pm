@@ -427,7 +427,11 @@ sub auth_response($$) {
 	my($self, $digest) = @_;
 	$self->log_print(OSCAR_DBG_SIGNON, "Got authentication response - proceeding with signon");
 	$self->{auth_response} = $digest;
-	$self->svcdo(CONNTYPE_BOS, family => 0x17, subtype => 0x2, data => tlv(signon_tlv($self)));
+	if($self->{svcdata}->{hashlogin}) {
+		$self->svcdo(CONNTYPE_BOS, protobit => "signon_ICQ", protodata => signon_tlv($self));
+	} else {
+		$self->svcdo(CONNTYPE_BOS, protobit => "signon", protodata => signon_tlv($self));
+	}
 }
 
 =pod
@@ -1093,15 +1097,18 @@ their profile.
 
 =cut
 
-sub get_info($$;$) {
-	my($self, $screenname, $type) = @_;
+sub get_info($$) {
+	my($self, $screenname) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	$type ||= 1;
-	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, family => 0x2, subtype => 0x15, data => pack("nnCa*", 0, $type, length($screenname), $screenname));
+	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, protobit => "get info", protodata => {screenname => $screenname});
 }
+sub get_away($$) {
+	my($self, $screenname) = @_;
+	return must_be_on($self) unless $self->{is_on};
 
-sub get_away($$) { shift->get_info(@_, 3); }
+	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, protobit => "get away", protodata => {screenname => $screenname});
+}
 
 =pod
 
@@ -1560,7 +1567,11 @@ sub icon_checksum($$) {
 
 
 sub svcdo($$%) {
-	my($self, $service, %snac) = @_;
+	my($self, $service, %data) = @_;
+
+	my %snac = %data;
+	($snac{family}, $snac{subtype}) = protobit_to_snacfam($data{protobit}) or croak "Couldn't find protobit $data{protobit}";
+	$snac{data} = protoparse($self, $data{protobit})->(%{$data->{protodata}});
 
 	if($self->{services}->{$service} and ref($self->{services}->{$service})) {
 		$self->{services}->{$service}->snac_put(%snac);
