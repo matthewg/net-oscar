@@ -527,11 +527,6 @@ sub set_visibility($$) {
 					$vismode, 0xCB, 0x04,
 					0xFFFF, 0xFFFF)
 	);
-
-	if($vismode == VISMODE_PERMITBUDS) {
-		$self->remove_buddy("permit", grep { not $self->findbuddy($_) } keys %{$self->{buddies}->{permit}->{members}});
-		$self->add_buddy("permit", map { keys %{$_->{members}} } grep { $_->{groupid} ne pack("n", 0xFFFF) } values %{$self->{buddies}});
-	}
 }
 
 sub mod_buddylist($$$$;@) {
@@ -573,10 +568,6 @@ sub mod_buddylist($$$$;@) {
 		$groupid = $self->{buddies}->{$group}->{groupid} unless $isvis;
 		foreach my $buddy(@buddies) {
 			$self->{buddies}->{$group}->{members}->{$buddy}->{buddyid} = $self->newid($group);
-			if($self->{visibility} == VISMODE_PERMITBUDS) {
-				$self->remove_deny($buddy) if $self->{buddies}->{deny}->{members}->{$buddy};
-				$self->add_permit($buddy) unless $self->{buddies}->{permit}->{members}->{$buddy};
-			}
 		}
 	} elsif($what == MODBL_WHAT_BUDDY and $action == MODBL_ACTION_DEL) {
 		return unless exists $self->{buddies}->{$group};
@@ -586,10 +577,6 @@ sub mod_buddylist($$$$;@) {
 		foreach my $buddy(@buddies) {
 			push @ids, $self->{buddies}->{$group}->{members}->{$buddy}->{buddyid};
 			delete $self->{buddies}->{$group}->{members}->{$buddy};
-			if($self->{visibility} == VISMODE_PERMITBUDS) {
-				$self->remove_permit($buddy) unless $self->{buddies}->{deny}->{members}->{$buddy};
-				$self->add_deny($buddy) if $self->{buddies}->{permit}->{members}->{$buddy};
-			}
 		}
 		$self->mod_buddylist(MODBL_ACTION_DEL, MODBL_WHAT_GROUP, $group) unless scalar keys %{$self->{buddies}->{$group}->{members}};
 	}
