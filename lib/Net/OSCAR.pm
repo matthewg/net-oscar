@@ -1402,6 +1402,10 @@ may be present.
 
 Called when the user is completely signed on to the service.
 
+=item debug_print(OSCAR, MESSAGE)
+
+Use this callback if you don't want the debug_print methods to just print to STDERR.
+
 =back
 
 =cut
@@ -1429,6 +1433,7 @@ sub callback_admin_error(@) { do_callback("admin_error", @_); }
 sub callback_admin_ok(@) { do_callback("admin_ok", @_); }
 sub callback_rate_alert(@) { do_callback("rate_alert", @_); }
 sub callback_signon_done(@) { do_callback("signon_done", @_); }
+sub callback_debug_print(@) { do_callback("debug_print", @_); }
 
 sub set_callback_error($\&) { set_callback("error", @_); }
 sub set_callback_buddy_in($\&) { set_callback("buddy_in", @_); }
@@ -1446,6 +1451,7 @@ sub set_callback_admin_error($\&) { set_callback("admin_error", @_); }
 sub set_callback_admin_ok($\&) { set_callback("admin_ok", @_); }
 sub set_callback_rate_alert($\&) { set_callback("rate_alert", @_); }
 sub set_callback_signon_done($\&) { set_callback("signon_done", @_); }
+sub set_callback_debug_print($\&) { set_callback("debug_print", @_); }
 
 =pod
 

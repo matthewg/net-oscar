@@ -134,19 +134,35 @@ sub debug_print($@) {
 	my($obj) = (shift);
 	my $session = exists($obj->{session}) ? $obj->{session} : $obj;
 	return unless $session->{DEBUG};
-	print STDERR "(",$session->{screenname},") " if $session->{SNDEBUG};
-	print STDERR $obj->{description}, ": " if $obj->{description};
-	print STDERR join("", @_), "\n";
+
+	my $message = "";
+	$message .= "(",$session->{screenname},") " if $session->{SNDEBUG};
+	$message .= $obj->{description}, ": " if $obj->{description};
+	$message .= join("", @_), "\n";
+
+	if($session->{callbacks}->{debug_print}) {
+		$session->callback_debug_print($message);
+	} else {
+		print STDERR $message;
+	}
 }
 
 sub debug_printf($@) {
 	my($obj, $fmtstr) = (shift, shift);
 	my $session = exists($obj->{session}) ? $obj->{session} : $obj;
 	return unless $session->{DEBUG};
-	print STDERR "(",$session->{screenname},") " if $session->{SNDEBUG};
-	print STDERR $obj->{description} . ": " if $obj->{description};
-	printf STDERR $fmtstr, @_;
-	print STDERR "\n";
+
+	my $message = "";
+	$message .= "(",$session->{screenname},") " if $session->{SNDEBUG};
+	$message .= $obj->{description} . ": " if $obj->{description};
+	$message .= $fmtstr, @_;
+	$message .= "\n";
+
+	if($session->{callbacks}->{debug_print}) {
+		$session->callback_debug_print($message);
+	} else {
+		print STDERR $message;
+	}
 }
 
 sub hexdump($) {
