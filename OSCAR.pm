@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = 0.56;
+$VERSION = 0.57;
 
 =head1 NAME
 
@@ -1989,6 +1989,18 @@ of C<Net::OSCAR::Connection>, not C<Net::OSCAR>.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+0.57, 2002-01-16
+
+=over 4
+
+* Sent callback_chat_joined correctly when joining an existing chat
+
+* Don't activate OldPerl fixes for perl 5.6.0
+
+=back
 
 =item *
 

@@ -1,6 +1,6 @@
 package Net::OSCAR::Common;
 
-$VERSION = 0.56;
+$VERSION = 0.57;
 
 use strict;
 use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS $VERSION);
