@@ -221,12 +221,12 @@
 	</define>
 
 	<define name="IM_parameters">
-		<word name="channel" value="0" />
-		<dword name="flags" value="3" />
-		<word name="max_size" value="8000" />
-		<word name="max_send_warn" value="999" />
-		<word name="max_recv_warn" value="999" />
-		<word name="min_msg_interval" value="0" />
+		<word name="channel">0</word>
+		<dword name="flags">3</dword>
+		<word name="max_size">8000</word>
+		<word name="max_send_warn">999</word>
+		<word name="max_recv_warn">999</word>
+		<word name="min_msg_interval">0</word>
 		<word>0</word>
 	</define>
 	<define name="add_IM_parameters" family="4" subtype="2"><ref name="IM_parameters" /></define>
