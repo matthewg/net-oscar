@@ -374,7 +374,7 @@ sub process_snac($$) {
 			}
 		}
 
-		$session->callback_signon_done();
+		$session->callback_signon_done() unless $session->{sent_done}++;
 	} elsif($family == 0x13 and $subtype == 0x0E) {
 		$connection->debug_print("Got blmod ack.");
 		$session->modgroups();
