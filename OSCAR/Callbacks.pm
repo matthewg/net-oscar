@@ -35,13 +35,13 @@ sub process_snac($$) {
 
 	tie %tlv, "Net::OSCAR::TLV";
 
-	$connection->debug_print(sprintf "Got SNAC 0x%04X/0x%04X", $snac->{family}, $snac->{subtype});
+	$connection->log_printf(OSCAR_DBG_DEBUG, "Got SNAC 0x%04X/0x%04X", $snac->{family}, $snac->{subtype});
 
 	if($conntype == CONNTYPE_LOGIN and $family == 0x17 and $subtype == 0x7) {
-		$connection->debug_print("Got authentication key.");
+		$connection->log_print(OSCAR_DBG_SIGNON, "Got authentication key.");
 		my $key = substr($data, 2);
 
-		$connection->debug_print("Sending password.");
+		$connection->log_print(OSCAR_DBG_SIGNON, "Sending password.");
 
 		%tlv = (
 			0x01 => $session->{screenname},
@@ -59,7 +59,7 @@ sub process_snac($$) {
 		);
 		$connection->snac_put(family => 0x17, subtype => 0x2, data => tlv_encode(\%tlv));
 	} elsif($conntype == CONNTYPE_LOGIN and $family == 0x17 and $subtype == 0x3) {
-		$connection->debug_print("Got authorization response.");
+		$connection->log_print(OSCAR_DBG_SIGNON, "Got authorization response.");
 
 		%tlv = %{tlv_decode($data)};
 		if($tlv{0x08}) {
@@ -68,8 +68,9 @@ sub process_snac($$) {
 			$session->crapout($connection, "Invalid password.") if $error == 0x05;
 			$session->crapout($connection, "You've been connecting too frequently.") if $error == 0x18;
 			$session->crapout($connection, "Unknown error $error: $tlv{0x04}.");
+			return 0;
 		} else {
-			$connection->debug_print("Login OK - connecting to BOS");
+			$connection->log_print(OSCAR_DBG_SIGNON, "Login OK - connecting to BOS");
 			$connection->disconnect;
 			$session->{screenname} = $tlv{0x01};
 			$session->{email} = $tlv{0x11};
@@ -82,31 +83,33 @@ sub process_snac($$) {
 		}
 
 	} elsif($family == 0x1 and $subtype == 0x7) {
-		$connection->debug_print("Got Rate Info Resp.");
-		$connection->debug_print("Sending Rate Ack.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Got Rate Info Resp.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Sending Rate Ack.");
 		$connection->snac_put(family => 0x01, subtype => 0x08, data => pack("nnnnn", 1, 2, 3, 4, 5));
-		$connection->debug_print("BOS handshake complete!");
+		$connection->log_print(OSCAR_DBG_NOTICE, "BOS handshake complete!");
 
 		if($conntype == CONNTYPE_BOS) {
-			$connection->debug_print("Requesting personal info.");
+			$connection->log_print(OSCAR_DBG_SIGNON, "Signon BOS handshake complete!");
+
+			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting personal info.");
 			$connection->snac_put(family => 0x1, subtype => 0xE);
 
-			$connection->debug_print("Doing buddylist unknown 0x2.");
+			$connection->log_print(OSCAR_DBG_DEBUG, "Doing buddylist unknown 0x2.");
 			$connection->snac_put(family => 0x13, subtype => 0x2);
 
-			$connection->debug_print("Requesting buddylist.");
+			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting buddylist.");
 			$connection->snac_put(family => 0x13, subtype => 0x4);
 
-			$connection->debug_print("Requesting locate rights.");
+			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting locate rights.");
 			$connection->snac_put(family => 0x2, subtype => 0x2);
 
-			$connection->debug_print("Requesting buddy rights");
+			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting buddy rights");
 			$connection->snac_put(family => 0x3, subtype => 0x2);
 
-			$connection->debug_print("Requesting ICBM param info.");
+			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting ICBM param info.");
 			$connection->snac_put(family => 0x4, subtype => 0x4);
 
-			$connection->debug_print("Requesting BOS rights.");
+			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting BOS rights.");
 			$connection->snac_put(family => 0x9, subtype => 0x2);
 		} elsif($conntype == CONNTYPE_CHATNAV) {
 			$connection->ready();
@@ -114,7 +117,7 @@ sub process_snac($$) {
 
 			if($session->{chatnav_queue}) {
 				foreach my $snac(@{$session->{chatnav_queue}}) {
-					$connection->debug_print("Putting SNAC.");
+					$connection->log_print(OSCAR_DBG_DEBUG, "Putting SNAC.");
 					$connection->snac_put(%$snac);
 				}
 			}
@@ -124,7 +127,7 @@ sub process_snac($$) {
 			$session->{admin} = $connection;
 			if($session->{admin_queue}) {
 				foreach my $snac(@{$session->{admin_queue}}) {
-					$connection->debug_print("Putting SNAC.");
+					$connection->log_print(OSCAR_DBG_DEBUG, "Putting SNAC.");
 					$connection->snac_put(%$snac);
 				}
 			}
@@ -137,7 +140,6 @@ sub process_snac($$) {
 	} elsif($subtype == 0x1) {
 		$subtype = $reqid >> 16;
 		my $error = "";
-		$session->debug_printf("Got error on req 0x%04X/0x%08X.", $family, $reqid);
 		if($family == 0x4) {
 			$error = "Your message to could not be sent for the following reason: ";
 			delete $session->{cookies}->{$reqid};
@@ -145,24 +147,26 @@ sub process_snac($$) {
 			$error = "Error in ".$connection->{description}.": ";
 		}
 		my($errno) = unpack("n", substr($data, 0, 2, ""));
+		$session->log_printf(OSCAR_DBG_DEBUG, "Got error %d on req 0x%04X/0x%08X.", $errno, $family, $reqid);
+		return if $errno == 0;
 		my $tlv = tlv_decode($data) if $data;
 		$error .= (ERRORS)[$errno] || "unknown error $errno";
 		$error .= "(".$tlv->{4}.")." if $tlv;
 		send_error($session, $connection, $errno, (ERRORS)[$errno] || "unknown error $errno", 0, $reqdata);
 	} elsif($family == 0x1 and $subtype == 0xf) {
-		$connection->debug_print("Got user information response.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Got user information response.");
 	} elsif($family == 0x9 and $subtype == 0x3) {
-		$connection->debug_print("Got BOS rights.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Got BOS rights.");
 	} elsif($family == 0x3 and $subtype == 0x3) {
-		$connection->debug_print("Got buddylist rights.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Got buddylist rights.");
 	} elsif($family == 0x2 and $subtype == 0x3) {
-		$connection->debug_print("Got locate rights.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Got locate rights.");
 	} elsif($family == 0x4 and $subtype == 0x5) {
-		$connection->debug_print("Got ICBM parameters - warheads armed.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Got ICBM parameters - warheads armed.");
 	} elsif($family == 0x3 and $subtype == 0xB) {
 		my $buddy = $session->extract_userinfo($data);
 		my $screenname = $buddy->{screenname};
-		$connection->debug_print("Incoming bogey - er, I mean buddy - $screenname");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Incoming bogey - er, I mean buddy - $screenname");
 
 		my $group = $session->findbuddy($screenname);
 		$buddy->{buddyid} = $session->{buddies}->{$group}->{members}->{$screenname}->{buddyid};
@@ -176,7 +180,7 @@ sub process_snac($$) {
 		my ($buddy) = unpack("C/a*", $data);
 		my $group = $session->findbuddy($buddy);
 		$session->{buddies}->{$group}->{members}->{$buddy}->{online} = 0;
-		$connection->debug_print("And so, another former ally has abandoned us.  Curse you, $buddy!");
+		$connection->log_print(OSCAR_DBG_DEBUG, "And so, another former ally has abandoned us.  Curse you, $buddy!");
 		$session->callback_buddy_out($buddy, $group);
 	} elsif($family == 0x1 and $subtype == 0x5) {
 		my $tlv = tlv_decode($data);
@@ -198,7 +202,7 @@ sub process_snac($$) {
 		} else {
 			$svctype = sprintf "unknown (0x%04X)", $svctype;
 		}
-		$connection->debug_print("Got redirect for $svctype.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Got redirect for $svctype.");
 
 		$session->{chats}->{$reqid} = $session->addconn($tlv->{0x6}, $svctype, $conntype, $tlv->{0x5});
 		if($svctype == CONNTYPE_CHAT) {
@@ -206,11 +210,11 @@ sub process_snac($$) {
 			while(($key, $val) = each(%chatdata)) { $session->{chats}->{$reqid}->{$key} = $val; }
 		}
 	} elsif($family == 0xB and $subtype == 0x2) {
-		$connection->debug_print("Got minimum report interval.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Got minimum report interval.");
 	} elsif($family == 0x1 and $subtype == 0x13) {
-		$connection->debug_print("Got MOTD.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Got MOTD.");
 	} elsif($family == 0x1 and $subtype == 0x3) {
-		$connection->debug_print("Got server ready.  Sending set versions.");
+		$connection->log_print($connection->{conntype} == CONNTYPE_BOS ? OSCAR_DBG_SIGNON : OSCAR_DBG_NOTICE, "Got server ready.  Sending set versions.");
 
 		if($connection->{conntype} == CONNTYPE_ADMIN or $connection->{conntype} == CONNTYPE_CHAT) {
 			$connection->snac_put(family => 0x1, subtype => 0x17, data =>
@@ -222,10 +226,10 @@ sub process_snac($$) {
 			);
 		}
 
-		$connection->debug_print("Sending Rate Info Req.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Sending Rate Info Req.");
 		$connection->snac_put(family => 0x01, subtype => 0x06);
 	} elsif($family == 0x4 and $subtype == 0x7) {
-		$connection->debug_print("Got incoming IM.");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Got incoming IM.");
 		my($from, $msg, $away, $chat, $chaturl) = $session->im_parse($data);
 		if($chat) {
 			$session->callback_chat_invite($from, $msg, $chat, $chaturl);
@@ -233,7 +237,7 @@ sub process_snac($$) {
 			$session->callback_im_in($from, $msg, $away);
 		}
 	} elsif($family == 0x1 and $subtype == 0xA) {
-		$connection->debug_print("Got rate change.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Got rate change.");
 
 		my($group, $window, $clear, $alert, $limit, $disconnect, $current, $max) = unpack("xx n N*", $data);
 		my $rate = RATE_CLEAR;
@@ -250,7 +254,7 @@ sub process_snac($$) {
 		$session->callback_rate_alert(RATE_ALERT, $clear, $window) unless $rate == RATE_CLEAR;
 
 	} elsif($family == 0x1 and $subtype == 0x10) {
-		$connection->debug_print("Got evil.");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Got evil.");
 		my $enemy = undef;
 
 		my($newevil) = unpack("n", substr($data, 0, 2, ""));
@@ -259,35 +263,35 @@ sub process_snac($$) {
 
 		$session->callback_evil($newevil, $enemy->{screenname});
 	} elsif($family == 0x4 and $subtype == 0xC) {
-		$connection->debug_print("Got IM ack $reqid.");
+		$connection->l_print("Got IM ack $reqid.");
 		my($reqid) = unpack("xxxx N", $data);
 		delete $session->{cookies}->{$reqid};
 	} elsif($family == 0x1 and $subtype == 0x1F) {
-		$connection->debug_print("Got memory request.");
+		$connection->log_print(OSCAR_DBG_SIGNON, "Got memory request.");
 	} elsif($family == 0x13 and $subtype == 0x3) {
-		$connection->debug_print("Got buddylist.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Got buddylist 0x0003.");
 		$connection->snac_put(family => 0x13, subtype => 0x7);
 
 		$session->set_info("");
 
-		$connection->debug_print("Setting idle.");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Setting idle.");
 		$connection->snac_put(family => 0x1, subtype => 0x11, data => pack("N", 0));
 
 		$connection->ready();
 
-		$connection->debug_print("Adding ICBM parameters.");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Adding ICBM parameters.");
 		$connection->snac_put(family => 0x4, subtype => 0x2, data =>
 			pack("n*", 0, 0, 3, 0x1F40, 0x3E7, 0x3E7, 0, 0)
 		);
 	} elsif($family == 0x13 and $subtype == 0x6) {
-		$connection->debug_print("Got buddylist 0x0006.");
+		$connection->log_print(OSCAR_DBG_SIGNON, "Got buddylist.");
 
 		return unless Net::OSCAR::_BLInternal::blparse($session, $data);
 		$connection->snac_put(family => 0x13, subtype => 0x7);
 		$session->callback_signon_done() unless $session->{sent_done}++;
 	} elsif($family == 0x13 and $subtype == 0x0E) {
 		$session->{budmods}--;
-		$connection->debug_print("Got blmod ack ($session->{budmods} left).");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Got blmod ack ($session->{budmods} left).");
 		my($error) = unpack("n", $data);
 		if($error != 0) {
 			my($type, $gid, $bid) = ($reqdata->{type}, $reqdata->{gid}, $reqdata->{bid});
@@ -299,17 +303,17 @@ sub process_snac($$) {
 		}
 		delete $session->{blold} unless $session->{budmods} > 0;
 	} elsif($family == 0x1 and $subtype == 0x18) {
-		$connection->debug_print("Got hostversions.");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Got hostversions.");
 	} elsif($family == 0x1 and $subtype == 0x1F) {
 		croak "GOT SENDMEMBLK REQUEST!!";
 	} elsif($family == 0x2 and $subtype == 0x6) {
 		my $buddy = $session->extract_userinfo($data);
 		my $screenname = $buddy->{screenname};
-		$connection->debug_print("Incoming buddy info - $screenname");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Incoming buddy info - $screenname");
 
 		$session->callback_buddy_info($screenname, $buddy);
 	} elsif($family == 0x1 and $subtype == 0x10) {
-		$connection->debug_print("Somebody thinks you're evil!");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Somebody thinks you're evil!");
 
 		my($evil) = unpack("n", substr($data, 0, 2, ""));
 		$evil /= 10;
@@ -329,7 +333,7 @@ sub process_snac($$) {
 		($chat->{name}) = unpack("n/a*", $data);
 		substr($data, 0, length($chat->{name})+2) = "";
 
-		$session->debug_print("ChatNav told us where to find $chat->{name}");
+		$session->log_print(OSCAR_DBG_DEBUG, "ChatNav told us where to find $chat->{name}");
 
 		# Generate a random request ID
 		my($reqid) = "";
@@ -348,9 +352,9 @@ sub process_snac($$) {
 			)
 		);
 	} elsif($family == 0x04 and $subtype == 0x0C) {
-		$session->debug_print("Acknowledged.");
+		$session->log_print(OSCAR_DBG_DEBUG, "Acknowledged.");
 	} elsif($family == 0x0E and $subtype == 0x02) {
-		$connection->debug_print("Got update on room info.");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Got update on room info.");
 
 		my($namelen) = unpack("xx C", substr($data, 0, 4, ""));
 		substr($data, 0, $namelen - 1, "");
@@ -390,7 +394,7 @@ sub process_snac($$) {
 		my $message = $mtlv->{0x01};
 		$session->callback_chat_im_in($sender, $connection, $message);
 	} elsif($family == 0x07 and $subtype == 0x05) {
-		$connection->debug_print("Admin request successful!");
+		$connection->log_print(OSCAR_DBG_DEBUG, "Admin request successful!");
 
 		my($reqtype) = unpack("n", substr($data, 0, 2, ""));
 		my $tlv = tlv_decode(substr($data, 0, 6, ""));
@@ -440,9 +444,10 @@ sub process_snac($$) {
 			$session->callback_admin_ok($reqdesc);
 		}
 	} elsif($family == 0x07 and $subtype == 0x05) {
-		$session->debug_print("Account confirmed.");
+		$session->log_print(OSCAR_DBG_DEBUG, "Account confirmed.");
+		$session->callback_admin_ok(ADMIN_TYPE_ACCOUNT_CONFIRM);
 	} else {
-		$connection->debug_print("Unknown SNAC: ".hexdump($snac->{data}));
+		$connection->log_print(OSCAR_DBG_NOTICE, "Unknown SNAC: ".hexdump($snac->{data}));
 	}
 
 	return 1;

@@ -30,11 +30,6 @@ sub new($$$$$$) { # Think you got enough parameters there, Chester?
 	return $self;
 }
 
-sub DEBUG {
-	my $self = shift;
-	$self->{DEBUG} = shift;
-}
-
 sub fileno($) {
 	my $self = shift;
 	if(!$self->{socket}) {
@@ -54,7 +49,9 @@ sub flap_encode($$;$) {
 
 sub flap_put($$;$) {
 	my($self, $msg, $channel) = @_;
-	syswrite($self->{socket}, $self->flap_encode($msg, $channel)) or confess "$self->{description} Couldn't write to socket: $!";
+	my $emsg = $self->flap_encode($msg, $channel);
+	syswrite($self->{socket}, $emsg) or confess "$self->{description} Couldn't write to socket: $!";
+	$self->log_print(OSCAR_DBG_PACKETS, "Put ", hexdump($emsg));
 }
 
 sub flap_get($) {
@@ -67,7 +64,7 @@ sub flap_get($) {
 		if($self == $self->{session}->{bos}) {
 			$self->{session}->crapout($self, "$!");
 		} else {
-			$self->debug_print("Lost connection.");
+			$self->log_print(OSCAR_DBG_NOTICE, "Lost connection.");
 			$self->{sockerr} = 1;
 			$self->disconnect();
 			return undef;
@@ -77,7 +74,7 @@ sub flap_get($) {
 	$self->{channel} = $channel;
 	$nchars = sysread($self->{socket}, $buffer, $len);
 	if(!$nchars) {
-		$self->debug_print("Lost connection.");
+		$self->log_print(OSCAR_DBG_NOTICE, "Lost connection.");
 		$self->{sockerr} = 1;
 		$self->disconnect();
 		return undef;
@@ -88,7 +85,8 @@ sub flap_get($) {
 		$nchars = sysread($self->{socket}, $abuff, $len);
 		$buffer .= $abuff;
 	}
-		
+
+	$self->log_print(OSCAR_DBG_PACKETS, "Got ", hexdump($buffer));
 	return $buffer;
 }
 
@@ -194,7 +192,7 @@ sub connect($$) {
 	$self->{host} = $host;
 	$self->{port} = $port;
 
-	$self->debug_print("Connecting to $host:$port.");
+	$self->log_print(OSCAR_DBG_NOTICE, "Connecting to $host:$port.");
 	$self->{socket} = gensym;
 	socket($self->{socket}, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
 
@@ -218,39 +216,39 @@ sub process_one($) {
 	tie %tlv, "Net::OSCAR::TLV";
 
 	if(!$self->{connected}) {
-		$self->debug_print("Connected.");
+		$self->log_print(OSCAR_DBG_NOTICE, "Connected.");
 		$self->{connected} = 1;
 		$self->set_blocking(1);
 		return 1;
 	} elsif(!$self->{ready}) {
-		$self->debug_print("Getting connack.");
+		$self->log_print(OSCAR_DBG_DEBUG, "Getting connack.");
 		my $flap = $self->flap_get();
 		if(!defined($flap)) {
-			$self->debug_print("Couldn't connect.");
+			$self->log_print(OSCAR_DBG_NOTICE, "Couldn't connect.");
 			return 0;
 		} else {
-			$self->debug_print("Got connack.");
+			$self->log_print(OSCAR_DBG_DEBUG, "Got connack.");
 		}
 		$self->{session}->crapout($self, "Got bad connack from server") unless $self->{channel} == FLAP_CHAN_NEWCONN;
 
 		if($self->{conntype} == CONNTYPE_LOGIN) {
-			$self->debug_print("Got connack.  Sending connack.");
+			$self->log_print(OSCAR_DBG_DEBUG, "Got connack.  Sending connack.");
 			$self->flap_put(pack("N", 1), FLAP_CHAN_NEWCONN);
-			$self->debug_print("Connack sent.");
+			$self->log_print(OSCAR_DBG_SIGNON, "Connected to login server.");
 			$self->{ready} = 1;
 
-			$self->debug_print("Sending screenname.");
+			$self->log_print(OSCAR_DBG_SIGNON, "Sending screenname.");
 			%tlv = (
 				0x17 => pack("C6", 0, 0, 0, 0, 0, 0),
 				0x01 => $self->{session}->{screenname}
 			);
 			$self->flap_put(tlv_encode(\%tlv));
 		} else {
-			$self->debug_print("Sending BOS-Signon.");
+			$self->log_print(OSCAR_DBG_NOTICE, "Sending BOS-Signon.");
 			%tlv = (0x06 =>$self->{auth});
 			$self->flap_put(pack("N", 1) . tlv_encode(\%tlv), FLAP_CHAN_NEWCONN);
 		}
-		$self->debug_print("SNAC time.");
+		$self->log_print(OSCAR_DBG_DEBUG, "SNAC time.");
 		return $self->{ready} = 1;
 	} else {
 		$snac = $self->snac_get() or return 0;
@@ -262,7 +260,7 @@ sub ready($) {
 	my($self) = shift;
 
 	return if $self->{sentready}++;
-	$self->debug_print("Sending client ready.");
+	$self->log_print(OSCAR_DBG_DEBUG, "Sending client ready.");
 	if($self->{conntype} == CONNTYPE_CHATNAV or $self->{conntype} == CONNTYPE_ADMIN or $self->{conntype} == CONNTYPE_CHAT) {
 		$self->snac_put(family => 0x1, subtype => 0x2, data => pack("n*",
 			1, 3, 0x10, 0x361, $self->{conntype}, 1, 0x10, 0x361

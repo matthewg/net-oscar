@@ -3,7 +3,7 @@
 use strict;
 use Net::OSCAR qw(:standard);
 use Data::Dumper;
-use vars qw($pid $oscar @chats @invites $debug);
+use vars qw($pid $oscar @chats @invites $loglevel);
 
 #$Carp::Verbose = 1;
 $| = 1;
@@ -169,7 +169,7 @@ $profile
 EOF
 }
 
-$debug = $ARGV[0] || 0;
+$loglevel = $ARGV[0] || 0;
 
 print "Username: ";
 my $username = <STDIN>;
@@ -181,7 +181,7 @@ print "\n";
 chomp $username;
 chomp $password;
 
-if($debug) {
+if($loglevel >= 10) {
 	$pid = fork();
 	if(!$pid) {
 		umask 022;
@@ -213,7 +213,7 @@ $oscar->set_callback_admin_error(\&admin_error);
 $oscar->set_callback_admin_ok(\&admin_ok);
 $oscar->set_callback_rate_alert(\&rate_alert);
 $oscar->set_callback_signon_done(\&signon_done);
-$oscar->debug($debug);
+$oscar->loglevel($loglevel);
 $oscar->signon($username, $password);
 
 my $inline = "";
@@ -425,4 +425,4 @@ EOF
 	}
 }
 
-sub END { system("/home/matthewg/skill $pid") if $debug; }
+sub END { system("/home/matthewg/skill $pid") if $loglevel >= 10; }

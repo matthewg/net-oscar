@@ -36,7 +36,17 @@ require Exporter;
 		GROUPPERM_OSCAR
 		GROUPPERM_AOL
 	)],
+	loglevels => [qw(
+		OSCAR_DBG_NONE
+		OSCAR_DBG_WARN
+		OSCAR_DBG_INFO
+		OSCAR_DBG_SIGNON
+		OSCAR_DBG_NOTICE
+		OSCAR_DBG_DEBUG
+		OSCAR_DBG_PACKETS
+	)],
 	all => [qw(
+		OSCAR_DBG_NONE OSCAR_DBG_WARN OSCAR_DBG_INFO OSCAR_DBG_SIGNON OSCAR_DBG_NOTICE OSCAR_DBG_DEBUG OSCAR_DBG_PACKETS
 		ADMIN_TYPE_PASSWORD_CHANGE ADMIN_TYPE_EMAIL_CHANGE ADMIN_TYPE_SCREENNAME_FORMAT ADMIN_TYPE_ACCOUNT_CONFIRM
 		ADMIN_ERROR_UNKNOWN ADMIN_ERROR_BADPASS ADMIN_ERROR_BADINPUT ADMIN_ERROR_BADLENGTH ADMIN_ERROR_TRYLATER ADMIN_ERROR_REQPENDING ADMIN_ERROR_CONNREF
 		VISMODE_PERMITALL VISMODE_DENYALL VISMODE_PERMITSOME VISMODE_DENYSOME VISMODE_PERMITBUDS RATE_CLEAR RATE_ALERT RATE_LIMIT RATE_DISCONNECT
@@ -47,10 +57,18 @@ require Exporter;
 		BUDTYPES
 		ENCODING
 		ERRORS
-		randchars debug_print debug_printf hexdump normalize tlv_decode tlv_encode tlv send_error tlvtie bltie
+		randchars log_print log_printf hexdump normalize tlv_decode tlv_encode tlv send_error tlvtie bltie
 	)]
 );
 @EXPORT_OK = map { @$_ } values %EXPORT_TAGS;
+
+use constant OSCAR_DBG_NONE => 0;
+use constant OSCAR_DBG_WARN => 1;
+use constant OSCAR_DBG_INFO => 2;
+use constant OSCAR_DBG_SIGNON => 3;
+use constant OSCAR_DBG_NOTICE => 4;
+use constant OSCAR_DBG_DEBUG => 6;
+use constant OSCAR_DBG_PACKETS => 10;
 
 use constant ADMIN_TYPE_PASSWORD_CHANGE => dualvar(1, "password change");
 use constant ADMIN_TYPE_EMAIL_CHANGE => dualvar(2, "email change");
@@ -145,39 +163,29 @@ sub randchars($) {
 	return $retval;
 }
 
-sub debug_print($@) {
-	my($obj) = (shift);
+sub log_print($$@) {
+	my($obj, $level) = (shift, shift);
 	my $session = exists($obj->{session}) ? $obj->{session} : $obj;
-	return unless $session->{DEBUG};
+	return unless $session->{LOGLEVEL} >= $level;
 
 	my $message = "";
-	$message .= "(".$session->{screenname}.") " if $session->{SNDEBUG};
 	$message .= $obj->{description}. ": " if $obj->{description};
 	$message .= join("", @_). "\n";
 
-	if($session->{callbacks}->{debug_print}) {
-		$session->callback_debug_print($message);
+	if($session->{callbacks}->{log}) {
+		$session->callback_log($level, $message);
 	} else {
+		$message = "(".$session->{screenname}.") $message" if $session->{SNDEBUG};
 		print STDERR $message;
 	}
 }
 
-sub debug_printf($@) {
-	my($obj, $fmtstr) = (shift, shift);
+sub log_printf($$@) {
+	my($obj, $level, $fmtstr) = (shift, shift, shift);
 	my $session = exists($obj->{session}) ? $obj->{session} : $obj;
 	return unless $session->{DEBUG};
 
-	my $message = "";
-	$message .= "(".$session->{screenname}.") " if $session->{SNDEBUG};
-	$message .= $obj->{description} . ": " if $obj->{description};
-	$message .= sprintf($fmtstr, @_);
-	$message .= "\n";
-
-	if($session->{callbacks}->{debug_print}) {
-		$session->callback_debug_print($message);
-	} else {
-		print STDERR $message;
-	}
+	$obj->log_print($level, sprintf($fmtstr, @_));
 }
 
 sub hexdump($) {

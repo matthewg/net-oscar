@@ -50,7 +50,7 @@ sub blparse($$) {
 		while(my($key, $value) = each %$typedata) {
 			$session->{blinternal}->{$type}->{$gid}->{$bid}->{data}->{$key} = $value;
 		}
-		$session->debug_printf("Got BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $name, $type, $gid, $bid, $sublen, hexdump(tlv_encode($typedata)));
+		$session->log_printf(OSCAR_DBG_DEBUG, "Got BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $name, $type, $gid, $bid, $sublen, hexdump(tlv_encode($typedata)));
 	}
 
 	return BLI_to_NO($session);
@@ -300,17 +300,17 @@ sub BLI_to_OSCAR($$) {
 			foreach my $bid(keys %{$oldbli->{$type}->{$gid}}) {
 				my $oldentry = $oldbli->{$type}->{$gid}->{$bid};
 				my $olddata = tlv_encode($oldentry->{data});
-				$session->debug_printf("Old BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $oldentry->{name}, $type, $gid, $bid, length($olddata), hexdump($olddata));
+				$session->log_printf(OSCAR_DBG_DEBUG, "Old BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $oldentry->{name}, $type, $gid, $bid, length($olddata), hexdump($olddata));
 				if(exists($newbli->{$type}) and exists($newbli->{$type}->{$gid}) and exists($newbli->{$type}->{$gid}->{$bid})) {
 					my $newentry = $newbli->{$type}->{$gid}->{$bid};
 					my $newdata = tlv_encode($newentry->{data});
-					$session->debug_printf("New BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $newentry->{name}, $type, $gid, $bid, length($newdata), hexdump($newdata));
+					$session->log_printf(OSCAR_DBG_DEBUG, "New BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $newentry->{name}, $type, $gid, $bid, length($newdata), hexdump($newdata));
 
 					next if
 						$newentry->{name} eq $oldentry->{name}
 					  and	$newdata eq $olddata;
 
-					$session->debug_print("Modifying.");
+					$session->log_print(OSCAR_DBG_DEBUG, "Modifying.");
 					$modcount++;
 
 					$oscar->snac_put(family => 0x13, subtype => 0x9, reqdata => {desc => "modifying ".(BUDTYPES)[$type]." $newentry->{name}", type => $type, gid => $gid, bid => $bid}, data =>
@@ -325,7 +325,7 @@ sub BLI_to_OSCAR($$) {
 						)
 					);
 				} else {
-					$session->debug_print("Deleting.");
+					$session->log_print(OSCAR_DBG_DEBUG, "Deleting.");
 					$modcount++;
 
 					$oscar->snac_put(family => 0x13, subtype => 0xA, reqdata => {desc => "deleting ".(BUDTYPES)[$type]." $newentry->{name}", type => $type, gid => $gid, bid => $bid}, data => 
@@ -344,7 +344,7 @@ sub BLI_to_OSCAR($$) {
 				my $entry = $newbli->{$type}->{$gid}->{$bid};
 				my $data = tlv_encode($entry->{data});
 
-				$session->debug_printf("New BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $entry->{name}, $type, $gid, $bid, length($data), hexdump($data));
+				$session->log_printf(OSCAR_DBG_DEBUG, "New BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $entry->{name}, $type, $gid, $bid, length($data), hexdump($data));
 				$modcount++;
 
 				$oscar->snac_put(family => 0x13, subtype => 0x8, reqdata => {desc => "adding ".(BUDTYPES)[$type]." $entry->{name}", type => $type, gid => $gid, bid => $bid}, data =>
