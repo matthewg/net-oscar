@@ -19,10 +19,6 @@ sub process_snac($$) {
 	my $reqdata = delete $connection->{reqdata}->[$family]->{pack("N", $reqid)};
 	my $session = $connection->{session};
 
-	my %tlv;
-
-	tie %tlv, "Net::OSCAR::TLV";
-
 	$connection->log_printf(OSCAR_DBG_DEBUG, "Got SNAC 0x%04X/0x%04X", $snac->{family}, $snac->{subtype});
 
 	if($conntype == CONNTYPE_LOGIN and $family == 0x17 and $subtype == 0x7) {
@@ -31,10 +27,7 @@ sub process_snac($$) {
 
 		if(defined($connection->{auth})) {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Sending password.");
-
-			%tlv = signon_tlv($session, $connection->{auth}, $key);
-
-			$connection->snac_put(family => 0x17, subtype => 0x2, data => tlv_encode(\%tlv));
+			$connection->snac_put(family => 0x17, subtype => 0x2, data => tlv_encode(signon_tlv($session, $connection->{auth}, $key)));
 		} else {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Giving client authentication challenge.");
 			$session->callback_auth_challenge($key, "AOL Instant Messenger (SM)");
@@ -42,27 +35,27 @@ sub process_snac($$) {
 	} elsif($conntype == CONNTYPE_LOGIN and $family == 0x17 and $subtype == 0x3) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got authorization response.");
 
-		%tlv = %{tlv_decode($data)};
-		if($tlv{0x08}) {
-			my($error) = unpack("n", $tlv{0x08});
+		my $tlv = tlv_decode($data);
+		if($tlv->{0x08}) {
+			my($error) = unpack("n", $tlv->{0x08});
 			$session->crapout($connection, "Invalid screenname.") if $error == 0x01;
 			$session->crapout($connection, "Invalid password.") if $error == 0x05;
 			$session->crapout($connection, "You've been connecting too frequently.") if $error == 0x18;
 			my($errstr) = ((ERRORS)[$error]) || "unknown error";
-			$errstr .= " ($tlv{0x04})" if $tlv{0x04};
+			$errstr .= " ($tlv->{0x04})" if $tlv->{0x04};
 			$session->crapout($connection, $errstr, $error);
 			return 0;
 		} else {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Login OK - connecting to BOS");
 			$connection->{closing} = 1;
 			$connection->disconnect;
-			$session->{screenname} = $tlv{0x01};
-			$session->{email} = $tlv{0x11};
+			$session->{screenname} = $tlv->{0x01};
+			$session->{email} = $tlv->{0x11};
 			$session->addconn(
-				$tlv{0x6},
+				$tlv->{0x6},
 				CONNTYPE_BOS,
-				"BOS",
-				$tlv{0x05}
+				"basic OSCAR service",
+				$tlv->{0x05}
 			);
 		}
 	} elsif($family == 0x1 and $subtype == 0x7) {
@@ -167,7 +160,7 @@ sub process_snac($$) {
 		my($errno) = unpack("n", substr($data, 0, 2, ""));
 		$session->log_printf(OSCAR_DBG_DEBUG, "Got error %d on req 0x%04X/0x%08X.", $errno, $family, $reqid);
 		return if $errno == 0;
-		my $tlv = tlv_decode($data) if $data;
+		$tlv = tlv_decode($data) if $data;
 		$error .= (ERRORS)[$errno] || "unknown error";
 		$error .= " (".$tlv->{4}.")." if $tlv and $tlv->{4};
 		send_error($session, $connection, $errno, $error, 0, $reqdata);
@@ -216,7 +209,7 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "And so, another former ally has abandoned us.  Curse you, $buddy!");
 		$session->callback_buddy_out($buddy, $group);
 	} elsif($family == 0x1 and $subtype == 0x5) {
-		my $tlv = tlv_decode($data);
+		$tlv = tlv_decode($data);
 		my($svctype) = unpack("n", $tlv->{0xD});
 		my $conntype;
 		my %chatdata;
@@ -446,7 +439,7 @@ sub process_snac($$) {
 		my($detaillevel) = unpack("C", substr($data, 0, 1, ""));
 
 		my($tlvcount) = unpack("n", substr($data, 0, 2, ""));
-		my $tlv = tlv_decode($data);
+		$tlv = tlv_decode($data);
 
 		$session->callback_chat_joined($connection->{name}, $connection) unless $connection->{sent_joined}++;
 
@@ -471,7 +464,7 @@ sub process_snac($$) {
 		}
 	} elsif($family == 0x0E and $subtype == 0x06) {
 		substr($data, 0, 10) = "";
-		my $tlv = tlv_decode($data);
+		$tlv = tlv_decode($data);
 		my ($sender) = unpack("C/a*", $tlv->{0x03});
 		my $mtlv = tlv_decode($tlv->{0x05});
 		my $message = $mtlv->{0x01};
@@ -480,7 +473,7 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Admin request successful!");
 
 		my($reqtype) = unpack("n", substr($data, 0, 2, ""));
-		my $tlv = tlv_decode(substr($data, 0, 6, ""));
+		$tlv = tlv_decode(substr($data, 0, 6, ""));
 		my $reqdesc = "";
 		my($subreq) = unpack("n", $tlv->{0x3}) if $tlv->{0x3};
 		$subreq ||= 0;
@@ -500,7 +493,7 @@ sub process_snac($$) {
 
 		my $errdesc = "";
 		if(!exists($tlv->{1})) {
-			my $tlv = tlv_decode($data);
+			$tlv = tlv_decode($data);
 			if($reqdesc eq "account confirm") {
 				$errdesc = "Your account is already confirmed.";
 			} else {

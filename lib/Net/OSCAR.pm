@@ -630,7 +630,7 @@ sub newid($;$) {
 	return $id;
 }
 
-sub _capabilities($) {
+sub capabilities($) {
 	my $self = shift;
 
 	my $caps;
@@ -1081,12 +1081,12 @@ sub send_im($$$;$) {
 	$packet .= pack("n", 1); # channel
 	$packet .= pack("Ca*", length($to), $to);
 
-	$packet .= tlv(2 => pack("n3 C n C n3 a*", 0x501, 4, 0x101, 1, 0x201, 1, length($msg)+4, 0, 0, $msg));
+	$packet .= tlv_encode(tlv(2 => pack("n3 C n C n3 a*", 0x501, 4, 0x101, 1, 0x201, 1, length($msg)+4, 0, 0, $msg)));
 
 	if($away) {
-		$packet .= tlv(4 => "");
+		$packet .= tlv_encode(tlv(4 => ""));
 	} else {
-		$packet .= tlv(3 => ""); #request server confirmation
+		$packet .= tlv_encode(tlv(3 => "")); #request server confirmation
 	}
 
 	if($self->{capabilities}->{buddy_icons} and $self->{icon} and
@@ -1097,7 +1097,7 @@ sub send_im($$$;$) {
 		$self->log_print(OSCAR_DBG_DEBUG, "Informing $to about our buddy icon.");
 		$self->{userinfo}->{$to} ||= {};
 		$self->{userinfo}->{$to}->{icon_timestamp_received} = $self->{icon_timestamp};
-		$packet .= tlv(8 => pack("NnnN", length($self->{icon}), 1, $self->{icon_checksum}, $self->{icon_timestamp}));
+		$packet .= tlv_encode(tlv(8 => pack("NnnN", length($self->{icon}), 1, $self->{icon_checksum}, $self->{icon_timestamp})));
 	}
 
 	my $flags2 = $self->{capabilities}->{typing_status} ? 0xB : 0;
@@ -1296,15 +1296,11 @@ sub set_extended_status($$) {
 	my($self, $status) = @_;
 	croak "This client does not support extended status messages." unless $self->{capabilities}->{extended_status};
 
-	my %tlv;
-	tie %tlv, "Net::OSCAR::TLV";
-
 	$status ||= "";
 	my $message = pack("na*n", length($status), $status, 0);
-	$tlv{0x1D} = pack("nCCa*", 2, 4, length($status) + 4, $message);
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Setting extended status.");
-	$self->{bos}->snac_put(family => 0x01, subtype => 0x1E, data => tlv_encode(\%tlv));
+	$self->{bos}->snac_put(family => 0x01, subtype => 0x1E, data => tlv_encode(tlv(0x1D => pack("nCCa*", 2, 4, length($status) + 4, $message))));
 }
 
 =pod
@@ -1321,24 +1317,23 @@ sub set_info($$;$) {
 
 	return must_be_on($self) unless $self->{bos};
 
-	my %tlv;
-	tie %tlv, "Net::OSCAR::TLV";
+	my $tlv = tlvtie;
 
 	if(defined($profile)) {
-		$tlv{0x1} = ENCODING;
-		$tlv{0x2} = $profile;
+		$tlv->{0x1} = ENCODING;
+		$tlv->{0x2} = $profile;
 		$self->{profile} = $profile;
 	}
 
 	if(defined($awaymsg)) {
-		$tlv{0x3} = ENCODING;
-		$tlv{0x4} = $awaymsg;
+		$tlv->{0x3} = ENCODING;
+		$tlv->{0x4} = $awaymsg;
 	}
 
-	$tlv{0x5} = $self->_capabilities();
+	$tlv->{0x5} = $self->capabilities();
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Setting user information.");
-	$self->{bos}->snac_put(family => 0x02, subtype => 0x04, data => tlv_encode(\%tlv));
+	$self->{bos}->snac_put(family => 0x02, subtype => 0x04, data => tlv_encode($tlv));
 }
 
 =pod
@@ -1441,15 +1436,7 @@ sub change_password($$$) {
 		$self->{adminreq}->{0+ADMIN_TYPE_PASSWORD_CHANGE}++;
 	}
 
-	my %tlv;
-	tie %tlv, "Net::OSCAR::TLV";
-
-	%tlv = (
-		0x02 => $newpass,
-		0x12 => $currpass
-	);
-
-	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv_encode(\%tlv));
+	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv_encode(tlv(0x02 => $newpass, 0x12 => $currpass)));
 }
 
 =pod
@@ -1502,7 +1489,7 @@ sub change_email($$) {
 		$self->{adminreq}->{0+ADMIN_TYPE_EMAIL_CHANGE}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv(0x11 => $newmail));
+	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv_encode(tlv(0x11 => $newmail)));
 }
 
 =pod
@@ -1526,7 +1513,7 @@ sub format_screenname($$) {
 		$self->{adminreq}->{0+ADMIN_TYPE_SCREENNAME_FORMAT}++;
 	}
 
-	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv(1 => $newname));
+	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv_encode(tlv(1 => $newname)));
 }
 
 =pod
@@ -1556,11 +1543,11 @@ sub chat_join($$; $) {
 
 		pack("n Ca*n2C a*", $exchange,
 			length("create"), "create", 0xFFFF, 0x100, 0x03,
-			tlv(
+			tlv_encode(tlv(
 				0xD7 => "en",
 				0xD6 => "us-ascii",
 				0xD3 => $name
-			)
+			))
 		)
 	);
 }

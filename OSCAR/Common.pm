@@ -179,35 +179,34 @@ use constant OSCAR_CAPS => {
 	trilliancrypt => {description => "Trillian encryption", value => pack("C*", map{hex($_)} split(/[ \t\n,]+/, "0xf2, 0xe7, 0xc7, 0xf4, 0xfe, 0xad, 0x4d, 0xfb, 0xb2, 0x35, 0x36, 0x79, 0x8b, 0xdf, 0x00, 0x00"))},
 };
 
-use constant OSCAR_TOOLDATA => {
-	'0x0001' => {version => 0x0003, toolid => 0x0110, toolversion => 0x0629},
-	'0x0002' => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
-	'0x0003' => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
-	'0x0004' => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
-	'0x0005' => {version => 0x0001, toolid => 0x0001, toolversion => 0x0001, nobos => 1},
-	'0x0006' => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
-	'0x0007' => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
-	'0x0008' => {version => 0x0001, toolid => 0x0104, toolversion => 0x0001},
-	'0x0009' => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
-	'0x000A' => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
-	'0x000B' => {version => 0x0001, toolid => 0x0104, toolversion => 0x0001},
-	'0x000C' => {version => 0x0001, toolid => 0x0104, toolversion => 0x0001},
-	'0x000D' => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
-	'0x000E' => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
-	'0x000F' => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
-	'0x0010' => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
-	'0x0013' => {version => 0x0004, toolid => 0x0110, toolversion => 0x0629},
-	'0x0015' => {version => 0x0001, toolid => 0x0110, toolversion => 0x047C},
-	'0x0017' => {version => 0x0000, toolid => 0x0000, toolversion => 0x0000, nobos => 1},
-	'0x0018' => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
-	'0xFFFF' => {version => 0x0000, toolid => 0x0000, toolversion => 0x0000, nobos => 1},
+use constant OSCAR_TOOLDATA => tlv(
+	0x0001 => {version => 0x0003, toolid => 0x0110, toolversion => 0x0629},
+	0x0002 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
+	0x0003 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
+	0x0004 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
+	0x0005 => {version => 0x0001, toolid => 0x0001, toolversion => 0x0001, nobos => 1},
+	0x0006 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
+	0x0007 => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
+	0x0008 => {version => 0x0001, toolid => 0x0104, toolversion => 0x0001},
+	0x0009 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
+	0x000A => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
+	0x000B => {version => 0x0001, toolid => 0x0104, toolversion => 0x0001},
+	0x000C => {version => 0x0001, toolid => 0x0104, toolversion => 0x0001},
+	0x000D => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
+	0x000E => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
+	0x000F => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
+	0x0010 => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
+	0x0013 => {version => 0x0004, toolid => 0x0110, toolversion => 0x0629},
+	0x0015 => {version => 0x0001, toolid => 0x0110, toolversion => 0x047C},
+	0x0017 => {version => 0x0000, toolid => 0x0000, toolversion => 0x0000, nobos => 1},
+	0x0018 => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
+	0xFFFF => {version => 0x0000, toolid => 0x0000, toolversion => 0x0000, nobos => 1},
 };
 
 use constant BUDTYPES => ("buddy", "group", "permit entry", "deny entry", "visibility/misc. data", "presence", "unknown 6", "unknown 7", "unknown 8", "unknown 9", "unknown 10", "unknown 11", "unknown 12", "unknown 13", "unknown 14", "unknown 15", "unknown 16", "unknown 17", "unknown 18", "unknown 19", "buddy icon data");
 
 use constant ENCODING => 'text/aolrtf; charset="us-ascii"';
 
-# I'm not 100% sure about error 29
 use constant ERRORS => split(/\n/, <<EOF);
 Invalid error
 Invalid SNAC
@@ -351,7 +350,7 @@ sub tlv(@) {
 	my %tlv = ();
 	tie %tlv, "Net::OSCAR::TLV";
 	while(@_) { my($key, $value) = (shift, shift); $tlv{$key} = $value; }
-	return tlv_encode(\%tlv);
+	return \%tlv;
 }
 
 sub tlv_encode($) {
@@ -388,7 +387,7 @@ sub tlvtie(;$) {
 sub signon_tlv($;$$) {
 	my($session, $password, $key) = @_;
 
-	my %tlv = (
+	my $tlv = tlv(
 		0x01 => $session->{screenname},
 		0x03 => $session->{svcdata}->{clistr},
 		0x16 => pack("n", $session->{svcdata}->{supermajor}),
@@ -403,17 +402,17 @@ sub signon_tlv($;$$) {
 	);
 
 	if($session->{svcdata}->{hashlogin}) {
-		$tlv{0x02} = encode_password($session, $password);
+		$tlv->{0x02} = encode_password($session, $password);
 	} else {
 		if($session->{auth_response}) {
-			($tlv{0x25}) = delete $session->{auth_response};
+			($tlv->{0x25}) = delete $session->{auth_response};
 		} else {
-			$tlv{0x25} = encode_password($session, $password, $key);
+			$tlv->{0x25} = encode_password($session, $password, $key);
 		}
-		$tlv{0x4A} = pack("C", 1);
+		$tlv->{0x4A} = pack("C", 1);
 	}
 
-	return %tlv;
+	return $tlv;
 }
 
 sub encode_password($$;$) {

@@ -214,10 +214,7 @@ sub set_blocking($$) {
 sub connect($$) {
 	my($self, $host) = @_;
 	my $temp;
-	my %tlv;
 	my $port;
-
-	tie %tlv, "Net::OSCAR::TLV";
 
 	return $self->{session}->crapout($self, "Empty host!") unless $host;
 	$host =~ s/:(.+)//;
@@ -293,14 +290,11 @@ sub get_filehandle($) { shift->{socket}; }
 sub process_one($;$$$) {
 	my($self, $read, $write, $error) = @_;
 	my $snac;
-	my %tlv;
 
 	if($error) {
 		$self->{sockerr} = 1;
 		return $self->disconnect();
 	}
-
-	tie %tlv, "Net::OSCAR::TLV";
 
 	$read ||= 1;
 	$write ||= 1;
@@ -334,19 +328,15 @@ sub process_one($;$$$) {
 
 			$self->log_print(OSCAR_DBG_SIGNON, "Sending screenname.");
 			if(!$self->{session}->{svcdata}->{hashlogin}) {
-				%tlv = (
+				$self->flap_put(tlv_encode(tlv(
 					0x17 => pack("C6", 0, 0, 0, 0, 0, 0),
 					0x01 => $self->{session}->{screenname}
-				);
-				$self->flap_put(tlv_encode(\%tlv));
+				)));
 			} else {
-				%tlv = signon_tlv($self->{session}, $self->{auth});
-				$self->flap_put(pack("N", 1) . tlv_encode(\%tlv), FLAP_CHAN_NEWCONN);
+				$self->flap_put(pack("N", 1) . tlv_encode(signon_tlv($self->{session}, $self->{auth})), FLAP_CHAN_NEWCONN);
 			}
 		} else {
 			$self->log_print(OSCAR_DBG_NOTICE, "Sending BOS-Signon.");
-			#%tlv = (0x06 =>$self->{auth});
-			#$self->flap_put(pack("N", 1) . tlv_encode(\%tlv), FLAP_CHAN_NEWCONN);
 			$self->snac_put(family => 0, subtype => 1,
 				flags2 => 0x6,
 				reqid => 0x01000000 | (unpack("n", substr($self->{auth}, 0, 2)))[0],
@@ -382,16 +372,15 @@ sub ready($) {
 
 	return if $self->{sentready}++;
 	$self->log_print(OSCAR_DBG_DEBUG, "Sending client ready.");
-	if($self->{conntype} != CONNTYPE_BOS) {
-		my $conntype = sprintf("0x%04X", $self->{conntype});
-		warn "Conntype $conntype, not ", $self->{conntype}, "\n";
+	my $conntype = $self->{conntype};
+	if($conntype != CONNTYPE_BOS) {
 		$self->snac_put(family => 0x1, subtype => 0x2, data => pack("n*",
-			0x0001, OSCAR_TOOLDATA()->{0x0001}->{version}, OSCAR_TOOLDATA()->{0x0001}->{toolid}, OSCAR_TOOLDATA()->{0x0001}->{toolversion},
-			$self->{conntype}, OSCAR_TOOLDATA()->{$conntype}->{version}, OSCAR_TOOLDATA()->{$conntype}->{toolid}, OSCAR_TOOLDATA()->{$conntype}->{toolversion}
+			1, OSCAR_TOOLDATA()->{1}->{version}, OSCAR_TOOLDATA()->{1}->{toolid}, OSCAR_TOOLDATA()->{1}->{toolversion},
+			$conntype, OSCAR_TOOLDATA()->{$conntype}->{version}, OSCAR_TOOLDATA()->{$conntype}->{toolid}, OSCAR_TOOLDATA()->{$conntype}->{toolversion}
 		));
 	} else {
 		my $data = "";
-		$data .= pack("n*", hex($_), OSCAR_TOOLDATA()->{$_}->{version}, OSCAR_TOOLDATA()->{$_}->{toolid}, OSCAR_TOOLDATA()->{$_}->{toolversion}) foreach sort {hex($b) <=> hex($a)} grep {not OSCAR_TOOLDATA()->{$_}->{nobos}} keys %{OSCAR_TOOLDATA()};
+		$data .= pack("n*", $_, OSCAR_TOOLDATA()->{$_}->{version}, OSCAR_TOOLDATA()->{$_}->{toolid}, OSCAR_TOOLDATA()->{$_}->{toolversion}) foreach sort {$b <=> $a} grep {not OSCAR_TOOLDATA()->{$_}->{nobos}} keys %{OSCAR_TOOLDATA()};
 		$self->snac_put(family => 0x1, subtype => 0x2, data => $data);
 	}
 }
