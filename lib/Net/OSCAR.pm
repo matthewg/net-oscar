@@ -1143,6 +1143,7 @@ sub send_im($$$;$) {
 	}
 
 	my %protodata;
+	$protodata{message} = $msg;
 
 	if($away) {
 		$protodata{is_automatic} = {};
