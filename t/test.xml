@@ -116,6 +116,21 @@
 		</tlvchain>
 	</define>
 
+	<!-- Buddy Trikill -->
+	<define name="im_footer_test">
+                <tlvchain>
+                        <tlv type="2">
+                                <tlvchain>
+                                        <tlv type="1281">
+                                                <word>257</word>
+                                                <word>257</word>
+                                        </tlv>
+                                </tlvchain>
+                        </tlv>
+                </tlvchain>
+	</define>
+
+
 	<!-- ref -->
 	<define name="ref_foo"><word name="foo" /></define>
 	<define name="ref_bar"><word name="bar" /></define>

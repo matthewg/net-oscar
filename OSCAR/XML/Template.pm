@@ -251,6 +251,7 @@ sub unpack($$) {
 			##
 			foreach my $val (@outvals) {
 				foreach (@{$val->{data}}) {
+					next unless exists($val->{items});
 					my(%tmp) = $self->new($val->{items})->unpack($_);
 					# We want:
 					#   <tlv type="1"><data name="x" /></tlv>

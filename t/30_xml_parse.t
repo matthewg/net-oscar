@@ -54,6 +54,7 @@ is_deeply([sort keys(%Net::OSCAR::XML::xmlmap)], [sort qw(
 		count_type_tlv
 		count_subtype_tlv
 		default_generate_tlv
+		im_footer_test
 		ref_foo
 		ref_bar
 		ref

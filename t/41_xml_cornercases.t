@@ -42,9 +42,14 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		template => "basic_tlv",
 		encode => 1,
 		name => "TLV extra data suppress"
+	},{
+		binary => pack("nn nn nC nnnnnn", 2, 19, 0x501, 3, 0x101, 2, 9, 0, 9, 0, 11, 0),
+		data => {__UNKNOWN => [{type => 9, data => ""},{type => 11, data => ""}]},
+		template => "im_footer_test",
+		decode => 1,
+		name => "bad IM footer data"
 	}
 );
-
 
 plan(tests => 3+@tests);
 
