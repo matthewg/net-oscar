@@ -3985,7 +3985,7 @@ sub postprocess_userinfo($$) {
 		foreach my $capability (@$capabilities) {
 			$self->log_print(OSCAR_DBG_DEBUG, "Got a capability.");
 			if(OSCAR_CAPS_INVERSE()->{$capability}) {
-				my $capname = @{OSCAR_CAPS_INVERSE()->{$capability}};
+				my $capname = OSCAR_CAPS_INVERSE()->{$capability};
 				$self->log_print(OSCAR_DBG_DEBUG, "Got capability $capname.");
 				$userinfo->{capabilities}->{$capname} = OSCAR_CAPS()->{$capname}->{description};
 			} else {
