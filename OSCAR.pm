@@ -357,6 +357,7 @@ sub delconn($$) {
 	my($self, $connection) = @_;
 
 	return unless $self->{connections};
+	$self->callback_connection_changed($connection, "deleted");
 	for(my $i = scalar @{$self->{connections}} - 1; $i >= 0; $i--) {
 		next unless !$connection->{socket} or (fileno $connection->{socket} == fileno $self->{connections}->[$i]->{socket});
 		next unless $connection->{conntype} == $self->{connections}->[$i]->{conntype}; # Just in case fileno is undef.
@@ -369,7 +370,6 @@ sub delconn($$) {
 			};
 		} else {
 			if($connection->{conntype} == CONNTYPE_BOS or ($connection->{conntype} == CONNTYPE_LOGIN and !$connection->{closing})) {
-				$self->callback_connection_changed($connection, "deleted");
 				delete $connection->{socket};
 				return $self->crapout($connection, "Lost connection to BOS");
 			} elsif($connection->{conntype} == CONNTYPE_CHATNAV) {
@@ -381,7 +381,6 @@ sub delconn($$) {
 				$self->callback_chat_closed($connection, "Lost connection to chat");
 			}
 		}
-		$self->callback_connection_changed($connection, "deleted");
 		delete $connection->{socket};
 		return 1;
 	}
