@@ -2670,8 +2670,6 @@ For optimum performance, use the L<"connection_changed"> callback.
 
 =over 4
 
-2004-08-24  Matthew Sachs  <matthewg@sachsvax>
-
 =item *
 
 Lots of buddylist-handling bug fixes; should fix intermittent buddylist modification errors
