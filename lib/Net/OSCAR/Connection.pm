@@ -60,7 +60,6 @@ sub flap_get($) {
 	my ($buffer, $channel, $len);
 	my $nchars;
 
-	print STDERR "flap_get\n";
 	if(!exists($self->{buff_gotflap})) {
 		$self->{buffsize} ||= 6;
 		$self->{buffer} ||= "";
@@ -88,7 +87,6 @@ sub flap_get($) {
 		}
 	}
 
-	print STDERR "Reading $self->{buffsize} - " . length($self->{buffer}) . " chars.\n";
 	$nchars = sysread($self->{socket}, $buffer, $self->{buffsize} - length($self->{buffer}));
 	if(!$nchars) {
 		$self->log_print(OSCAR_DBG_NOTICE, "Lost connection.");
@@ -100,7 +98,6 @@ sub flap_get($) {
 	}
 
 	if(length($self->{buffer}) == $self->{buffsize}) {
-		print STDERR "Done.\n";
 		$self->log_print(OSCAR_DBG_PACKETS, "Got ", hexdump($self->{buffer}));
 		$buffer = $self->{buffer};
 
@@ -110,7 +107,6 @@ sub flap_get($) {
 
 		return $buffer;
 	} else {
-		print STDERR "Returning.\n";
 		return "";
 	}
 }

@@ -39,7 +39,7 @@ sub process_snac($$) {
 
 	if($conntype == CONNTYPE_LOGIN and $family == 0x17 and $subtype == 0x7) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got authentication key.");
-		my $key = substr($data, 2);
+		my($key) = unpack("n/a*", $data);
 
 		$connection->log_print(OSCAR_DBG_SIGNON, "Sending password.");
 
@@ -53,8 +53,8 @@ sub process_snac($$) {
 			0x19 => pack("n", 0),
 			0x1A => pack("n", BUILD),
 			0x14 => pack("N", 0x8C),
-			0x0E => "us", # country
 			0x0F => "en", # lang
+			0x0E => "us", # country
 			0x4A => pack("C", 1),
 		);
 		$connection->snac_put(family => 0x17, subtype => 0x2, data => tlv_encode(\%tlv));
