@@ -1,0 +1,372 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Net::OSCAR qw(:standard);
+use Data::Dumper;
+use vars qw($pid $oscar @chats @invites);
+
+#$Carp::Verbose = 1;
+$| = 1;
+
+sub error($$$$$$$$;$) {
+	my($oscar, $connection, $error, $errno, $url, $reqdata, $family, $subtype, $fatal) = @_;
+	$error = "{$reqdata} $error" if $reqdata;
+	if($fatal) {
+		die "Fatal error in ".$connection->{description}.": $error\n";
+	} else {
+		print STDERR "$error\n";
+	}
+}
+
+sub signon_done($) {
+	my $oscar = shift;
+	print "You are now signed on to AOL Instant Messenger.\n";
+}
+
+sub rate_alert($$$) {
+	my($oscar, $level, $clear, $window) = @_;
+
+	$clear /= 1000;
+	print STDERR "We received a level $level rate alert.  Wait for about $clear seconds.\n";
+}
+
+sub admin_error($$$$) {
+	my($oscar, $reqtype, $error, $errurl) = @_;
+
+	# reqtype is "all", "password change", "email change", "screenname format", or "account confirm"
+	if($reqtype eq "all") {
+		print STDERR "Your password, email, screenname, or confirmation change request couldn't be completed because we couldn't connect to the administrative server.\n";
+	} else {
+		print STDERR "Your $reqtype request was unsuccessful: $error  See $errurl for more info.\n";
+	}
+}
+
+sub admin_ok($$) {
+	my($oscar, $reqtype) = @_;
+
+	print "Your $reqtype request was successful.\n";
+}
+
+sub chat_closed($$$) {
+	my($oscar, $chat, $error) = @_;
+	for(my $i = 0; $i < @chats; $i++) {
+		next unless $chats[$i] == $chat;
+		splice @chats, $i, 1;
+	}
+	print STDERR "Connection to chat ", $chat->{name}, " was closed: $error\n";
+}
+
+sub buddy_in($$$$) {
+	shift;
+	my($screenname, $group, $buddat) = @_;
+	print "Got buddy $screenname from $group\n";
+}
+
+sub chat_buddy_in($$$$) {
+	shift;
+	my($screenname, $chat, $buddat) = @_;
+	print "Got buddy $screenname from chat ", $chat->{name}, ".\n";
+}
+
+sub buddy_out($$$) {
+	shift;
+	my($screenname, $group) = @_;
+	print "Lost buddy $screenname from $group\n";
+}
+
+sub chat_buddy_out($$$) {
+	shift;
+	my($screenname, $chat) = @_;
+	print "Lost buddy $screenname from chat ", $chat->{name}, ".\n";
+}
+
+sub im_in($$$) {
+	shift;
+	my($who, $what, $away) = @_;
+	if($away) {
+		$away = "[AWAY] ";
+	} else {
+		$away = "";
+	}
+	print "$who: $away$what\n";
+}
+
+sub chat_im_in($$$$) {
+	shift;
+	my($who, $chat, $what) = @_;
+	print "$who in ".$chat->{name}.": $what\n";
+}
+
+sub chat_invite($$$) {
+	shift;
+	my($from, $msg, $chat) = @_;
+	my $invnum = push @invites, $chat;
+	$invnum--;
+	print "$from has invited us to chat $chat.  Use command accept_invite $invnum to accept.\n";
+	print "Invite message: $msg\n";
+}
+
+sub chat_joined($$$) {
+	shift;
+	my($name, $chat) = @_;
+	push @chats, $chat;
+	print "You have joined chat $name.  Its chat number is ".(scalar(@chats)-1)."\n";
+}
+
+sub evil($$$) {
+	shift;
+	my($newevil, $enemy) = @_;
+	$enemy ||= "Anonymous";
+	print "$enemy has just evilled you!  Your new evil level is $newevil%.\n";
+}
+
+sub buddy_info($$$$) {
+	shift;
+	my($screenname, $buddat) = @_;
+	my $membersince = localtime($buddat->{membersince});
+	my $onsince = localtime($buddat->{onsince});
+
+	my $extra = "";
+	$extra .= " [TRIAL]" if $buddat->{trial};
+	$extra .= " [AOL]" if $buddat->{aol};
+	$extra .= " [FREE]" if $buddat->{free};
+	$extra .= " [AWAY]" if $buddat->{away};
+
+	$buddat->{evil} /= 10;
+
+	my $profile = "";
+	if($buddat->{awaymsg}) {
+		$profile = <<EOF
+---------------------------------
+Away message
+---------------------------------
+$buddat->{awaymsg}
+EOF
+	} elsif($buddat->{profile}) {
+		if(exists($buddat->{idle}) and not $buddat->{idle}) {
+			$buddat->{idle} = 0;
+		} elsif(!exists($buddat->{idle})) {
+			$buddat->{idle} = "User does not report idle time." 
+		}
+		$profile = <<EOF
+---------------------------------
+Profile
+---------------------------------
+$buddat->{profile}
+EOF
+	}
+
+	print <<EOF;
+=================================
+Buddy info for $screenname
+---------------------------------
+Flags: $extra
+Member Since: $membersince
+On Since: $onsince
+Session Length: $buddat->{sessionlen}
+Idle Time (secs): $buddat->{idle}
+Evil Level: $buddat->{evil}%
+$profile
+=================================
+EOF
+}
+
+print "Username: ";
+my $username = <STDIN>;
+print "Password: ";
+system("stty -echo");
+my $password = <STDIN>;
+system("stty echo");
+print "\n";
+chomp $username;
+chomp $password;
+
+#=pod
+
+$pid = fork();
+if(!$pid) {
+	umask 022;
+	unlink "dormouse.pcap";
+	system("touch dormouse.pcap");
+	system("chown matthewg dormouse.pcap");
+	close STDOUT;
+	close STDERR;
+	exec("/home/matthewg/tethereal", "-n", "-p", "-w", "dormouse.pcap", "port", "5190");
+}
+
+#=cut
+
+$oscar = Net::OSCAR->new();
+$oscar->set_callback_error(\&error);
+$oscar->set_callback_buddy_in(\&buddy_in);
+$oscar->set_callback_buddy_out(\&buddy_out);
+$oscar->set_callback_im_in(\&im_in);
+$oscar->set_callback_chat_joined(\&chat_joined);
+$oscar->set_callback_chat_buddy_in(\&chat_buddy_in);
+$oscar->set_callback_chat_buddy_out(\&chat_buddy_out);
+$oscar->set_callback_chat_im_in(\&chat_im_in);
+$oscar->set_callback_chat_invite(\&chat_invite);
+$oscar->set_callback_buddy_info(\&buddy_info);
+$oscar->set_callback_evil(\&evil);
+$oscar->set_callback_chat_closed(\&chat_closed);
+$oscar->set_callback_admin_error(\&admin_error);
+$oscar->set_callback_admin_ok(\&admin_ok);
+$oscar->set_callback_rate_alert(\&rate_alert);
+$oscar->set_callback_signon_done(\&signon_done);
+#$oscar->debug(255);
+$oscar->signon($username, $password);
+
+my $inline = "";
+my $inchar = "";
+while(1) {
+	my $rin = '';
+	foreach my $socket($oscar->connections) {
+		vec($rin, fileno $socket, 1) = 1;
+	};
+	my $win = $rin;
+	vec($rin, 0, 1) = 1;
+	my $ein = $rin;
+	select($rin, $win, $ein, 0.01);
+	$oscar->process_connections(\$rin, \$win, \$ein);
+	next unless vec($rin, 0, 1);
+	sysread(STDIN, $inchar, 1);
+	if($inchar eq "\n") {
+		my($cmd, @params) = split(/[ \t]+/, $inline);
+		$inchar = "";
+		$inline = "";
+		$cmd ||= "";
+		if($cmd eq "help") {
+			print <<EOF
+oscartest $Net::OSCAR::VERSION
+(c)2001 Matthew Sachs, all rights reserved
+
+This program is licensed under Version 2 of the GNU Public License.
+A copy of the license is available at http://www.gnu.org/copyleft/gpl.txt
+
+====basics====
+signoff/quit/exit
+get_permit_mode
+set_permit_mode
+list_permit_modes
+send screenname msg
+====buddies====
+info screenname
+awaymsg screenname
+add_buddy group screennames
+remove_buddy group screennames
+evil screenname [anon]
+buddylist
+====chat====
+join chat_name
+accept_invite chat_URL
+invite user chat_number message
+chatlist
+part chat_number
+chat_send chat_number message
+====misc====
+set_profile profile
+set_away awaymsg
+get_dir screenname
+set_dir [info]
+format_screenname screenname
+change_password old new
+change_email email
+confirm_account
+set_idle time
+yourinfo
+====debug====
+eval
+EOF
+		} elsif($cmd eq "signoff" or $cmd eq "quit" or $cmd eq "exit") {
+			exit;
+		} elsif($cmd eq "add_buddy") {
+			$oscar->add_buddy(@params);
+		} elsif($cmd eq "remove_buddy") {
+			$oscar->remove_buddy(@params);
+		} elsif($cmd eq "send") {
+			my($who) = shift @params;
+			$oscar->send_im($who, join(" ", @params));
+		} elsif($cmd eq "info") {
+			print "Requesting buddy info...\n";
+			$oscar->get_info($params[0]);
+		} elsif($cmd eq "awaymsg") {
+			print "Requesting away message...\n";
+			$oscar->get_away($params[0]);
+		} elsif($cmd eq "evil") {
+			$oscar->evil(@params);
+		} elsif($cmd eq "get_permit_mode") {
+			print $oscar->visibility, "\n";
+		} elsif($cmd eq "set_permit_mode") {
+			$oscar->set_visibility($params[0]);
+		} elsif($cmd eq "list_permit_modes") {
+			print "Permit all: 1\nDeny all: 2\nPermit some: 3\nDeny some: 4\nPermit buddies: 5\n";
+		} elsif($cmd eq "buddylist") {
+			foreach my $group(sort $oscar->groups) {
+				printf "%s\n", $group, $oscar->{buddies}->{$group}->{groupid};
+				foreach my $buddy(sort $oscar->buddies($group)) {
+					my $buddat = $oscar->buddy($buddy, $group);
+
+					my $extra = "";
+					if($buddat) {
+						$extra .= " [ONLINE]" if $buddat->{online};
+						$extra .= " [TRIAL]" if $buddat->{trial};
+						$extra .= " [AOL]" if $buddat->{aol};
+						$extra .= " [FREE]" if $buddat->{free};
+						$extra .= " [AWAY]" if $buddat->{away};
+					} else {
+						$buddat = {buddyid => 0};
+					}
+
+					printf "\t%s (0x%04X)%s\n", $buddy, $buddat->{buddyid}, $extra;
+				}
+			}
+		} elsif($cmd eq "join") {
+			$oscar->chat_join(join(" ", @params));
+		} elsif($cmd eq "accept_invite") {
+			$oscar->chat_accept($invites[$params[0]]);
+		} elsif($cmd eq "invite") {
+			my($who, $what) = (shift @params, shift @params);
+			$chats[$what]->invite($who, join(" ", @params));
+		} elsif($cmd eq "chat_send") {
+			my($what) = shift @params;
+			$chats[$what]->chat_send(join(" ", @params));
+		} elsif($cmd eq "chatlist") {
+			for(my $i = 0; $i < @chats; $i++) {
+				print "$i: ".$chats[$i]->{name}."\n";
+			}
+		} elsif($cmd eq "part") {
+			$chats[$params[0]]->part();
+			splice @chats, $params[0], 1;
+		} elsif($cmd eq "set_profile") {
+			$oscar->set_info(join(" ", @params), "");
+		} elsif($cmd eq "set_away") {
+			$oscar->set_away(join(" ", @params));
+		} elsif($cmd eq "get_dir") {
+			print "Not implemented.\n";
+		} elsif($cmd eq "set_dir") {
+			print "Not implemented.\n";
+		} elsif($cmd eq "format_screenname") {
+			$oscar->format_screenname(join(" ", @params));
+		} elsif($cmd eq "change_password") {
+			$oscar->change_password(@params);
+		} elsif($cmd eq "change_email") {
+			$oscar->change_email(@params);
+		} elsif($cmd eq "confirm_account") {
+			$oscar->confirm_account();
+		} elsif($cmd eq "set_idle") {
+			$oscar->set_idle($params[0]);
+		} elsif($cmd eq "eval") {
+			eval join(" ", @params);
+			print STDERR $@ if $@;
+		} elsif($cmd eq "yourinfo") {
+			print "Screenname: ", $oscar->screenname, "\n";
+			print "Email: ", $oscar->email, "\n";
+		} else {
+			print "Invalid command.\n";
+		}
+	} else {
+		$inline .= $inchar;
+	}
+}
+
+sub END { system("/home/matthewg/skill $pid"); }

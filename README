@@ -1,0 +1,37 @@
+Net/OSCAR version 0.01
+======================
+
+"Net::OSCAR" implements the OSCAR protocol which is used
+by AOL's AOL Instant Messenger service.  To use the module,
+you create a "Net::OSCAR" object, register some functions
+as handlers for various events by using the module's
+callback mechanism, and then continually make calls to the
+module's event processing methods.
+
+See the POD documentation for details (perldoc OSCAR.pm)
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+  Digest::MD5
+
+COPYRIGHT AND LICENCE
+
+Copyright (c) 2001 Matthew Sachs.  All rights reserved.
+This program is free software; you can redistribute it
+and/or modify it under the same terms as Perl itself.  AOL
+Instant Messenger and AIM are registered service marks of
+AOL/Time Warner.  America OnLine is a registered trademark
+of AOL/Time Warner.  "Net::OSCAR" is not affiliated with,
+endorsed by, or supported by AOL.
+

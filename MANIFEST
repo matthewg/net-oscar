@@ -1,0 +1,15 @@
+Changes
+MANIFEST
+Makefile.PL
+OSCAR.pm
+README
+TODO
+oscartest
+snacsnatcher
+test.pl
+OSCAR/Buddylist.pm
+OSCAR/Callbacks.pm
+OSCAR/Chat.pm
+OSCAR/Common.pm
+OSCAR/Connection.pm
+OSCAR/TLV.pm

@@ -1,0 +1,147 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Socket;
+use Net::OSCAR qw(:all);
+use Net::Pcap;
+
+sub BEGIN {
+	eval {
+		require "net/bpf.ph";
+	};
+	die "Couldn't find net/bpf.ph.\nPlease create it by doing cd /usr/include ; h2ph net/bpf.h\n" if $@;
+
+	do "Net/OSCAR/Common.pm";
+}
+
+my $file = shift or die "Usage: snacsnatcher pcapfile [verbose]\n";
+
+# Quick and dirty protocol analyzer
+
+use vars qw($packet $verbose $buffer $bufflen $dummyconn $datalink);
+$packet = 0;
+$verbose = shift;
+$buffer = "";
+$bufflen = 0;
+
+$dummyconn = {};
+bless $dummyconn, "Net::OSCAR::Connection";
+$dummyconn->{DEBUG} = 1 if $verbose;
+$dummyconn->{description} = "";
+
+$| = 1;
+
+sub got_packet($$$) {
+	my($user, $hdr, $pkt) = @_;
+	my $tlv;
+
+	$packet++;
+	# This removes the datalink-level headers from a packet.
+	# You may need to adjust this - this is a very Q&D hack.
+	# Only ethernet (DLT_EN10MB) is tested.
+	#
+	# These are taken from tcpdump.
+	#
+	if($datalink == DLT_NULL or $datalink == DLT_LOOP) {
+		substr($pkt, 0, 4) = "";
+	} elsif($datalink == DLT_EN10MB or $datalink == DLT_IEEE802) {
+		substr($pkt, 0, 14) = "";
+	} elsif($datalink == DLT_SLIP) {
+		substr($pkt, 0, 16) = "";
+	} elsif($datalink == DLT_PPP) {
+		substr($pkt, 0, 4) = "";
+	} else {
+		die "Unsupported datalink $datalink\n";
+	}
+
+	my($iplen) = unpack("C", $pkt);
+	$iplen = ($iplen&0xF) * 4;
+	my $src = substr($pkt, 12, 4);
+	my $dst = substr($pkt, 16, 4);
+	substr($pkt, 0, $iplen) = ""; #Get rid of IP headers
+	$src = inet_ntoa($src);
+	$dst = inet_ntoa($dst);
+
+	substr($pkt, 0, 12) = "";
+	my($tcplen, $flags) = unpack("CC", $pkt);
+	$tcplen = ($tcplen>>4)*4;
+	substr($pkt, 0, $tcplen - 12) = ""; #Get rid of TCP headers
+	return if $flags & 0x2; # SYN
+
+	PACKET: while($pkt) {
+		if($buffer) {
+			if(length($pkt) < ($bufflen - length($buffer))) {
+				$buffer .= $pkt;
+				return;
+			} else {
+				$buffer .= substr($pkt, 0, $bufflen - length($buffer), "");
+				$pkt = $buffer;
+				$buffer = "";
+				$bufflen = 0;
+			}
+		}
+
+		my($flap, $channel, $seqno, $len) = unpack("CCnn", $pkt);
+		$len ||= 0;
+		if($flap == 0x2A and (length($pkt) - 6) < $len) {
+			$buffer = $pkt;
+			$bufflen = $len + 6;
+			return;
+		}
+
+		printf "%04d ($src, $dst)\n", $packet;
+
+		if($flap != 0x2A) {
+			print "\tNon-FLAP packet" ;
+			print hexdump($pkt), "\n";
+			return;
+		}
+
+		substr($pkt, 0, 6) = "";
+		printf "\tchannel: 0x%X, seqno: 0x%02X, length: 0x%02X\n", $channel, $seqno, $len;
+
+		next PACKET unless $pkt;
+		if(length($pkt) < 10) {
+			print hexdump($pkt);
+		} else {
+			my($family, $subtype, $flags1, $flags2, $reqid) = unpack("nnCCN", $pkt);
+			substr($pkt, 0, 10) = "";
+			$len -= 10;
+			printf "\tSNAC 0x%04X/0x%04X (flags 0x%02X, 0x%02X) [reqid 0x%08X]\n", $family, $subtype, $flags1, $flags2, $reqid;
+			if($len and $verbose) {
+				# TLV check
+				my $tlv = 1;
+				for(my $pos = 0; $pos < $len;) {
+					(undef) = unpack("n", substr($pkt, $pos, 2));
+					$pos += 2;
+					if($pos > $len) {
+						$tlv = 0;
+						last;
+					}
+					my($tlvlen) = unpack("n", substr($pkt, $pos, 2));
+					$pos += 2;
+					if($pos+$tlvlen > $len) {
+						$tlv = 0;
+						last;
+					}
+					$pos += $tlvlen;
+				}
+
+				if($tlv) {
+					Net::OSCAR::Connection::tlv_decode($dummyconn, substr($pkt, 0, $len));
+				} else {
+					print hexdump(substr($pkt, 0, $len));
+				}
+			}
+		}
+		print "\n";
+
+		substr($pkt, 0, $len) = "" if $len;
+	}
+}
+
+my $pcap = Net::Pcap::open_offline($file, \$!) or die "Couldn't open $file: $!\n";
+$datalink = Net::Pcap::datalink($pcap);
+Net::Pcap::dispatch($pcap, 0, \&got_packet, undef);
+Net::Pcap::close($pcap);
