@@ -36,7 +36,7 @@ sub invite($$;$) {
 				$self->{url}, 0, 3, 0
 		)
 	);
-	$packet .= $self->tlv_encode(\%tlv);
+	$packet .= tlv_encode(\%tlv);
 
 	$self->{session}->{bos}->snac_put(family => 0x04, subtype => 0x06, data => $packet);
 }
@@ -61,8 +61,8 @@ sub chat_send($$;$$) {
 	%tlv = (0x01 => "");
 	$tlv{0x06} = "" unless $noreflect;
 	$tlv{0x07} = "" if $away;
-	$tlv{0x05} = $self->tlv_encode(\%mtlv);
-	$packet .= $self->tlv_encode(\%tlv);
+	$tlv{0x05} = tlv_encode(\%mtlv);
+	$packet .= tlv_encode(\%tlv);
 
 	$self->snac_put(family => 0x0E, subtype => 0x05, data => $packet);
 }

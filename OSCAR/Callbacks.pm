@@ -55,11 +55,11 @@ sub process_snac($$) {
 			0x0F => "en", # lang
 			0x4A => pack("C", 1),
 		);
-		$connection->snac_put(family => 0x17, subtype => 0x2, data => $connection->tlv_encode(\%tlv));
+		$connection->snac_put(family => 0x17, subtype => 0x2, data => tlv_encode(\%tlv));
 	} elsif($conntype == CONNTYPE_LOGIN and $family == 0x17 and $subtype == 0x3) {
 		$connection->debug_print("Got authorization response.");
 
-		%tlv = %{$connection->tlv_decode($data)};
+		%tlv = %{tlv_decode($data)};
 		if($tlv{0x08}) {
 			my($error) = unpack("n", $tlv{0x08});
 			$session->crapout($connection, "Invalid screenname.") if $error == 0x01;
@@ -144,7 +144,7 @@ sub process_snac($$) {
 			$error = "Error in ".$connection->{description}.": ";
 		}
 		my($errno) = unpack("n", substr($data, 0, 2, ""));
-		my $tlv = $connection->tlv_decode($data) if $data;
+		my $tlv = tlv_decode($data) if $data;
 		$error .= (ERRORS)[$errno] || "unknown error $errno";
 		$error .= "(".$tlv->{4}.")." if $tlv;
 		$session->callback_error($connection, $error, $errno, $tlv->{4}, $reqdata, $family, $subtype);
@@ -176,7 +176,7 @@ sub process_snac($$) {
 		$connection->debug_print("And so, another former ally has abandoned us.  Curse you, $buddy!");
 		$session->callback_buddy_out($buddy, $group);
 	} elsif($family == 0x1 and $subtype == 0x5) {
-		my $tlv = $connection->tlv_decode($data);
+		my $tlv = tlv_decode($data);
 		my($svctype) = unpack("n", $tlv->{0xD});
 		my $conntype;
 		my %chatdata;
@@ -308,7 +308,7 @@ sub process_snac($$) {
 				my $typedata = substr($data, 0, $len, "");
 
 				if($type == 4) {
-					$tlv = $connection->tlv_decode($typedata);
+					$tlv = tlv_decode($typedata);
 					($session->{visibility}) = unpack("C", $tlv->{0xCA});
 
 
@@ -331,7 +331,7 @@ sub process_snac($$) {
 					}
 				} elsif($type == 5) {
 					# Not yet implemented
-					$tlv = $connection->tlv_decode($typedata);
+					$tlv = tlv_decode($typedata);
 					($session->{showidle}) = unpack("N", $tlv->{0xC9});
 				} else {
 					$self->debug_print("Got unknown BLTtype $type: ", hexdump($typedata));
@@ -440,7 +440,7 @@ sub process_snac($$) {
 		my($detaillevel) = unpack("C", substr($data, 0, 1, ""));
 
 		my($tlvcount) = unpack("n", substr($data, 0, 2, ""));
-		my $tlv = $connection->tlv_decode($data);
+		my $tlv = tlv_decode($data);
 
 		$session->callback_chat_joined($connection->{name}, $connection);
 
@@ -465,16 +465,16 @@ sub process_snac($$) {
 		}
 	} elsif($family == 0x0E and $subtype == 0x06) {
 		substr($data, 0, 10) = "";
-		my $tlv = $connection->tlv_decode($data);
+		my $tlv = tlv_decode($data);
 		my ($sender) = unpack("C/a*", $tlv->{0x03});
-		my $mtlv = $connection->tlv_decode($tlv->{0x05});
+		my $mtlv = tlv_decode($tlv->{0x05});
 		my $message = $mtlv->{0x01};
 		$session->callback_chat_im_in($sender, $connection, $message);
 	} elsif($family == 0x07 and $subtype == 0x05) {
 		$connection->debug_print("Admin request successful!");
 
 		my($reqtype) = unpack("n", substr($data, 0, 2, ""));
-		my $tlv = $connection->tlv_decode(substr($data, 0, 6, ""));
+		my $tlv = tlv_decode(substr($data, 0, 6, ""));
 		my $reqdesc = "";
 		my($subreq) = unpack("n", $tlv->{0x3}) if $tlv->{0x3};
 		$subreq ||= 0;
@@ -494,7 +494,7 @@ sub process_snac($$) {
 
 		my $errdesc = "";
 		if(!exists($tlv->{1})) {
-			my $tlv = $connection->tlv_decode($data);
+			my $tlv = tlv_decode($data);
 			if($reqdesc eq "account confirm") {
 				$errdesc = "Your account is already confirmed.";
 			} else {

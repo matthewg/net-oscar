@@ -809,7 +809,7 @@ sub extract_userinfo($$) {
 	substr($data, 0, 5+length($retval->{screenname})) = "";
 	$self->debug_print("Decoding userinfo TLV with tlvcnt $tlvcnt.");
 
-	my($tlv, $chainlen) = $self->{bos}->tlv_decode($data, $tlvcnt);
+	my($tlv, $chainlen) = tlv_decode($data, $tlvcnt);
 	#$chainlen--;
 
 	$self->debug_print("Done decoding userinfo TLV - chainlen $chainlen.");
@@ -829,7 +829,7 @@ sub extract_userinfo($$) {
 	substr($data, 0, $chainlen) = "";
 
 	if($data) {
-		$tlv = $self->{bos}->tlv_decode($data);
+		$tlv = tlv_decode($data);
 		$retval->{profile} = $tlv->{0x2} if $tlv->{0x2};
 		$retval->{awaymsg} = $tlv->{0x4} if $tlv->{0x4};
 		$retval->{chatdata} = $tlv->{0x5} if $tlv->{0x5};
@@ -942,7 +942,7 @@ sub im_parse($$) {
 		substr($data, 0, $tlvlen) = "";
 		$self->debug_print("Decoding ICBM secondary TLV.");
 
-		my $tlv = $self->{bos}->tlv_decode($data);
+		my $tlv = tlv_decode($data);
 		$msg = $tlv->{2};
 
 		substr($msg, 0, 2) = "";
@@ -964,7 +964,7 @@ sub im_parse($$) {
 		$away = 0;
 
 		substr($data, 0, 26) = "";
-		my $tlv = $self->{bos}->tlv_decode($data);
+		my $tlv = tlv_decode($data);
 		$msg = $tlv->{0xC};
 		if($tlv->{0x2711}) {
 			($chaturl) = unpack("xx C/a*", $tlv->{0x2711});
@@ -1051,7 +1051,7 @@ sub set_info($$;$) {
 	$tlv{0x5} = $self->capabilities();
 
 	$self->debug_print("Setting user information.");
-	$self->{bos}->snac_put(family => 0x02, subtype => 0x04, data => $self->{bos}->tlv_encode(\%tlv));
+	$self->{bos}->snac_put(family => 0x02, subtype => 0x04, data => tlv_encode(\%tlv));
 	$self->set_visibility($self->visibility);
 }
 
@@ -1103,7 +1103,7 @@ sub change_password($$$) {
 		0x12 => $currpass
 	);
 
-	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => $self->{bos}->tlv_encode(\%tlv));
+	$self->svcdo(CONNTYPE_ADMIN, family => 0x07, subtype => 0x04, data => tlv_encode(\%tlv));
 }
 
 =pod
