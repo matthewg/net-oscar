@@ -2076,7 +2076,7 @@ Returns the C<Net::OSCAR> object associated with this C<Net::OSCAR::Connection>.
 
 =item *
 
-Various connectino_changed fixes, including the new readwrite status.
+Various connection_changed fixes, including the new readwrite status.
 
 =item *
 
