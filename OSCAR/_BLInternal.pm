@@ -89,8 +89,8 @@ sub BLI_to_NO($) {
 		}
 	}
 
-	if(exists $bli->{4}) {
-		my $typedata = $bli->{4}->{0}->{(keys %{$bli->{4}->{0}})[0]}->{data};
+	if(exists $bli->{4} and (my($visbid) = keys %{$bli->{4}->{0}})) {
+		my $typedata = $bli->{4}->{0}->{$visbid}->{data};
 		($session->{visibility}) = unpack("C", $typedata->{0xCA}) if $typedata->{0xCA};
 
 		my $groupperms = $typedata->{0xCB};
@@ -187,7 +187,7 @@ sub NO_to_BLI($) {
 
 	my $vistype;
 	$vistype = (keys %{$session->{blinternal}->{4}->{0}})[0] if exists($session->{blinternal}->{4}) and exists($session->{blinternal}->{4}->{0}) and scalar keys %{$session->{blinternal}->{4}->{0}};
-	$vistype ||= 2;
+	$vistype ||= int(rand(30000)) + 1;
 	$bli->{4}->{0}->{$vistype}->{data}->{0xCA} = pack("C", $session->{visibility} || VISMODE_PERMITALL);
 	$bli->{4}->{0}->{$vistype}->{data}->{0xCB} = pack("N", $session->{groupperms} || 0xFFFFFFFF);
 	$bli->{4}->{0}->{$vistype}->{data}->{0x0100} = $session->{profile} if $session->{profile};
@@ -322,7 +322,7 @@ sub BLI_to_OSCAR($$) {
 
 	# Actually send the changes.  Don't send more than 7K in a single SNAC.
 	# FLAP size limit is 8K, but that includes headers - good to have a safety margin
-	foreach my $type(0xA, 0x9, 0x8) {
+	foreach my $type(0xA, 0x8, 0x9) {
 		my $changelist;
 		if($type == 0x8) {
 			$changelist = \@adds;
