@@ -1427,14 +1427,14 @@ sub set_icon($$) {
 
 =pod
 
-=item get_icon (SCREENNAME, CHECKSUM)
+=item get_icon (SCREENNAME, MD5SUM)
 
 Gets a user's buddy icon.  See L<set_icon> for details.  To make
 sure this method isn't called excessively, please check the
 C<icon_checksum> and C<icon_timestamp> data, which are available
 via the L<buddy> method (even for people not on the user's buddy
-list.)  You might as well, you need to pass this method the 
-correct icon checksum anyway...
+list.)  The MD5 checksum of a user's icon will be in the
+C<icon_md5sum> key returned by L<buddy>.
 
 You should receive a L<buddy_icon_downloaded> callback in
 response to this method.
@@ -1442,14 +1442,12 @@ response to this method.
 =cut
 
 sub get_icon($$$) {
-	my($self, $screenname, $checksum) = @_;
+	my($self, $screenname, $md5sum) = @_;
 
 	carp "This client does not support buddy icons!" unless $self->{capabilities}->{buddy_icons};
 
-	$checksum = 
-
 	$self->svcdo(CONNTYPE_ICON, family => 0x10, subtype => 0x04, data => pack("Ca*CnCCa*",
-		length($screenname), $screenname, 1, 1, 1, length($checksum), $checksum
+		length($screenname), $screenname, 1, 1, 1, length($md5sum), $md5sum
 	));
 }	
 
@@ -2039,6 +2037,9 @@ icon via an incoming IM from the person, these data B<will> be available.
 
 Upon receiving this callback, an application should use the C<icon_checksum>
 to search for the icon in its cache, and call L<get_icon> if it can't find it.
+If the C<icon_md5sum>, which is what needs to get passed to L<get_icon>, is not present 
+in the buddy data, use L<get_info> to request the information for the user,
+and then call L<get_icon> from the L<buddy_info> callback.
 
 =item buddy_icon_uploaded (OSCAR)
 

@@ -483,10 +483,10 @@ EOF
 			$oscar->commit_buddylist;
 		} elsif($cmd eq "get_icon") {
 			my $buddat = $oscar->buddy(join(" ", @params));
-			if(!$buddat or !$buddat->{icon_checksum}) {
-				print "Couldn't find icon checksum.\n";
+			if(!$buddat or !$buddat->{icon_md5sum}) {
+				print "Couldn't find icon MD5 checksum.\n";
 			} else {
-				$oscar->get_icon($buddat->{screenname}, $buddat->{icon_checksum});
+				$oscar->get_icon($buddat->{screenname}, $buddat->{icon_md5sum});
 			}
 		} elsif($cmd eq "get_dir") {
 			print "Not implemented.\n";

@@ -3,6 +3,7 @@ Makefile.PL
 OSCAR.pm
 README
 TODO
+HACKING
 oscartest
 snacsnatcher
 test.pl
