@@ -648,7 +648,7 @@ sub profile($) { return shift->{profile}; }
 
 =pod
 
-=item get_app_data
+=item get_app_data [GROUP[, BUDDY]]
 
 Gets application-specific data.  Returns a hashref whose keys are app-data IDs.
 IDs with high-order byte 0x0001 are reserved for non-application-specific usage
@@ -658,11 +658,23 @@ byte for your application by emailing C<libfaim-aim-protocol@lists.sourceforge.n
 This data is stored in your server-side buddylist and so will be persistent,
 even across machines.
 
+If C<GROUP> is present, a hashref for accessing data specific to that group
+is returned.
+
+If C<BUDDY> is present, a hashref for accessing data specific to that buddy
+is returned.
+
 Call L<"commit_buddylist"> to have the new data saved on the OSCAR server.
 
 =cut
 
-sub get_app_data($) { return shift->{appdata}; }
+sub get_app_data($;$$) {
+	my($self, $group, $buddy) = @_;
+
+	return $self->{appdata} unless $group;
+	return $self->{buddies}->{$group}->{data} unless $buddy;
+	return $self->{buddies}->{$group}->{members}->{$buddy}->{data};
+}
 
 sub mod_permit($$$@) {
 	my($self, $action, $group, @buddies) = @_;
