@@ -371,12 +371,10 @@ sub process_one($;$$$) {
 			$self->log_print(OSCAR_DBG_SIGNON, "Connected to login server.");
 			$self->{ready} = 1;
 
-			$self->log_print(OSCAR_DBG_SIGNON, "Sending screenname.");
 			if(!$self->{session}->{svcdata}->{hashlogin}) {
-				$self->flap_put(tlv_encode(tlv(
-					0x17 => pack("C6", 0, 0, 0, 0, 0, 0),
-					0x01 => $self->{session}->{screenname}
-				)));
+				$self->proto_send(protobit => "initial signon request",
+					protodata => {screenname => $self->{session}->{screenname}}
+				);
 			} else {
 				$self->flap_put(pack("N", 1) . tlv_encode(signon_tlv($self->{session}, $self->{auth})), FLAP_CHAN_NEWCONN);
 			}

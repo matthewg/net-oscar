@@ -11,7 +11,7 @@ $REVISION = '$Revision$';
 
 use strict;
 use vars qw(@ISA @EXPORT $VERSION);
-use Digest::MD5;
+use Digest::MD5 qw(md5);
 use Carp;
 
 use Net::OSCAR::TLV;
@@ -173,14 +173,13 @@ sub signon_tlv($;$$) {
 
 	if($session->{svcdata}->{hashlogin}) {
 		$protodata{password} = encode_password($session, $password);
-		$protodata{protobit} = "signon_ICQ";
 	} else {
+		$protodata{betainfo} = "";
 		if($session->{auth_response}) {
 			$protodata{auth_response} = delete $session->{auth_response};
 		} else {
 			$protodata{auth_response} = encode_password($session, $password, $key);
 		}
-		$protodata{protobit} = "signon";
 	}
 
 	return %protodata;
@@ -190,10 +189,15 @@ sub encode_password($$;$) {
 	my($session, $password, $key) = @_;
 
 	if(!$session->{svcdata}->{hashlogin}) { # Use new SNAC-based method
+		# As of AIM 5.5, the password needs to be MD5'd before
+		# going into the things-to-cat-together-and-MD5...
+		# sekuritee -- it's like security, only not.
+		my $sekuritee = md5($password);
+
 		my $md5 = Digest::MD5->new;
 
 		$md5->add($key);
-		$md5->add($password);
+		$md5->add($sekuritee);
 		$md5->add("AOL Instant Messenger (SM)");
 		return $md5->digest();
 	} else { # Use old roasting method.  Courtesy of SDiZ Cheng.

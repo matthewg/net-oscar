@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-use Test::More tests => 22;
+use Test::More tests => 25;
 use File::Basename;
 use strict;
 use lib "./blib/lib";
@@ -24,6 +24,7 @@ is_deeply([sort keys(%Net::OSCAR::XML::xmlmap)], [sort qw(
 		vax_prefix
 		repeated_data
 		fixed_width_data
+		default_generate_data
 		count_len
 		basic_tlv
 		data_tlv
@@ -32,9 +33,13 @@ is_deeply([sort keys(%Net::OSCAR::XML::xmlmap)], [sort qw(
 		subdata_prefix_tlv
 		length_tlv
 		named_tlv
+		named_only_tlv
 		complex_data_tlv
 		subtyped_tlv
 		count_prefix_tlv
+		count_type_tlv
+		count_subtype_tlv
+		default_generate_tlv
 		ref_foo
 		ref_bar
 		ref
@@ -96,6 +101,11 @@ is_deeply(
 	[protoparse($oscar, "fixed_width_data")],
 	[{type => 'data', len => 10, name => 'x'}, {type => 'data', name => 'y'}],
 	"fixed-width data"
+);
+is_deeply(
+	[protoparse($oscar, "default_generate_data")],
+	[{type => 'data', prefix => "length", prefix_len => 2, prefix_packlet => "n", value => ""}],
+	"default-generate data"
 );
 
 is_deeply(
@@ -176,6 +186,24 @@ is_deeply(
 		{type => 'data', num => 2, items => [{type => 'data', name => 'y'}]},
 	]}],
 	"TLV chain, count prefixed"
+);
+is_deeply(
+	[protoparse($oscar, "count_type_tlv")],
+	[{type => 'tlvchain', items => [
+		{type => 'data', num => 1, count => -1, name => 'x', items => [
+			{type => 'data', name => 'y'}
+		]}
+	]}],
+	"TLV chain, counted TLV"
+);
+is_deeply(
+	[protoparse($oscar, "count_subtype_tlv")],
+	[{type => 'tlvchain', subtyped => 1, items => [
+		{type => 'data', num => 1, subtype => 1, count => -1, name => 'x', items => [
+			{type => 'data', name => 'y'}
+		]}
+	]}],
+	"TLV chain, counted TLV"
 );
 
 

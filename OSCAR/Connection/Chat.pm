@@ -39,7 +39,6 @@ sub chat_send($$;$$) {
 
 	my %protodata = (
 		cookie => randchars(8),
-		message_encoding => "us-ascii",
 		message => $msg
 	);
 	$protodata{reflect} = "" unless $noreflect;

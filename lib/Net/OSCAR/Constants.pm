@@ -21,7 +21,7 @@ require Exporter;
 	CONNTYPE_LOGIN CONNTYPE_BOS CONNTYPE_ADMIN CONNTYPE_CHAT CONNTYPE_CHATNAV CONNTYPE_ICON CONNTYPE_DIRECT_IN CONNTYPE_DIRECT_OUT
 	MODBL_ACTION_ADD MODBL_ACTION_DEL MODBL_WHAT_BUDDY MODBL_WHAT_GROUP MODBL_WHAT_PERMIT MODBL_WHAT_DENY
 	OSCAR_CAPS OSCAR_CAPS_INVERSE OSCAR_TOOLDATA
-	GROUP_PERMIT GROUP_DENY BUDTYPES ENCODING ERRORS
+	GROUP_PERMIT GROUP_DENY BUDTYPES ERRORS
 );
 
 
@@ -99,32 +99,30 @@ use constant OSCAR_CAPS => {
 use constant OSCAR_CAPS_INVERSE => { map { OSCAR_CAPS()->{$_}->{value} => $_ } keys %{OSCAR_CAPS()} };
 
 use constant OSCAR_TOOLDATA => tlv(
-	0x0001 => {version => 0x0003, toolid => 0x0110, toolversion => 0x0739},
-	0x0013 => {version => 0x0003, toolid => 0x0110, toolversion => 0x0739},
-	0x0002 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0739},
-	0x0003 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0739},
-	0x0004 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0739},
+	0x0001 => {version => 0x0004, toolid => 0x0110, toolversion => 0x08E5},
+	0x0013 => {version => 0x0003, toolid => 0x0110, toolversion => 0x08E5},
+	0x0002 => {version => 0x0001, toolid => 0x0110, toolversion => 0x08E5},
+	0x0003 => {version => 0x0001, toolid => 0x0110, toolversion => 0x08E5},
+	0x0004 => {version => 0x0001, toolid => 0x0110, toolversion => 0x08E5},
 	0x0005 => {version => 0x0001, toolid => 0x0001, toolversion => 0x0001, nobos => 1},
-	0x0006 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0739},
-	0x0007 => {version => 0x0001, toolid => 0x0010, toolversion => 0x0739, nobos => 1},
+	0x0006 => {version => 0x0001, toolid => 0x0110, toolversion => 0x08E5},
+	0x0007 => {version => 0x0001, toolid => 0x0010, toolversion => 0x08E5, nobos => 1},
 	0x0008 => {version => 0x0001, toolid => 0x0104, toolversion => 0x0001},
-	0x0009 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0739},
-	0x000A => {version => 0x0001, toolid => 0x0110, toolversion => 0x0739},
-	0x000B => {version => 0x0001, toolid => 0x0104, toolversion => 0x0001},
+	0x0009 => {version => 0x0001, toolid => 0x0110, toolversion => 0x08E5},
+	0x000A => {version => 0x0001, toolid => 0x0110, toolversion => 0x08E5},
+	0x000B => {version => 0x0001, toolid => 0x0110, toolversion => 0x08E5},
 	0x000C => {version => 0x0001, toolid => 0x0104, toolversion => 0x0001, nobos => 1},
-	0x000D => {version => 0x0001, toolid => 0x0010, toolversion => 0x0739, nobos => 1},
-	0x000E => {version => 0x0001, toolid => 0x0010, toolversion => 0x0739, nobos => 1},
-	0x000F => {version => 0x0001, toolid => 0x0010, toolversion => 0x0739, nobos => 1},
-	0x0010 => {version => 0x0001, toolid => 0x0010, toolversion => 0x0739, nobos => 1},
+	0x000D => {version => 0x0001, toolid => 0x0010, toolversion => 0x08E5, nobos => 1},
+	0x000E => {version => 0x0001, toolid => 0x0010, toolversion => 0x08E5, nobos => 1},
+	0x000F => {version => 0x0001, toolid => 0x0010, toolversion => 0x08E5, nobos => 1},
+	0x0010 => {version => 0x0001, toolid => 0x0010, toolversion => 0x08E5, nobos => 1},
 	0x0015 => {version => 0x0001, toolid => 0x0110, toolversion => 0x047C, nobos => 1},
 	0x0017 => {version => 0x0000, toolid => 0x0000, toolversion => 0x0000, nobos => 1},
-	0x0018 => {version => 0x0001, toolid => 0x0010, toolversion => 0x0739, nobos => 1},
+	0x0018 => {version => 0x0001, toolid => 0x0010, toolversion => 0x08E5, nobos => 1},
 	0xFFFF => {version => 0x0000, toolid => 0x0000, toolversion => 0x0000, nobos => 1},
 );
 
 use constant BUDTYPES => ("buddy", "group", "permit entry", "deny entry", "visibility/misc. data", "presence", "unknown 6", "unknown 7", "unknown 8", "unknown 9", "unknown 10", "unknown 11", "unknown 12", "unknown 13", "unknown 14", "unknown 15", "unknown 16", "unknown 17", "unknown 18", "unknown 19", "buddy icon data");
-
-use constant ENCODING => 'text/aolrtf; charset="us-ascii"';
 
 use constant ERRORS => split(/\n/, <<EOF);
 Invalid error

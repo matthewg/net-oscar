@@ -29,6 +29,7 @@
 	<define name="vax_prefix"><data length_prefix="word" prefix_order="vax" name="x" /></define>
 	<define name="repeated_data"><word count="-1" name="x" /></define>
 	<define name="fixed_width_data"><data length="10" name="x" /><data name="y" /></define>
+	<define name="default_generate_data"><data default_generate="yes" length_prefix="word" /></define>
 
 	<!-- Count and Length -->
 	<define name="count_len"><data count="-1" length="1" name="foo" /></define>
@@ -64,6 +65,9 @@
 			<tlv type="2" name="bar"><data name="y" /></tlv>
 		</tlvchain>
 	</define>
+	<define name="named_only_tlv">
+		<tlvchain><tlv type="1" name="foo" /></tlvchain>
+	</define>
 	<define name="complex_data_tlv">
 		<tlvchain>
 			<tlv type="1">
@@ -84,6 +88,25 @@
 		<tlvchain count_prefix="word">
 			<tlv type="1"><data name="x" /></tlv>
 			<tlv type="2"><data name="y" /></tlv>
+		</tlvchain>
+	</define>
+	<define name="count_type_tlv">
+		<tlvchain>
+			<tlv type="1" count="-1" name="x">
+				<data name="y" />
+			</tlv>
+		</tlvchain>
+	</define>
+	<define name="count_subtype_tlv">
+		<tlvchain subtyped="yes">
+			<tlv type="1" subtype="1" count="-1" name="x">
+				<data name="y" />
+			</tlv>
+		</tlvchain>
+	</define>
+	<define name="default_generate_tlv">
+		<tlvchain>
+			<tlv type="1" default_generate="yes" />
 		</tlvchain>
 	</define>
 

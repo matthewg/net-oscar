@@ -18,6 +18,9 @@
 # you can pass in a listref with the individual capabilities.  There is also
 # fixed-length character data, specified via the length attribute on the data element.
 #
+# Things that have, or can have, length prefixes, take an optional 'default_generate'
+# attribute.  If set to yes, this will give them a default value of "present but empty".
+#
 # Note that if you have counted character data, you will get a listref of hashrefs.
 # For instance:
 #	<data count="-1">
@@ -83,6 +86,7 @@
 	length_prefix (byte|word|dword) #IMPLIED
 	length CDATA #IMPLIED
 	count CDATA #IMPLIED
+	default_generate (yes|no) #DEFAULT no
 >
 
 <!ELEMENT tlvchain (tlv*)>
@@ -92,16 +96,23 @@
 	length_prefix (byte|word|dword) #IMPLIED
 	prefix_order (network|vax) #DEFAULT network
 	length CDATA #IMPLIED
+	default_generate (yes|no) #DEFAULT no
 >
 
 <!ELEMENT tlv (ref|byte|word|dword|data|tlvchain)+>
 <!ATTLIST tlv
 	type CDATA #REQUIRED
 	subtype CDATA #IMPLIED <!-- For subtyped TLVs -->
+
+	default_generate (yes|no) #DEFAULT no
 	<!--
-	     If the TLV has a name, as opposed to elements within the TLV having a name, 
-	     that key being present in the data will correspond to the existance of that
-	     TLV, without regard to its value
+	     If the TLV has a name, that key being present in the data will
+	     correspond to the existance of that TLV, without regard to its value
 	-->
 	name CDATA #IMPLIED
+	<!--
+	    If the TLV has a count, it will get listified.
+	    Behavior of TLVs which have a count but not a name is undefined.
+	-->
+	count CDATA #IMPLIED
 >

@@ -60,6 +60,10 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		data => {x => "1234567890", y => "XXX"},
 		template => "fixed_width_data"
 	},{
+		binary => pack("n", 0),
+		data => {},
+		template => "default_generate_data"
+	},{
 		binary => "abc",
 		data => {foo => [qw(a b c)]},
 		template => "count_len"
@@ -75,6 +79,11 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		binary => pack("nnn", 1, 2, 0),
 		data => {x => ""},
 		template => "data_prefix_tlv"
+	},{
+		binary => "",
+		data => {},
+		template => "data_prefix_tlv",
+		name => "empty data_prefix_tlv"
 	},{
 		binary => pack("nCC", 1, 1, 0),
 		data => {x => ""},
@@ -92,6 +101,15 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		data => {foo => {x => "Baby"}, bar => {y => "Surge"}},
 		template => "named_tlv"
 	},{
+		binary => pack("nn", 1, 0),
+		data => {foo => ""},
+		template => "named_only_tlv"
+	},{
+		binary => "",
+		data => {},
+		template => "named_only_tlv",
+		name => "empty named_only_tlv"
+	},{
 		binary => pack("nna*nNC", 1, 10, "foo", 3142, 1793, 27),
 		data => {foo => "foo", bar => 3142, baz => 27},
 		template => "complex_data_tlv"
@@ -108,6 +126,18 @@ my @tests = grep {%do_tests ? exists($do_tests{$_->{template}}) : 1} (
 		binary => pack("n nna*", 1, 1, length("foo"), "foo"),
 		data => {x => "foo"},
 		template => "count_prefix_tlv"
+	},{
+		binary => pack("nna* nna*", 1, length("foo"), "foo", 1, length("foo"), "foo"),
+		data => {x => [{y => "foo"}, {y => "foo"}]},
+		template => "count_type_tlv"
+	},{
+		binary => pack("nCCa* nCCa*", 1, 1, length("foo"), "foo", 1, 1, length("foo"), "foo"),
+		data => {x => [{y => "foo"}, {y => "foo"}]},
+		template => "count_subtype_tlv"
+	},{
+		binary => pack("nn", 1, 0),
+		data => {},
+		template => "default_generate_tlv"
 	},{
 		binary => pack("nn", 3, 20),
 		data => {foo => 3, bar => 20},

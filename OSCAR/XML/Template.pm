@@ -144,18 +144,20 @@ sub unpack($$) {
 				push @results, \%tmp if %tmp;
 			}
 		} elsif($datum->{type} eq "tlvchain") {
-			# Okay, now set up a hash for going from (sub)type to name
+			## First set up a hash to store the data for each TLV, grouped by (sub)type
+			##
 			my $tlvmap = tlv();
 			if($datum->{subtyped}) {
 				foreach (@{$datum->{items}}) {
 					$tlvmap->{$_->{num}} ||= tlv();
-					$tlvmap->{$_->{num}}->{$_->{subtype} || -1} = $_;
+					$tlvmap->{$_->{num}}->{$_->{subtype} || -1} = {%$_};
 				}
 			} else {
-				$tlvmap->{$_->{num}} = $_ foreach (@{$datum->{items}});
+				$tlvmap->{$_->{num}} = {%$_} foreach (@{$datum->{items}});
 			}
 
-			# Next, split the chain up into types
+			## Now, go through the chain and split the data into TLVs.
+			##
 			for(my $i = 0; $input and ($count == -1 or $i < $count); $i++) {
 				my %tlv;
 				if($datum->{subtyped}) {
@@ -164,56 +166,90 @@ sub unpack($$) {
 					(%tlv) = protoparse($oscar, "TLV")->unpack(\$input);
 				}
 
+				assert(!exists($tlv{name})) if exists($tlv{count});
 				if($datum->{subtyped}) {
 					assert(exists($tlv{subtype}));
+
 					if(!exists($tlvmap->{$tlv{type}}->{$tlv{subtype}}) and exists($tlvmap->{$tlv{type}}->{-1})) {
 						$tlv{subtype} = -1;
 					}
-					$tlvmap->{$tlv{type}}->{$tlv{subtype}}->{data} = $tlv{data} || "";
+					$tlvmap->{$tlv{type}}->{$tlv{subtype}}->{data} ||= [];
+					$tlvmap->{$tlv{type}}->{$tlv{subtype}}->{outdata} ||= [];
+
+					$tlv{data} = "" if !defined($tlv{data});
+					push @{$tlvmap->{$tlv{type}}->{$tlv{subtype}}->{data}}, $tlv{data};
 				} else {
-					$tlvmap->{$tlv{type}}->{data} = $tlv{data} || "";
+					$tlvmap->{$tlv{type}}->{data} ||= [];
+					$tlvmap->{$tlv{type}}->{outdata} ||= [];
+
+					$tlv{data} = "" if !defined($tlv{data});
+					push @{$tlvmap->{$tlv{type}}->{data}}, $tlv{data};
+				}
+			}
+
+			## Almost done!  Go back through the hash we made earlier, which now has the
+			## data in it, and figure out which TLVs we want to emit.
+			##
+			my @outvals;
+			while(my($num, $val) = each %$tlvmap) {
+				if($datum->{subtyped}) {
+					while(my($subtype, $subval) = each %$val) {
+						push @outvals, $subval if exists($subval->{data});
+					}
+				} else {
+					push @outvals, $val if exists($val->{data});
 				}
 			}
 
 
-			# Almost done!  Go back through the hash we made earlier, which now has the
-			# data in it, and do the processing for each TLV
-			while(my($num, $val) = each %$tlvmap) {
-				if($datum->{subtyped}) {
-					while(my($subtype, $subval) = each %$val) {
-						if(exists($subval->{data})) {
-							if(ref($subval->{items}) and @{$subval->{items}} and exists($subval->{data})) {
-								my(%tmp) = $self->new($subval->{items})->unpack($subval->{data});
-								if($subval->{name}) {
-									push @results, {$subval->{name} => \%tmp};
-								} else {
-									# (See comment under corresponding non-subtyped case)
-									if(@{$subval->{items}} == 1 and $subval->{items}->[0]->{name}) {
-										$tmp{$subval->{items}->[0]->{name}} ||= "";
-									}
+			## Okay, now take the TLVs to emit, and structure the output correctly
+			## for each thing-to-emit.  We'll need to do one last phase of postprocessing
+			## so that we can group counted TLVs correctly.
+			##
+			foreach my $val (@outvals) {
+				foreach (@{$val->{data}}) {
+					next unless $val->{items};
+					my(%tmp) = $self->new($val->{items})->unpack($_);
+					# We want:
+					#   <tlv type="1"><data name="x" /></tlv>
+					# to give x => "" when TLV 1 is present but empty,
+					# not x => undef.
+					if(@{$val->{items}} == 1 and $val->{items}->[0]->{name}) {
+						my $name = $val->{items}->[0]->{name};
+						$tmp{$name} = "" if !defined($tmp{$name});
+					}
 
-									push @results, \%tmp;
-								}
-							}
-						}
+					if(@{$val->{items}}) {
+						push @{$val->{outdata}}, \%tmp;
+					} else {
+						push @{$val->{outdata}}, "";
+					}
+				}
+			}
+
+
+			## Okay, we've stashed the output (formatted data structures) for each TLV.
+			## Now we need to merge these into results.
+			## This is normally just pushing everything out to results, as a hashref
+			## under the TLVs name for named TLVs, but counted TLVs also need to
+			## be layered into an array.
+			##
+			foreach my $val (@outvals) {
+				if(exists($val->{count})) {
+					if(exists($val->{name})) {
+						push @results, {
+							$val->{name} => $val->{outdata}
+						};
+					} else {
+						push @results, $val->{outdata}->[0];
 					}
 				} else {
-					if(exists($val->{data})) {
-						if(ref($val->{items}) and @{$val->{items}} and exists($val->{data})) {
-							my(%tmp) = $self->new($val->{items})->unpack($val->{data});
-							if($val->{name}) {
-								push @results, {$val->{name} => \%tmp};
-							} else {
-								# We want:
-								#   <tlv type="1"><data name="x" /></tlv>
-								# to give x => "" when TLV 1 is present but empty,
-								# not x => undef.
-								if(@{$val->{items}} == 1 and $val->{items}->[0]->{name}) {
-									$tmp{$val->{items}->[0]->{name}} ||= "";
-								}
-								push @results, \%tmp;
-							}
-						}
+					if(exists($val->{name})) {
+						push @results, {
+							$val->{name} => @{$val->{outdata}}
+						};
+					} else {
+						push @results, $val->{outdata}->[0];
 					}
 				}
 			}
@@ -265,7 +301,7 @@ sub pack($%) {
 
 	assert(ref($template) eq "ARRAY");
 	foreach my $datum (@$template) {
-		my $output = "";
+		my $output = undef;
 		my $max_count = exists($datum->{count}) ? $datum->{count} : 1;
 		my $count = 0;
 
@@ -296,7 +332,7 @@ sub pack($%) {
 					assert($max_count == 1 or (ref($val) and ref($val) eq "HASH"));
 					$output .= protoparse($oscar, $datum->{name})->pack(ref($val) ? %$val : %data);
 				} else {
-					$output .= $val if $val;
+					$output .= $val if defined($val);
 				}
 			}
 		} elsif($datum->{type} eq "tlvchain") {
@@ -305,17 +341,30 @@ sub pack($%) {
 
 				if(exists($tlv->{name})) {
 					if(exists($data{$tlv->{name}})) {
-						assert(ref($data{$tlv->{name}}) eq "HASH");
-						$tlvdata = $self->new($tlv->{items})->pack(%{$data{$tlv->{name}}});
+						if(@{$tlv->{items}}) {
+							assert(ref($data{$tlv->{name}}) eq "HASH" or ref($data{$tlv->{name}}) eq "ARRAY");
+							if(ref($data{$tlv->{name}}) eq "ARRAY") {
+								$tlvdata = [];
+								push @$tlvdata, $self->new($tlv->{items})->pack(%$_) foreach @{$data{$tlv->{name}}};
+							} else {
+								$tlvdata = [$self->new($tlv->{items})->pack(%{$data{$tlv->{name}}})];
+							}
+						} else {
+							$tlvdata = [""] if defined($data{$tlv->{name}});
+						}
+					} elsif(exists($tlv->{value}) and !@{$tlv->{items}}) {
+						$tlvdata = [$tlv->{value}];
 					}
 				} else {
 					my $tmp = $self->new($tlv->{items})->pack(%data);
 
 					# If TLV has no name and only one element, do special handling for "present but empty" value.
 					if($tmp) {
-						$tlvdata = $tmp;
+						$tlvdata = [$tmp];
 					} elsif(@{$tlv->{items}} == 1 and $tlv->{items}->[0]->{name} and exists($data{$tlv->{items}->[0]->{name}})) {
-						$tlvdata = "";
+						$tlvdata = [""];
+					} elsif(!@{$tlv->{items}} and exists($tlv->{value})) {
+						$tlvdata = [$tlv->{value}];
 					}
 				}
 	
@@ -331,20 +380,20 @@ sub pack($%) {
 					$output .= protoparse($oscar, "subtyped TLV")->pack(
 						type => $tlv->{num},
 						subtype => $subtype,
-						data => $tlvdata
-					);
+						data => $_
+					) foreach @$tlvdata;
 				} else {
 					$output .= protoparse($oscar, "TLV")->pack(
 						type => $tlv->{num},
-						data => $tlvdata
-					);
+						data => $_
+					) foreach @$tlvdata;
 				}
 			}
 		}
 
 
 		## Handle any prefixes
-		if($datum->{prefix}) {
+		if($datum->{prefix} and defined($output)) {
 			if($datum->{prefix} eq "count") {
 				$packet .= pack($datum->{prefix_packlet}, $count);
 			} else {
@@ -352,7 +401,7 @@ sub pack($%) {
 			}
 		}
 
-		$packet .= $output;
+		$packet .= $output if defined($output);
 	}
 
 	$oscar->log_print(OSCAR_DBG_XML, "Encoded:\n", hexdump($packet));

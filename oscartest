@@ -3,7 +3,7 @@
 use lib "./blib/lib";
 use strict;
 use Net::OSCAR qw(:standard);
-use Digest::MD5;
+use Digest::MD5 qw(md5);
 eval {
 	require Data::Dumper;
 };
@@ -228,9 +228,9 @@ sub auth_challenge($$$) {
 	my($oscar, $challenge, $hashstr) = @_;
 	my $md5 = Digest::MD5->new;
 	$md5->add($challenge);
-	$md5->add($password);
+	$md5->add(md5($password));
 	$md5->add($hashstr);
-	$oscar->auth_response($md5->digest);
+	$oscar->auth_response($md5->digest, 5.5);
 }
 
 sub im_ok($$$) {

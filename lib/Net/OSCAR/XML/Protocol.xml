@@ -87,9 +87,17 @@
 		<data name="cookie" />
 	</define>
 
-	<define name="signon_TLV">
+	<define name="signon" family="23" subtype="2">
 		<tlvchain>
 			<tlv type="1"><data name="screenname" /></tlv>
+
+			<!-- For AIM-style signons -->
+			<tlv type="37"><data name="auth_response" /></tlv>
+			<tlv type="76"><data name="betainfo" /></tlv>
+
+			<!-- For ICQ-style signons -->
+			<tlv type="2"><data name="password" /></tlv>
+
 			<tlv type="3"><data name="clistr" /></tlv>
 			<tlv type="22"><word name="supermajor" /></tlv>
 			<tlv type="23"><word name="major" /></tlv>
@@ -102,17 +110,17 @@
 			<tlv type="74"><byte>1</byte></tlv>
 		</tlvchain>
 	</define>
-	<define name="signon" family="23" subtype="2">
-		<ref name="signon_TLV" />
-		<tlvchain>
-			<tlv type="37"><data name="auth_response" /></tlv>
-			<tlv type="76"><data name="betainfo" /></tlv>
-		</tlvchain>
-	</define>
 	<define name="signon_ICQ" family="23" subtype="2">
 		<ref name="signon_TLV" />
 		<tlvchain>
-			<tlv type="2"><data name="password" /></tlv>
+		</tlvchain>
+	</define>
+
+	<define name="initial signon request" family="23" subtype="6">
+		<tlvchain>
+			<tlv type="1"><data name="screenname" /></tlv>
+			<tlv type="75" default_generate="yes" />
+			<tlv type="90" default_generate="yes" />
 		</tlvchain>
 	</define>
 
@@ -148,7 +156,7 @@
 		<word>5</word>
 	</define>
 	<define name="personal info request" family="1" subtype="14" />
-	<define name="buddylist unknown 0x2" family="19" subtype="2" />
+	<define name="buddylist rights request" family="19" subtype="2" />
 	<define name="buddylist request" family="19" subtype="4" />
 	<define name="locate rights request" family="2" subtype="2" />
 	<define name="locate rights response" family="2" subtype="3" />
@@ -158,10 +166,16 @@
 	<define name="IM parameter response" family="4" subtype="5" />
 	<define name="BOS rights request" family="9" subtype="2" />
 	<define name="BOS rights response" family="9" subtype="3" />
-	<define name="routing information" family="1" subtype="15">
+	<define name="self information" family="1" subtype="15">
 		<data length_prefix="byte" name="screenname" />
-		<tlvchain>
-			<tlv type="15"><dword name="routing_data" /></tlv>
+		<word name="warn_level" />
+		<tlvchain count_prefix="word">
+			<tlv type="1"><word name="class" /></tlv>
+			<tlv type="13"><data name="capabilities" /></tlv>
+			<tlv type="15"><dword name="session_length" /></tlv>
+			<tlv type="3"><dword name="online_since" /></tlv>
+			<tlv type="10"><dword name="ip" /></tlv>
+			<tlv type="5"><dword name="member_since" /></tlv>
 		</tlvchain>
 	</define>
 	<define name="minimum report interval" family="11" subtype="2" />
@@ -190,6 +204,7 @@
 		<dword name="alert" />
 		<dword name="limit" />
 		<dword name="disconnect" />
+		<dword name="current" />
 		<dword name="max" />
 	</define>
 	<define name="outgoing warning" family="4" subtype="8">
@@ -204,14 +219,12 @@
 	<define name="host versions" family="1" subtype="24" />
 	<define name="session was opened elsewhere" family="9" subtype="2" /> <!-- Before routing (multiple signons of the same screenname) support was added, this error would be sent when the screenname was signed on elsewhere -->
 	<define name="add IM parameters" family="4" subtype="2">
-		<word>0</word>
-		<word>0</word>
-		<word>11</word>
-		<word>8000</word>
-		<word>999</word>
-		<word>999</word>
-		<word>0</word>
-		<word>0</word>
+		<word name="channel">0</word>
+		<dword name="flags">11</dword>
+		<word name="max_msg_len">8000</word>
+		<word name="max_sender_warn">999</word>
+		<word name="max_rcpt_warn">999</word>
+		<dword name="min_msg_interval">0</dword>
 	</define>
 	<define name="buddylist done" family="19" subtype="7" />
 
@@ -270,13 +283,16 @@
 
 	<define name="set info" family="2" subtype="4">
 		<tlvchain>
-			<tlv type="1"><data name="profile_encoding" /></tlv>
+			<tlv type="1"><data name="profile_mimetype" /></tlv>
 			<tlv type="2"><data name="profile" /></tlv>
 
-			<tlv type="3"><data name="awaymsg_encoding" /></tlv>
+			<tlv type="3"><data name="awaymsg_mimetype" /></tlv>
 			<tlv type="4"><data name="awaymsg" /></tlv>
 
 			<tlv type="5"><data name="capabilities" /></tlv>
+			<tlv type="6">
+				<tlvchain><tlv type="4"><word>2</word></tlv></tlvchain>
+			</tlv>
 		</tlvchain>
 	</define>
 
@@ -372,12 +388,36 @@
 			</tlv>
 		</tlvchain>
 	</define>
-	<define name="chat invitation IM footer">
+	<define name="rendezvous IM">
 		<tlvchain>
-			<tlv type="12"><data name="invitation_message" /></tlv>
-			<tlv type="10001">
-				<word />
-				<data name="chat_url" length_prefix="byte" />
+			<tlv type="5">
+				<!-- 0=cancel, 1=cancel, 2=accept -->
+				<word name="status" /> 
+
+				<data length="8" name="cookie" />
+
+				<!-- Indicates request type -->
+				<data length="16" name="capability" />
+
+				<tlvchain>
+					<!-- 1 == push, 2 == pull -->
+					<tlv type="10"><word name="push_pull" /></tlv>
+					<tlv type="11"><word name="error" /></tlv>
+					<tlv type="15" default_generate="yes" />
+
+					<!-- File transfer stuff -->
+					<tlv type="2"><dword name="proxy_ip" /></tlv>
+					<tlv type="3"><dword name="client_inside_ip" /></tlv>
+					<tlv type="4"><dword name="apparent_outside_ip" /></tlv>
+					<tlv type="5"><word name="port" /></tlv>
+
+					<!-- Chat invitations -->
+					<tlv type="12"><data name="invitation_msg" /></tlv>
+					<tlv type="13"><data name="charset">us-ascii</data></tlv>
+					<tlv type="14"><data name="language">0</data></tlv>
+
+					<tlv type="10001"><data name="url" /></tlv>
+				</tlvchain>
 			</tlv>
 		</tlvchain>
 	</define>
@@ -387,6 +427,7 @@
 		<ref name="userinfo" />
 		<data name="IM" />
 	</define>
+
 	<define name="outgoing IM" family="4" subtype="6">
 		<ref name="standard IM header" />
 		<data name="screenname" length_prefix="byte" />
@@ -404,10 +445,7 @@
 	<!-- Chat -->
 
 	<define name="chat invitation accept" family="13" subtype="4">
-		<word>4</word>
-		<data name="chat" length_prefix="byte" />
-		<byte>0</byte>
-		<word>2</word>
+		<data name="url" />
 	</define>
 	<define name="chat invitation decline" family="13" subtype="11">
 		<data length="8" name="cookie" />
@@ -418,38 +456,33 @@
 		<word>1</word>
 	</define>
 
-	<define name="chat navigator request" family="13" subtype="8">
-		<word name="exchange" />
-		<data length_prefix="byte">create</data>
-		<word>65535</word>
-		<word>256</word>
-		<byte>3</byte>
-		<tlvchain>
-			<tlv type="215"><data>en</data></tlv>
-			<tlv type="214"><data>us-ascii</data></tlv>
-			<tlv type="211"><data name="room_name" /></tlv>
-		</tlvchain>
-	</define>
-	<define name="chat navigator response" family="13" subtype="9">
-		<dword />
-		<word name="exchange" />
-		<data name="url" length_prefix="byte" />
-		<data length="21" />
-		<data name="name" length_prefix="word" />
+	<define name="chat navigator rights request" family="13" subtype="2" />
+	<define name="chat navigator room create" family="13" subtype="8">
+		<ref name="chat room info" />
 	</define>
 
-	<define name="chat service request" family="1" subtype="4">
-		<word name="service_type" />
-		<tlvchain>
-			<tlv type="1">
-				<word name="exchange" />
-				<data length_prefix="byte" name="url" />
-				<word>0</word>
+	<define name="chat data">
+		<tlvchain count_prefix="word">
+			<tlv type="106"><data name="name" /></tlv>
+			<tlv type="111"><word name="occupant_count" /></tlv>
+			<tlv type="115" name="occupants" count="-1">
+				<ref name="userinfo" />
 			</tlv>
+
+			<tlv type="209"><word name="max_msg_len" /></tlv>
+			<tlv type="211"><data name="name" /></tlv>
+			<tlv type="214"><data name="charset">us-ascii</data></tlv>
+			<tlv type="215"><data name="language">en</data></tlv>
+			<tlv type="219"><data name="encoding">text/x-aolrtf</data></tlv>
 		</tlvchain>
 	</define>
-
-	<define name="chat room status" family="14" subtype="2">
+	<define name="chat room info">
+		<word name="exchange" />
+		<data length_prefix="byte" name="url">create</data>
+		<word name="instance">65535</word>
+		<byte name="detail_level">3</byte>
+		<ref name="chat data" />
+	</define>
 		<word />
 		<data length_prefix="byte">
 			<byte />
@@ -465,6 +498,38 @@
 				</data>
 			</tlv>
 		</tlvchain>
+
+
+	<define name="chat navigator response" family="13" subtype="9">
+		<tlvchain>
+			<!-- These two come from the 'chat navigator rights request' -->
+			<tlv type="2"><byte name="max_concurrent_rooms" /></tlv>
+			<tlv type="3" count="-1" name="exchange">
+				<word name="exchange" />
+				<ref name="chat data" />
+			</tlv>
+
+			<!-- These two come from the create room request -->
+			<tlv type="4" count="-1" name="room">
+				<ref name="chat room info" />
+			</tlv>
+		</tlvchain>
+	</define>
+
+
+	<define name="chat service request" family="1" subtype="4">
+		<word name="service_type" />
+		<tlvchain>
+			<tlv type="1">
+				<word name="exchange" />
+				<data length_prefix="byte" name="url" />
+				<word>0</word>
+			</tlv>
+		</tlvchain>
+	</define>
+
+	<define name="chat room status" family="14" subtype="2">
+		<ref name="chat room info" />
 	</define>
 	<define name="chat buddy arrival" family="14" subtype="3">
 		<data name="arrivals" count="-1">
@@ -516,14 +581,16 @@
 		<data length="8" name="cookie" />
 		<word>3</word> <!-- channel -->
 		<tlvchain>
-			<tlv type="1" />
+			<tlv type="1" default_generate="yes" />
 			<tlv type="3"><data name="sender" length_prefix="byte" /></tlv>
 			<tlv type="6" name="reflect" />
 			<tlv type="7" name="is_automatic" />
 			<tlv type="5">
 				<tlvchain>
-					<tlv type="2"><data name="message_encoding" /></tlv>
-					<tlv type="3" />
+					<tlv type="4"><data name="type">text/x-aolrtf</data></tlv>
+					<tlv type="2"><data name="charset">us-ascii</data></tlv>
+					<tlv type="3"><data name="language">en</data></tlv>
+					<tlv type="5"><data>binary</data></tlv>
 					<tlv type="1"><data name="message" /></tlv>
 				</tlvchain>
 			</tlv>

@@ -39,9 +39,8 @@ sub process_snac($$) {
 		if(defined($connection->{auth})) {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Sending password.");
 			my(%signon_data) = signon_tlv($session, $connection->{auth}, $data{key});
-			my $protobit = delete $signon_data{protobit};
 
-			$session->svcdo(CONNTYPE_BOS, protobit => $protobit, protodata => \%signon_data);
+			$session->svcdo(CONNTYPE_BOS, protobit => "signon", protodata => \%signon_data);
 		} else {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Giving client authentication challenge.");
 			$session->callback_auth_challenge($data{key}, "AOL Instant Messenger (SM)");
@@ -79,7 +78,7 @@ sub process_snac($$) {
 			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting personal info.");
 
 			$connection->proto_send(protobit => "personal info request");
-			$connection->proto_send(protobit => "buddylist unknown 0x2");
+			$connection->proto_send(protobit => "buddylist rights request");
 			$connection->proto_send(protobit => "buddylist request");
 			$connection->proto_send(protobit => "locate rights request");
 			$connection->proto_send(protobit => "buddy rights request");
@@ -91,6 +90,10 @@ sub process_snac($$) {
 
 			$session->callback_chat_joined($connection->name, $connection) unless $connection->{sent_joined}++;
 		} else {
+			if($conntype == CONNTYPE_CHATNAV) {
+				$connection->proto_send(protobit => "chat navigator rights request");
+			}
+
 			$session->{services}->{$conntype} = $connection;
 
 			if($session->{svcqueues}->{$conntype}) {
@@ -130,9 +133,9 @@ sub process_snac($$) {
 		$error .= (ERRORS)[$data{errno}] || "unknown error";
 		$error .= " (".$data{error_details}.")." if $data{error_details};
 		send_error($session, $connection, $data{errno}, $error, 0, $reqdata);
-	} elsif($protobit eq "routing information") {
-		if($data{routing_data}) {
-			$connection->log_print(OSCAR_DBG_DEBUG, "Someone else signed on with this screenname?  Routing status(??) == $data{routing_data}");
+	} elsif($protobit eq "self information") {
+		if($data{session_length}) {
+			$connection->log_print(OSCAR_DBG_DEBUG, "Someone else signed on with this screenname?  Session length == $data{session_length}");
 		}
 	} elsif($protobit eq "BOS rights response") {
 		$session->set_info("");
@@ -226,27 +229,32 @@ sub process_snac($$) {
 			}
 
 			$sender_info->{$_} = $data{icon_data}->{$_} foreach keys %{$data{icon_data}};
-			
+
 			$session->callback_new_buddy_icon($sender, $sender_info) if $new_icon;
 
 
 			# Okay, finally we're done with silly processing of embedded flags
 			$session->callback_im_in($sender, $data{message}, exists($data{is_automatic}) ? 1 : 0);
 
-		} elsif($data{channel} == 3) { # Chat invite
-			%data = protoparse($session, "chat invitation IM footer")->unpack($data{IM});
+		} elsif($data{channel} == 2) { # Chat invite
+			%data = protoparse($session, "rendezvous IM")->unpack($data{IM});
 
-			# Ignore invites for chats that we're already in
-			if(not grep { $_->{url} eq $data{chat_url} }
-			   grep { $_->{conntype} == CONNTYPE_CHAT }
-			      @{$session->{connections}}
-			) {
-				# Extract chat ID from char URL
-				$data{chat_url} =~ /-.*?-(.*)/;
-				my $chat = $1;
-				$chat =~ s/%([0-9A-Z]{1,2})/chr(hex($1))/eig;
+			my $type = OSCAR_CAPS_INVERSE()->{$data{capability}};
+			if(!$type) {
+				$connection->log_print(OSCAR_DBG_INFO, "Unknown rendezvous type: ", hexdump($data{capability}));
+			} elsif($type eq "chat") {
+				# Ignore invites for chats that we're already in
+				if(not grep { $_->{url} eq $data{url} }
+				   grep { $_->{conntype} == CONNTYPE_CHAT }
+				      @{$session->{connections}}
+				) {
+					# Extract chat ID from char URL
+					$data{url} =~ /-.*?-(.*?)(\0*)$/;
+					my $chat = $1;
+					$chat =~ s/%([0-9A-Z]{1,2})/chr(hex($1))/eig;
 
-				$session->callback_chat_invite($sender, $data{invitation_message}, $chat, $data{chat_url});
+					$session->callback_chat_invite($sender, $data{invitation_msg}, $chat, $data{url});
+				}
 			}
 		}
 	} elsif($protobit eq "typing notification") {
@@ -346,19 +354,23 @@ sub process_snac($$) {
 		$session->postprocess_userinfo(\%data);
 		$session->callback_buddy_info($data{screenname}, \%data);
 	} elsif($protobit eq "chat navigator response") {
-		# Generate a random request ID
-		my($reqid) = "";
-		$reqid = pack("n", 4);
-		$reqid .= randchars(2);
-		($reqid) = unpack("N", $reqid);
+		return if exists($data{exchange}); # This was a rights request
 
-		$session->{chats}->{$reqid} = \%data;
+		foreach my $room (@{$data{room}}) {
+			# Generate a random request ID
+			my($reqid) = "";
+			$reqid = pack("n", 4);
+			$reqid .= randchars(2);
+			($reqid) = unpack("N", $reqid);
 
-		$session->svcdo(CONNTYPE_BOS, protobit => "chat service request", reqid => $reqid, protodata => {
-			service_type => CONNTYPE_CHAT,
-			exchange => $data{exchange},
-			url => $data{url}
-		});
+			$session->{chats}->{$reqid} = $room;
+
+			$session->svcdo(CONNTYPE_BOS, protobit => "chat service request", reqid => $reqid, protodata => {
+				service_type => CONNTYPE_CHAT,
+				exchange => $room->{exchange},
+				url => $room->{url}
+			});
+		}
 	} elsif($protobit eq "chat room status") {
 		$session->callback_chat_joined($connection->{name}, $connection) unless $connection->{sent_joined}++;
 

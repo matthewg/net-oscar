@@ -146,6 +146,7 @@ sub _xmlnode_to_template($$) {
 
 	my $datum = {};
 	$datum->{name} = $attrs->{name} if $attrs->{name};
+	$datum->{value} = "" if $attrs->{default_generate} and $attrs->{default_generate} ne "no";
 	$datum->{value} = $value->[1] if @$value and $value->[1] =~ /\S/;
 	$datum->{items} = [];
 
@@ -199,6 +200,8 @@ sub _xmlnode_to_template($$) {
 			$item->{name} = $tlvattrs->{name} if $tlvattrs->{name};
 			$item->{num} = $tlvattrs->{type};
 			$item->{subtype} = $tlvattrs->{subtype} if $tlvattrs->{subtype};
+			$item->{count} = $tlvattrs->{count} if $tlvattrs->{count};
+			$item->{value} = "" if $tlvattrs->{default_generate} and $tlvattrs->{default_generate} ne "no";
 			$item->{items} = [];
 
 			while(@$tlvval) {

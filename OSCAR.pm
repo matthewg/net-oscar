@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = '1.11';
+$VERSION = '1.99';
 $REVISION = '$Revision$';
 
 =head1 NAME
@@ -374,19 +374,25 @@ sub signon($@) {
 
 =pod
 
-=item auth_response (MD5_DIGEST)
+=item auth_response (MD5_DIGEST, VERSION)
 
 Provide a response to an authentication challenge - see the L<"auth_challenge">
-callback for details.
+callback for details.  C<VERSION> must be C<5.5>.
 
 =cut
 
-sub auth_response($$) {
-	my($self, $digest) = @_;
+sub auth_response($$$) {
+	my($self, $digest, $version) = @_;
+
+	if($version != 5.5) {
+		$self->crapout($self, "Program uses obsolete auth_challenge/auth_response mechanism.  Please check the documentation for Net::OSCAR::auth_challenge and update the program.");
+		return;
+	}
+
 	$self->log_print(OSCAR_DBG_SIGNON, "Got authentication response - proceeding with signon");
 	$self->{auth_response} = $digest;
 	my %data = signon_tlv($self);
-	$self->svcdo(CONNTYPE_BOS, protobit => delete $data{protobit}, protodata => {%data});
+	$self->svcdo(CONNTYPE_BOS, protobit => "signon", protodata => {%data});
 }
 
 =pod
@@ -1288,13 +1294,13 @@ sub set_info($$;$) {
 	$protodata{capabilities} = $self->capabilities();
 
 	if(defined($profile)) {
-		$protodata{profile_encoding} = ENCODING;
+		$protodata{profile_mimetype} = 'text/aolrtf; charset="us-ascii"';
 		$protodata{profile} = $profile;
 		$self->{profile} = $profile;
 	}
 
 	if(defined($awaymsg)) {
-		$protodata{awaymsg_encoding} = ENCODING;
+		$protodata{awaymsg_mimetype} = 'text/aolrtf; charset="us-ascii"';
 		$protodata{awaymsg} = $awaymsg;
 	}
 
@@ -1538,16 +1544,16 @@ for that.
 
 =cut
 
-sub chat_join($$; $) {
+sub chat_join($$;$) {
 	my($self, $name, $exchange) = @_;
 	return must_be_on($self) unless $self->{is_on};
 	$exchange ||= 4;
 
 	my $reqid = (8<<16) | (unpack("n", randchars(2)))[0];
 	$self->{chats}->{pack("N", $reqid)} = $name;
-	$self->svcdo(CONNTYPE_CHATNAV, reqid => $reqid, protobit => "chat navigator request", protodata => {
+	$self->svcdo(CONNTYPE_CHATNAV, reqid => $reqid, protobit => "chat navigator room create", protodata => {
 		exchange => $exchange,
-		room_name => $name
+		name => $name
 	});
 }
 
@@ -1570,7 +1576,7 @@ sub chat_accept($$) {
 	delete $self->{chatinvites}->{$chat};
 	$self->log_print(OSCAR_DBG_NOTICE, "Accepting chat invite for $chat.");
 	$self->svcdo(CONNTYPE_CHATNAV, protobit => "chat invitation accept", protodata => {
-		chat => $chat
+		url => $chat
 	});
 }
 
@@ -2071,6 +2077,12 @@ Called when the user is completely signed on to the service.
 
 =item auth_challenge (OSCAR, CHALLENGE, HASHSTR)
 
+B<New for Net::OSCAR 2.0>: AOL Instant Messenger has changed their encryption
+mechanisms; instead of using the password in the hash, you must now use
+the MD5 hash of the password.  You must also pass an extra parameter to
+C<auth_response> indicating that you are using the new encryption scheme.
+See below for an example.
+
 OSCAR uses an MD5-based challenge/response system for authentication so that the
 password is never sent in plaintext over the network.  When a user wishes to sign on,
 the OSCAR server sends an arbitrary number as a challenge.  The client must respond
@@ -2080,15 +2092,15 @@ and an additional hashing string (currently always the string
 
 If password is undefined in L<"signon">, this callback will be triggered when the
 server sends a challenge during the signon process.  The client must reply with 
-the MD5 digest of CHALLENGE . password . HASHSTR.  For instance, using the
+the MD5 digest of CHALLENGE . MD5(password) . HASHSTR.  For instance, using the
 L<MD5::Digest> module:
 
 	my($oscar, $challenge, $hashstr) = @_;
 	my $md5 = Digest::MD5->new;
 	$md5->add($challenge);
-	$md5->add("password");
+	$md5->add(md5("password"));
 	$md5->add($hashstr);
-	$oscar->auth_response($md5->digest);
+	$oscar->auth_response($md5->digest, 5.5);
 
 Note that this functionality is only available for certain services.  It is
 available for AIM but not ICQ.  Note also that the MD5 digest must be in binary
