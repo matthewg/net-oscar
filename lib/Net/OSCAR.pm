@@ -1254,7 +1254,10 @@ sub set_extended_status($$) {
 =item set_info (PROFILE)
 
 Sets the user's profile.  Call L<"commit_buddylist"> to have
-the new profile stored on the OSCAR server.
+the new profile saved into the buddylist, so that it will be
+set the next time the screenname is signed on.  (This is a
+Net::OSCAR-specific feature, so other clients will not pick
+up the profile from the buddylist.)
 
 Note that if the user's profile was previously set with Net::OSCAR,
 it will be stored in the server-side buddylist, and so this method will
