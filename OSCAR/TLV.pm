@@ -12,6 +12,21 @@ sub new {
 }
 
 
+sub getorder {
+	my $self = shift;
+	return map { (unpack("n", $_))[0] } @{$self->{ORDER}};
+}
+
+sub setorder {
+	my $self = shift;
+
+	# Anything not specified gets shoved at the end
+	my @end = grep { my $inbud = $_; not grep { $_ eq $inbud } @_ } @{$self->{ORDER}};
+
+	@{$self->{ORDER}} = map { pack("n", $_) } @_;
+	push @{$self->{ORDER}}, @end;
+}
+
 sub TIEHASH {
 	my $class = shift;
 	my $self = { DATA => {}, ORDER => [], CURRKEY => -1};
