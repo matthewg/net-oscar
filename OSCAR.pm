@@ -439,9 +439,9 @@ sub addconn($@) {
 	if($conntype == CONNTYPE_CHAT) {
 		$connection = Net::OSCAR::Chat->new(%data);
 	} elsif($conntype = CONNTYPE_DIRECT_IN) {
-		$connection = Net::OSCAR::Direct::Listener->new(%data);
+		$connection = Net::OSCAR::Connection::Direct::Listener->new(%data);
 	} elsif($conntype = CONNTYPE_DIRECT_OUT) {
-		$connection = Net::OSCAR::Direct->new(%data);
+		$connection = Net::OSCAR::Connection::Direct->new(%data);
 	} else {
 		$connection = Net::OSCAR::Connection->new(%data);
 		# We set the connection to 1 to indicate that it is in progress but not ready for SNAC-sending yet.
