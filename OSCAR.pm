@@ -438,9 +438,9 @@ sub addconn($@) {
 	my $conntype = $data{conntype};
 	if($conntype == CONNTYPE_CHAT) {
 		$connection = Net::OSCAR::Chat->new(%data);
-	} elsif($conntype = CONNTYPE_DIRECT_IN) {
+	} elsif($conntype == CONNTYPE_DIRECT_IN) {
 		$connection = Net::OSCAR::Connection::Direct::Listener->new(%data);
-	} elsif($conntype = CONNTYPE_DIRECT_OUT) {
+	} elsif($conntype == CONNTYPE_DIRECT_OUT) {
 		$connection = Net::OSCAR::Connection::Direct->new(%data);
 	} else {
 		$connection = Net::OSCAR::Connection->new(%data);
