@@ -60,7 +60,7 @@ sub hexdump($) {
 	my $retbuff = "";
 	my @stuff;
 
-	confess "No stuff" unless defined($stuff);
+	return "" unless defined($stuff);
 	for(my $i = 0; $i < length($stuff); $i++) {
 		push @stuff, substr($stuff, $i, 1);
 	}
@@ -217,27 +217,25 @@ sub send_versions($$) {
 	my $conntype = $connection->{conntype};
 	my @services;
 
-	if($conntype != 2) {
+	$connection->{session}->loglevel(10);
+	if($conntype != CONNTYPE_BOS) {
 		@services = (1, $conntype);
 	} else {
 		@services = sort {$b <=> $a} grep {not OSCAR_TOOLDATA()->{$_}->{nobos}} keys %{OSCAR_TOOLDATA()};
 	}
 
-	my %protodata;
-	$protodata{service_id} = [];
-	$protodata{service_version} = [];
-	if($send_tools) {
-		$protodata{tool_id} = [];
-		$protodata{tool_version} = [];
-	}
-
+	my %protodata = (service => []);
 	foreach my $service (@services) {
-		push @{$protodata{service_id}}, $service;
-		push @{$protodata{service_version}}, OSCAR_TOOLDATA->{$service}->{version};
+		my %service = (
+			service_id => $service,
+			service_version => OSCAR_TOOLDATA->{$service}->{version}
+		);
 		if($send_tools) {
-			push @{$protodata{tool_id}}, OSCAR_TOOLDATA->{$service}->{toolid};
-			push @{$protodata{tool_version}}, OSCAR_TOOLDATA->{$service}->{toolversion};
+			$service{tool_id} = OSCAR_TOOLDATA->{$service}->{toolid};
+			$service{tool_version} = OSCAR_TOOLDATA->{$service}->{toolversion};
 		}
+
+		push @{$protodata{service}}, \%service;
 	}
 
 	if($send_tools) {

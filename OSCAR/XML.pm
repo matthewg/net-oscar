@@ -96,30 +96,45 @@ sub _xmldump {
 # Specification for _protopack "pack template":
 #	-Listref whose elements are hashrefs.
 #	-Hashrefs have following keys:
-#		type: "num", "data", or "tlvchain"
+#		type: "ref", "num", "data", or "tlvchain"
 #		If type = "num":
 #			packlet: Pack template letter (C, n, N, v, V)
 #			len: Length of datum, in bytes
 #		If type = "data":
 #			Same as type="num", except they represent something about a numeric length prefix.
 #			If packlet/len aren't present, all available data will be gobbled.
+#			length: Size of data, in bytes
+#		If type = "ref":
+#			packet, len, length: Same as per 'data'
+#			name: Name of protocol bit to punt to
 #		If type = "tlvchain":
 #			subtyped: If true, this is a 'subtyped' TLV, as per Protocol.dtd.
 #			prefix: If present, "count" or "length", and "packlet" and "len" will also be present.
-#			items: Listref containing TLVs, hashrefs in format identical to these, with extra key 'num'.
+#			items: Listref containing TLVs, hashrefs in format identical to these, with extra key 'num' (and 'subtype', for subtyped TLVs.)
 #		value: If present, default value of this datum.
 #		name: If present, name in parameter list that this datum gets.
+#		count: If present, number of repetitions of this datum.  count==-1 represents
+#			infinite.  If a count is present when unpacking, the data will be encapsulated in a listref.  If the user
+#			wants to pass in multiple data when packing, they should do so via a listref.  Listref-encapsulated data with
+#			too many elements for the 'count' will trigger an exception when packing.
 
 sub _protopack($$;@) {
 	my $oscar = shift;
 	my $template = shift;
 
 	if(wantarray) { # Unpack
-		my $packet = shift;
+		# If we pass in a reference as the packet, modify it in place.
+		# See what we do for unpacking type data with no length prefix
+		# and yes items for why we need this...
+		#
+		my $x_packet = shift;
+		my $packet = ref($x_packet) ? $$x_packet : $x_packet;
+
 		my %data = ();
 
-		$oscar->log_print(OSCAR_DBG_DEBUG, "Decoding:\n", hexdump($packet));
+		$oscar->log_print(OSCAR_DBG_DEBUG, "Decoding:\n", hexdump($packet), "\n according to: ", Data::Dumper::Dumper($template));
 
+		confess "Invalid template" unless ref($template);
 		foreach my $datum (@$template) {
 			if($datum->{type} eq "num") {
 				my $count = $datum->{count} || 1;
@@ -130,25 +145,54 @@ sub _protopack($$;@) {
 				}
 
 				($data{$datum->{name}}) = $datum->{count} ? \@results : $results[0];
-			} elsif($datum->{type} eq "data") {
+			} elsif($datum->{type} eq "data" or $datum->{type} eq "ref") {
 				my $count = $datum->{count} || 1;
 				my @results;
 
 				for(my $i = 0; $packet and ($count == -1 or $i < $count); $i++) {
+					my $subpacket;
+					my %tmp;
+
 					if($datum->{packlet}) {
-						my(%tmp) = _protopack($oscar, [{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, name => "len"}], substr($packet, 0, $datum->{len}, ""));
-						if($datum->{name}) {
-							push @results, substr($packet, 0, $tmp{len}, "");
-						} elsif(@{$datum->{items}}) {
-							(%tmp) = _protopack($oscar, $datum->{items}, substr($packet, 0, $tmp{len}, ""));
-							push @results, \%tmp;
-						} else {
-							substr($packet, 0, $tmp{len}) = "";
-						}
-					} elsif($datum->{name}) {
-						my $val = $datum->{length} ? substr($packet, 0, $datum->{length}, "") : $packet;
-						push @results, $val;
+						(%tmp) = _protopack($oscar, [{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, name => "len"}], substr($packet, 0, $datum->{len}, ""));
+						$subpacket = substr($packet, 0, $tmp{len}, "");
+					} elsif($datum->{length}) {
+						$subpacket = substr($packet, 0, $datum->{length}, "");
+					} else {
+						$subpacket = $packet;
 						$packet = "";
+					}
+
+					if(@{$datum->{items}}) {
+						# So, consider the structure:
+						# <data count="-1" name="foo">
+						#	<word name="bar" />
+						#	<word name="baz" />
+						# </data>
+						# We don't know the size of 'foo' in advance.
+						# Thus, we pass a reference to the actual packet into protopack.
+						# subpacket will be modified to be the packet minus the bits that the contents of the data consumed.
+
+						(%tmp) = _protopack($oscar, $datum->{items}, \$subpacket);
+
+						# Now, if we *didn't* have a length prefix, we
+						# want to cut out the bits of $packet which just got consumed.
+						# If we had a length prefix, we already knew to cut away the right amount.
+						#
+						$packet = $subpacket unless $datum->{packet};
+					}
+
+					if($datum->{type} eq "ref") {
+						(%tmp) = protoparse($oscar, $datum->{name})->(\$subpacket);
+						push @results, \%tmp;
+					} else {
+						if($datum->{name}) {
+							if(@{$datum->{items}}) {
+								push @results, \%tmp;
+							} else {
+								push @results, $subpacket;
+							}
+						}
 					}
 				}
 
@@ -157,6 +201,8 @@ sub _protopack($$;@) {
 						$data{$datum->{name}} = \@results;
 					} elsif(ref($datum->{items}) and @{$datum->{items}}) {
 						$data{$_} = $results[0]->{$_} foreach keys %{$results[0]};
+					} elsif($datum->{type} eq "ref") {
+						$data{$_} = $results[0]->{$_} foreach keys %{$results[0]};
 					} else {
 						$data{$datum->{name}} = $results[0];
 					}
@@ -164,6 +210,7 @@ sub _protopack($$;@) {
 			} elsif($datum->{type} eq "tlvchain") {
 				my($tlvpacket, $tlvmax, $tlvcount) = ($packet, 0, 0);
 
+				# Process prefixes
 				if($datum->{prefix}) {
 					my(%tmp) = _protopack($oscar, [{type => "num", packlet => $datum->{packlet}, len => $datum->{len}, name => "len"}], substr($packet, 0, $datum->{len}, ""));
 					if($datum->{prefix} eq "count") {
@@ -173,6 +220,7 @@ sub _protopack($$;@) {
 					}
 				}
 
+				# Okay, now set up a hash for going from (sub)type to name
 				my $tlvmap = tlv();
 				if($datum->{subtyped}) {
 					foreach (@{$datum->{items}}) {
@@ -182,6 +230,8 @@ sub _protopack($$;@) {
 				} else {
 					$tlvmap->{$_->{num}} = $_ foreach (@{$datum->{items}});
 				}
+
+				# Next, split the chain up into types
 				while($tlvpacket and (!$tlvmax or $tlvcount < $tlvmax)) {
 					my($type, $length, $subtype, $value);
 					if($datum->{subtyped}) {
@@ -203,6 +253,7 @@ sub _protopack($$;@) {
 					$tlvcount++;
 				}
 
+				# Almost done!  Go back through the hash we made earlier, which now has the data in it, and cram stuff into the output
 				while(my($num, $val) = each %$tlvmap) {
 					if($datum->{subtyped}) {
 						while(my($subtype, $subval) = each %$val) {
@@ -225,10 +276,14 @@ sub _protopack($$;@) {
 			}
 		}
 
+		
 		$oscar->log_print(OSCAR_DBG_DEBUG, "Decoded:\n", join("\n", map { "\t$_ => ".hexdump($data{$_}) } keys %data));
+
+		# Remember, passing in a ref to packet in place of actual packet data == in-place editing...
+		$$x_packet = $packet if ref($x_packet);
+
 		return %data;
 	} else { # Pack
-		confess "WAHH!", Data::Dumper::Dumper($template) if @_ == 1;
 		my %data = @_;
 		my $packet = "";
 
@@ -247,23 +302,29 @@ sub _protopack($$;@) {
 					my $val = ref($value) ? shift(@$value) : $value;
 					$packet .= pack($datum->{packlet}, $val);
 				}
-			} elsif($datum->{type} eq "data") {
+			} elsif($datum->{type} eq "data" or $datum->{type} eq "ref") {
 				my $count = $datum->{count} || 1;
+				confess "Asked to output too many data items!" if ref($value) and $count != -1 and @$value > $count;
 
+				my $subpacket = "";
 				for(my $i = 0; ($count != -1 and $i < $count) or (ref($value) and @$value); $i++) {
 					my $val = ref($value) ? shift(@$value) : $value;
 
 					if($datum->{items} and @{$datum->{items}}) {
-						$packet .= _protopack($oscar, $datum->{items}, ref($val) ? %$val : %data);
+						$subpacket .= _protopack($oscar, $datum->{items}, ref($val) ? %$val : %data);
+					} elsif($datum->{type} eq "ref") {
+						$subpacket .= protoparse($oscar, $datum->{name})->(ref($val) ? %$val : %data);
 					} else {
-						if($datum->{packlet}) {
-							my $prefix = _protopack($oscar, [{name => "length", type => "num", packlet => $datum->{packlet}, len => $datum->{len}}], length => length($val));
-							$packet .= $prefix;
-						}
-
-						$packet .= $val;
+						$subpacket .= $val;
 					}
 				}
+
+				if($datum->{packlet}) {
+					my $prefix = _protopack($oscar, [{name => "length", type => "num", packlet => $datum->{packlet}, len => $datum->{len}}], length => length($subpacket));
+					$packet .= $prefix;
+				}
+
+				$packet .= $subpacket;
 			} elsif($datum->{type} eq "tlvchain") {
 				my($tlvpacket, $tlvcount) = ("", 0);
 
@@ -331,7 +392,6 @@ sub _protopack($$;@) {
 			}
 		}
 
-		confess "flags1" if $packet =~ /flags1/;
 		return $packet;
 	}
 }
@@ -362,6 +422,7 @@ sub _num_to_packlen($$) {
 sub _xmlnode_to_template($$) {
 	my($tag, $value) = @_;
 
+	confess "Invalid value in xmlnode_to_template!" unless ref($value);
 	my $attrs = shift @$value;
 
 	my $datum = {};
@@ -371,14 +432,9 @@ sub _xmlnode_to_template($$) {
 	$datum->{subtype} = $attrs->{subtype} if exists($attrs->{subtype});
 
 	if($tag eq "ref") {
-		my $xml = $xmlmap{$attrs->{name}}->{xml};
-		shift @$xml; # remove attributes
-		my($tag, $value) = ("0", "");
-		while($tag eq "0") {
-			$tag = shift @$xml;
-			$value = shift @$xml;
-		}
-		return _xmlnode_to_template($tag, $value);
+		$datum->{type} = "ref";
+		$datum->{name} = $attrs->{name};
+		$datum->{items} = [];
 	} elsif($tag eq "byte" or $tag eq "word" or $tag eq "dword") {
 		my($packlet, $len) = _num_to_packlen($tag, $attrs->{order});
 		$datum->{type} = "num";
@@ -408,7 +464,6 @@ sub _xmlnode_to_template($$) {
 		while(@$value) {
 			my($subtag, $subval) = splice(@$value, 0, 2);
 			next if $subtag eq "0";
-			my $attrs = shift @$subval;
 
 			my $item;
 
@@ -423,6 +478,8 @@ sub _xmlnode_to_template($$) {
 			# So, here we break out that inner level for TLV chains.
 			#
 			if($tag eq "tlvchain") {
+				my $attrs = shift @$subval;
+
 				my($innertag, $innerval) = ("0", "");
 				while($innertag eq "0") {
 					($innertag, $innerval) = splice(@$subval, 0, 2);

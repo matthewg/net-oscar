@@ -1002,15 +1002,17 @@ sub postprocess_userinfo($$) {
 	my($self, $userinfo) = @_;
 	my $retval = {};
 
-	$userinfo->{evil} /= 10;
-	my $flags = $userinfo->{flags};
-	$userinfo->{trial} = $flags & 0x1;
-	$userinfo->{admin} = $flags & 0x2;
-	$userinfo->{aol} = $flags & 0x4;
-	$userinfo->{pay} = $flags & 0x8;
-	$userinfo->{free} = $flags & 0x10;
-	$userinfo->{away} = $flags & 0x20;
-	$userinfo->{mobile} = $flags & 0x80;
+	$userinfo->{evil} /= 10 if exists($userinfo->{evil});
+	if(exists($userinfo->{flags})) {
+		my $flags = $userinfo->{flags};
+		$userinfo->{trial} = $flags & 0x1;
+		$userinfo->{admin} = $flags & 0x2;
+		$userinfo->{aol} = $flags & 0x4;
+		$userinfo->{pay} = $flags & 0x8;
+		$userinfo->{free} = $flags & 0x10;
+		$userinfo->{away} = $flags & 0x20;
+		$userinfo->{mobile} = $flags & 0x80;
+	}
 
 	if(exists($userinfo->{capabilities})) {
 		my $capabilities = delete $userinfo->{capabilities};
@@ -1026,7 +1028,7 @@ sub postprocess_userinfo($$) {
 		}
 	}
 		
-	if($userinfo->{icon_md5sum}) {
+	if(exists($userinfo->{icon_md5sum})) {
 		if(!exists($self->{userinfo}->{$userinfo->{screenname}})
 		   or !exists($self->{userinfo}->{$userinfo->{screenname}}->{icon_md5sum})
 		   or $self->{userinfo}->{$userinfo->{screenname}}->{icon_md5sum} ne $userinfo->{icon_md5sum}) {

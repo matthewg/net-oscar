@@ -153,13 +153,13 @@
 	<define name="MOTD" family="1" subtype="19" />
 	<define name="server ready" family="1" subtype="3" />
 	<define name="set service versions" family="1" subtype="23">
-		<data count="-1">
+		<data count="-1" name="service">
 			<word name="service_id" />
 			<word name="service_version" />
 		</data>
 	</define>
 	<define name="set tool versions" family="1" subtype="2">
-		<data count="-1">
+		<data count="-1" name="service">
 			<word name="service_id" />
 			<word name="service_version" />
 			<word name="tool_id" />
