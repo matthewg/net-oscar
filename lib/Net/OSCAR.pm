@@ -426,10 +426,13 @@ is not found.)
 sub findbuddy($$) {
 	my($self, $buddy) = @_;
 
-	foreach my $grpname (keys %{$self->{groups}->{$buddy}}) {
-		my $group = $self->{buddies}->{$grpname};
+	while(my($grpname, $group) = each(%{$self->{buddies}})) {
 		next if
+		  $grpname eq "__BLI_DIRTY" or
+		  !$group or
+		  not $group->{members}->{$buddy} or
 		  $group->{members}->{$buddy}->{__BLI_DELETED};
+
 		return wantarray ? ($grpname, $group) : $grpname;
 	}
 	return;

@@ -90,7 +90,6 @@ sub BLI_to_NO($) {
 
 	$session->{buddies} ||= bltie(1);
 	$session->{buddies}->{__BLI_DIRTY} = 0;
-	$session->{groups} ||= bltie();
 
 	$session->{permit} ||= bltie;
 	$session->{deny} ||= bltie;
@@ -190,10 +189,7 @@ sub BLI_to_NO($) {
 				delete $bli->{0}->{$gid}->{$bid};
 				next if $gid == 0 or !$group;
 
-				if($group) {
-					delete $session->{buddies}->{$group}->{members}->{$item->{name}};
-					delete $session->{groups}->{$item->{name}}->{$group};
-				}
+				delete $session->{buddies}->{$group}->{members}->{$item->{name}} if $group;
 				push @ret, {type => MODBL_WHAT_BUDDY, action => MODBL_ACTION_DEL, group => $group, buddy => $item->{name}};
 			} elsif($item->{__BLI_DIRTY}) {
 				$item->{__BLI_DIRTY} = 0;
@@ -214,9 +210,6 @@ sub BLI_to_NO($) {
 				$entry->{comment} = $comment;
 				$entry->{alias} = $alias;
 				$entry->{data} = $item->{data};
-
-				$session->{groups}->{$item->{name}} ||= {};
-				$session->{groups}->{$item->{name}}->{$group} = 1;
 
 				push @ret, {type => MODBL_WHAT_BUDDY, action => MODBL_ACTION_ADD, group => $group, buddy => $item->{name}};
 			}
