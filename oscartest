@@ -99,8 +99,8 @@ sub chat_im_in($$$$) {
 
 sub chat_invite($$$) {
 	shift;
-	my($from, $msg, $chat) = @_;
-	my $invnum = push @invites, $chat;
+	my($from, $msg, $chat, $chaturl) = @_;
+	my $invnum = push @invites, $chaturl;
 	$invnum--;
 	print "$from has invited us to chat $chat.  Use command accept_invite $invnum to accept.\n";
 	print "Invite message: $msg\n";
@@ -180,7 +180,7 @@ print "\n";
 chomp $username;
 chomp $password;
 
-#=pod
+=pod
 
 $pid = fork();
 if(!$pid) {
@@ -193,7 +193,7 @@ if(!$pid) {
 	exec("/home/matthewg/tethereal", "-n", "-p", "-w", "dormouse.pcap", "port", "5190");
 }
 
-#=cut
+=cut
 
 $oscar = Net::OSCAR->new();
 $oscar->set_callback_error(\&error);
@@ -368,4 +368,4 @@ EOF
 	}
 }
 
-sub END { system("/home/matthewg/skill $pid"); }
+#sub END { system("/home/matthewg/skill $pid"); }

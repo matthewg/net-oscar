@@ -770,6 +770,7 @@ sub im_parse($$) {
 	my($self, $data) = @_;
 	my($from, $msg, $away) = ("", "", 0);
 	my $chat = undef;
+	my $chaturl = undef;
 
 	my $cookie = substr($data, 0, 8, ""); #OSCAR is so nice, it feeds us BLTs and cookies as SNACs.
 	my($channel) = unpack("n", substr($data, 0, 2, ""));
@@ -813,10 +814,14 @@ sub im_parse($$) {
 		substr($data, 0, 26) = "";
 		my $tlv = $self->{bos}->tlv_decode($data);
 		$msg = $tlv->{0xC};
-		($chat) = unpack("xx C/a*", $tlv->{0x2711});
+		($chaturl) = unpack("xx C/a*", $tlv->{0x2711});
+
+		$chaturl =~ /-.*?-(.*)/;
+		$chat = $1;
+		$chat =~ s/%([0-9A-Z]{1,2})/chr(hex($1))/eig;
 	}
 
-	return ($from, $msg, $away, $chat);
+	return ($from, $msg, $away, $chat, $chaturl);
 }
 
 =pod
@@ -1322,12 +1327,12 @@ Called when someone says something in a chatroom.  Note that you
 receive your own messages in chatrooms unless you specify the
 NOREFLECT parameter in L<chat_send>.
 
-=item chat_invite(OSCAR, WHO, MESSAGE, CHAT)
+=item chat_invite(OSCAR, WHO, MESSAGE, CHAT, CHATURL)
 
 Called when someone invites us into a chatroom.  MESSAGE is the message
-that they specified on the invitation.  CHAT is a chat URL and not a
-C<Net::OSCAR::Chat> object.  CHAT can be passed to the L<chat_accept>
-method to accept the invitation.
+that they specified on the invitation.  CHAT is the name of the chatroom.
+CHATURL is a chat URL and not a C<Net::OSCAR::Chat> object.  CHATURL can
+be passed to the L<chat_accept> method to accept the invitation.
 
 =item chat_joined(OSCAR, CHATNAME, CHAT)
 

@@ -224,9 +224,9 @@ sub process_snac($$) {
 		$connection->snac_put(family => 0x01, subtype => 0x06);
 	} elsif($family == 0x4 and $subtype == 0x7) {
 		$connection->debug_print("Got incoming IM.");
-		my($from, $msg, $away, $chat) = $session->im_parse($data);
+		my($from, $msg, $away, $chat, $chaturl) = $session->im_parse($data);
 		if($chat) {
-			$session->callback_chat_invite($from, $msg, $chat);
+			$session->callback_chat_invite($from, $msg, $chat, $chaturl);
 		} else {
 			$session->callback_im_in($from, $msg, $away);
 		}
