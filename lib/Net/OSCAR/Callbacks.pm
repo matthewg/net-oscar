@@ -266,7 +266,7 @@ sub process_snac($$) {
 		$connection->debug_print("Got buddylist.");
 		$connection->snac_put(family => 0x13, subtype => 0x7);
 
-		$session->set_info("Connected via <a href=\"http://www.zevils.com/programs/aimirc/\">aimirc</a> using <a href=\"http://www.zevils.com/programs/aimirc/dormouse.html\">dormouse</a>.");
+		$session->set_info("");
 
 		$connection->debug_print("Setting idle.");
 		$connection->snac_put(family => 0x1, subtype => 0x11, data => pack("N", 0));
@@ -299,73 +299,42 @@ sub process_snac($$) {
 
 		($flags) = unpack("xn", substr($data, 0, 3, ""));
 
-		while(substr($data, 0, 2) eq chr(0)x2 and length($data) > 4) {
-                        do {
-				substr($data, 0, 2) = "";
-			} while(substr($data, 0, 2) eq chr(0)x2);
+		while(length($data) > 4) {
 			my $type;
-			($type, $tlvlen) = unpack("n n", substr($data, 0, 4, ""));
+			while(substr($data, 0, 2) eq chr(0)x2) {
+				substr($data, 0, 2) = "";
+			}
+			($type) = unpack("n", substr($data, 0, 2));
+			printf STDERR "Got type 0x%04X\n", $type;
 			if($type == 1) {
-				substr($data, 0, 2) = ""; #0x00C8
+				substr($data, 0, 6) = ""; #0x0001 0x0008 0x00C8
 				($flags, $flags2) = unpack("n n", substr($data, 0, 4, ""));
-				#if($flags2 == 1) {
-					substr($data, 0, $flags - 2) = "" if $flags;
-
-					while(substr($data, 0, 2) ne chr(0)x2 and length($data) > 4) {
-						my $buddy = get_buddy($session, \$data);
-						next unless $buddy;
-						$session->debug_print("Queueing buddy $buddy->{name}.");
-						push @buddyqueue, $buddy;
-					}
-				#} else {
-				#	# Do nothing?
-				#}
+				substr($data, 0, $flags - 2) = "" if $flags;
 			} elsif($type == 2) {
+				substr($data, 0, 4) = ""; #0x0002 0x0004?
 				($tlvlen) = unpack("n", substr($data, 0, 2, ""));
 				$tlv = $connection->tlv_decode(substr($data, 0, $tlvlen, ""));
 				($session->{visibility}) = unpack("C", $tlv->{0xCA});
 				$haspd = $tlv->{0xCB};
+
+				if(substr($data, 0, 4) eq chr(0)x4 and $haspd and $haspd eq chr(0xFF)x4) {
+					substr($data, 0, 8) = "";
+					($tlvlen) = unpack("n", substr($data, 0, 2, ""));
+					substr($data, 0, $tlvlen) = "";
+				}
 			} else {
-				$data = pack("nn", $type, $tlvlen) . $data;
-				last;
-			}
-		}
-
-		my $currbud;
-
-		if(substr($data, 0, 4) eq chr(0)x4 and $haspd and $haspd eq chr(0xFF)x4) {
-			$currbud = 0;
-			while(substr($data, 0, 2) ne chr(0)x2) {
-				$currbud++;
 				my $buddy = get_buddy($session, \$data);
 				next unless $buddy;
-				$session->debug_print("Queueing buddy $buddy->{name}.");
-				push @buddyqueue, $buddy;
-			}
-			substr($data, 0, 2) = "" if $currbud;
-		}
 
-		### End of permit/deny list.
-
-		#$session->debug_print("blt at end of p/d:", hexdump($data));
-
-		## ???
-		### Now we do the regular buds.
-
-		while(length($data) > 4) {
-			while(substr($data, 0, 2) eq chr(0)x2) {
-				substr($data, 0, 12) = "";
-				($tlvlen) = unpack("n", substr($data, 0, 2, ""));
-				substr($data, 0, $tlvlen) = "";
-			}
-			my $buddy = get_buddy($session, \$data);
-			next unless $buddy;
-			if($buddy->{buddyid}) {
-				$session->debug_print("Queueing buddy $buddy->{name}.");
-				push @buddyqueue, $buddy;
-			} else {
-				my $group = $buddy->{name};
-				$session->debug_printf("Got group $group (0x%04X).", $buddy->{groupid});
+				if($buddy->{buddyid}) {
+					$session->debug_print("Queueing buddy $buddy->{name}.");
+					printf STDERR "Queueing buddy $buddy->{name}.\n";
+					push @buddyqueue, $buddy;
+				} else {
+					my $group = $buddy->{name};
+					$session->debug_printf("Got group $group (0x%04X).", $buddy->{groupid});
+					printf STDERR "Got group $group (0x%04X).\n", $buddy->{groupid};
+				}
 			}
 		}
 
@@ -383,6 +352,7 @@ sub process_snac($$) {
 				#$session->debug_print("After findgroup, groups are: ", join(",", keys %{$session->{buddies}}));
 			}
 			next unless $group;
+			next if $session->{buddies}->{$group}->{members}->{$buddy->{name}};
 			$session->{buddies}->{$group}->{members} = $session->bltie() unless exists $session->{buddies}->{$group}->{members};
 			$session->{buddies}->{$group}->{members}->{$buddy->{name}} = {
 				online => 0,
