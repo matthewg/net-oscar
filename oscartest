@@ -8,6 +8,16 @@ eval {
 };
 use vars qw($pid $oscar @chats @invites $loglevel $domd5 $password);
 
+my $readline = 0;
+eval {
+	require Term::ReadLine;
+};
+if($@) {
+	warn "Couldn't load Term::ReadLine -- omitting readline support: $@\n";
+} else {
+	$readline = 1;
+}
+
 #$Carp::Verbose = 1;
 $| = 1;
 

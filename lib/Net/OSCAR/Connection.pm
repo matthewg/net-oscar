@@ -377,18 +377,15 @@ sub ready($) {
 	return if $self->{sentready}++;
 	$self->log_print(OSCAR_DBG_DEBUG, "Sending client ready.");
 	if($self->{conntype} != CONNTYPE_BOS) {
+		my $conntype = sprintf("0x%04X", $self->{conntype});
 		$self->snac_put(family => 0x1, subtype => 0x2, data => pack("n*",
-			1, 3, 0x10, 0x629, $self->{conntype}, 1, 0x10, 0x47B
+			0x0001, OSCAR_TOOLDATA()->{0x0001}->{version}, OSCAR_TOOLDATA()->{0x0001}->{toolid}, OSCAR_TOOLDATA()->{0x0001}->{toolversion},
+			$self->{conntype}, OSCAR_TOOLDATA()->{$conntype}->{version}, OSCAR_TOOLDATA()->{$conntype}->{toolid}, OSCAR_TOOLDATA()->{$conntype}->{toolversion}
 		));
 	} else {
-		$self->snac_put(family => 0x1, subtype => 0x2, data => pack("n*", 
-			1, 3, 0x110, 0x629, 13, 1, 0x110, 0x47B,
-			2, 1, 0x101, 0x629, 3, 1, 0x110, 0x47B,
-			4, 1, 0x110, 0x629, 6, 1, 0x110, 0x47B,
-			8, 1, 0x104, 1, 9, 1, 0x110, 0x47B,
-			0xA, 1, 0x110, 0x629, 0xB, 1, 0x104, 1,
-			0xC, 1, 0x104, 1
-		));
+		my $data = "";
+		$data .= pack("n*", $_, OSCAR_TOOLDATA()->{$_}->{version}, OSCAR_TOOLDATA()->{$_}->{toolid}, OSCAR_TOOLDATA()->{$_}->{toolversion}) foreach sort {hex($b) <=> hex($a)} grep {not OSCAR_TOOLDATA()->{$_}->{nobos}} keys %{OSCAR_TOOLDATA()};
+		$self->snac_put(family => 0x1, subtype => 0x2, data => $data);
 	}
 }
 

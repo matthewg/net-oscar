@@ -140,6 +140,7 @@ use strict;
 use vars qw($VERSION @ISA @EXPORT_OK %EXPORT_TAGS);
 use Carp;
 use Scalar::Util;
+use Digest::MD5 qw(md5);
 use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::Connection;
 use Net::OSCAR::Callbacks;
@@ -693,6 +694,12 @@ sub commit_buddylist($) {
 	my($self) = shift;
 	return must_be_on($self) unless $self->{is_on};
 	Net::OSCAR::_BLInternal::NO_to_BLI($self);
+}
+
+sub rollback_buddylist($) {
+	my($self) = shift;
+	return must_be_on($self) unless $self->{is_on};
+	Net::OSCAR::_BLInternal::BLI_to_NO($self);
 }
 
 sub reorder_groups($@) {
@@ -1327,6 +1334,23 @@ sub set_info($$;$) {
 
 	$self->log_print(OSCAR_DBG_NOTICE, "Setting user information.");
 	$self->{bos}->snac_put(family => 0x02, subtype => 0x04, data => tlv_encode(\%tlv));
+}
+
+=pod
+
+=item set_icon (ICONDATA)
+
+Sets the user's buddy icon.  The C<Net::OSCAR> object must have been created
+with the C<buddy_icons> capability to use this.  C<ICONDATA> should be GIF
+image data.  You must call L<commit_buddylist> for this change to take effect.
+
+=cut
+
+sub set_icon($$) {
+	my($self, $icon) = @_;
+
+	$self->{icon} = $icon;
+	$self->{icon_checksum} = md5($icon);
 }
 
 sub svcdo($$%) {

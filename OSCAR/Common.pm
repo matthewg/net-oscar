@@ -56,10 +56,10 @@ require Exporter;
 		VISMODE_PERMITALL VISMODE_DENYALL VISMODE_PERMITSOME VISMODE_DENYSOME VISMODE_PERMITBUDS RATE_CLEAR RATE_ALERT RATE_LIMIT RATE_DISCONNECT
 		TYPINGSTATUS_STARTED TYPINGSTATUS_TYPING TYPINGSTATUS_FINISHED
 		FLAP_CHAN_NEWCONN FLAP_CHAN_SNAC FLAP_CHAN_ERR FLAP_CHAN_CLOSE
-		CONNTYPE_LOGIN CONNTYPE_BOS CONNTYPE_ADMIN CONNTYPE_CHAT CONNTYPE_CHATNAV
+		CONNTYPE_LOGIN CONNTYPE_BOS CONNTYPE_ADMIN CONNTYPE_CHAT CONNTYPE_CHATNAV CONNTYPE_ICON
 		MODBL_ACTION_ADD MODBL_ACTION_DEL MODBL_WHAT_BUDDY MODBL_WHAT_GROUP MODBL_WHAT_PERMIT MODBL_WHAT_DENY
 		GROUPPERM_OSCAR GROUPPERM_AOL OSCAR_SVC_AIM OSCAR_SVC_ICQ
-		OSCAR_CAPS
+		OSCAR_CAPS OSCAR_TOOLDATA
 		BUDTYPES
 		ENCODING
 		ERRORS
@@ -103,6 +103,7 @@ use constant CONNTYPE_BOS => dualvar(0x2, "BOS");
 use constant CONNTYPE_ADMIN => dualvar(0x7, "admin");
 use constant CONNTYPE_CHAT => dualvar(0xE, "chat");
 use constant CONNTYPE_CHATNAV => dualvar(0xD, "ChatNav");
+use constant CONNTYPE_ICON => dualvar(0x10, "icon");
 
 use constant MODBL_ACTION_ADD => 0x1;
 use constant MODBL_ACTION_DEL => 0x2;
@@ -176,6 +177,30 @@ use constant OSCAR_CAPS => {
 	icqrtf => {description => "ICQ RTF", value => pack("C*", map{hex($_)} split(/[ \t\n,]+/, "0x97, 0xb1, 0x27, 0x51, 0x24, 0x3c, 0x43, 0x34, 0xad, 0x22, 0xd6, 0xab, 0xf7, 0x3f, 0x14, 0x92"))},
 	apinfo => {description => "AP info", value => pack("C*", map{hex($_)} split(/[ \t\n,]+/, "0xaa, 0x4a, 0x32, 0xb5, 0xf8, 0x84, 0x48, 0xc6, 0xa3, 0xd7, 0x8c, 0x50, 0x97, 0x19, 0xfd, 0x5b"))},
 	trilliancrypt => {description => "Trillian encryption", value => pack("C*", map{hex($_)} split(/[ \t\n,]+/, "0xf2, 0xe7, 0xc7, 0xf4, 0xfe, 0xad, 0x4d, 0xfb, 0xb2, 0x35, 0x36, 0x79, 0x8b, 0xdf, 0x00, 0x00"))},
+};
+
+use constant OSCAR_TOOLDATA => {
+	0x0001 => {version => 0x0003, toolid => 0x0110, toolversion => 0x0629},
+	0x0002 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
+	0x0003 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
+	0x0004 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
+	0x0005 => {version => 0x0001, toolid => 0x0001, toolversion => 0x0001, nobos => 1},
+	0x0006 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
+	0x0007 => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
+	0x0008 => {version => 0x0001, toolid => 0x0104, toolversion => 0x0001},
+	0x0009 => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
+	0x000A => {version => 0x0001, toolid => 0x0110, toolversion => 0x0629},
+	0x000B => {version => 0x0001, toolid => 0x0104, toolversion => 0x0001},
+	0x000C => {version => 0x0001, toolid => 0x0104, toolversion => 0x0001},
+	0x000D => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
+	0x000E => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
+	0x000F => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
+	0x0010 => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
+	0x0013 => {version => 0x0004, toolid => 0x0110, toolversion => 0x0629},
+	0x0015 => {version => 0x0001, toolid => 0x0110, toolversion => 0x047C},
+	0x0017 => {version => 0x0000, toolid => 0x0000, toolversion => 0x0000, nobos => 1},
+	0x0018 => {version => 0x0001, toolid => 0x0010, toolversion => 0x0629, nobos => 1},
+	0xFFFF => {version => 0x0000, toolid => 0x0000, toolversion => 0x0000, nobos => 1},
 };
 
 use constant BUDTYPES => ("buddy", "group", "permit entry", "deny entry", "visibility/misc. data", "presence");
@@ -416,6 +441,5 @@ sub encode_password($$;$) {
 		return $ret;
 	}
 }
-
 
 1;

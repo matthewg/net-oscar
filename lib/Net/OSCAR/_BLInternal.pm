@@ -114,6 +114,10 @@ sub BLI_to_NO($) {
 		($session->{showidle}) = unpack("N", $bli->{5}->{0}->{19719}->{data}->{0xC9} || pack("N", 1));
 	}
 
+	if(exists $bli->{0x14}) {
+		$session->{icon_checksum} = $bli->{0x14}->{0}->{0x51F4}->{data}->{0xD5};
+	}
+
 	my @gids = unpack("n*", (exists($bli->{1}) and exists($bli->{1}->{0}) and exists($bli->{1}->{0}->{0}) and exists($bli->{1}->{0}->{0}->{data}->{0xC8})) ? $bli->{1}->{0}->{0}->{data}->{0xC8} : "");
 	push @gids, grep { # Find everything...
 		my $ingrp = $_;
@@ -197,6 +201,11 @@ sub NO_to_BLI($) {
 
 	if(exists($session->{showidle})) {
 		$bli->{5}->{0}->{0x4D07}->{data}->{0xC9} = pack("N", $session->{showidle});
+	}
+
+	if(exists($session->{icon_checksum})) {
+		$bli->{0x14}->{0}->{0x51F4}->{name} = "1";
+		$bli->{0x14}->{0}->{0x51F4}->{data}->{0xD5} = $session->{icon_checksum};
 	}
 
 	$bli->{1}->{0}->{0}->{data}->{0xC8} = pack("n*", map { $_->{groupid} } values %{$session->{buddies}});

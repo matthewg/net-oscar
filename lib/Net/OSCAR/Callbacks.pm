@@ -92,8 +92,11 @@ sub process_snac($$) {
 			$connection->log_print(OSCAR_DBG_DEBUG, "Doing buddylist unknown 0x2.");
 			$connection->snac_put(family => 0x13, subtype => 0x2);
 
-			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting buddylist.");
-			$connection->snac_put(family => 0x13, subtype => 0x5, data => chr(0)x6);
+			#$connection->log_print(OSCAR_DBG_DEBUG, "Requesting buddylist.");
+			#$connection->snac_put(family => 0x13, subtype => 0x5, data => chr(0)x6);
+
+			$connection->log_print(OSCAR_DBG_DEBUG, "Making unknown buddylist request.");
+			$connection->snac_put(family => 0x13, subtype => 0x4);
 
 			$connection->log_print(OSCAR_DBG_DEBUG, "Requesting locate rights.");
 			$connection->snac_put(family => 0x2, subtype => 0x2);
@@ -161,7 +164,8 @@ sub process_snac($$) {
 	} elsif($family == 0x1 and $subtype == 0xf) {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Got user information response.");
 	} elsif($family == 0x9 and $subtype == 0x3) {
-		$connection->log_print(OSCAR_DBG_NOTICE, "Got BOS rights.");
+		$connection->log_print(OSCAR_DBG_NOTICE, "Got BOS rights.  Setting user info.");
+		$session->set_info("");
 	} elsif($family == 0x3 and $subtype == 0x3) {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Got buddylist rights.");
 	} elsif($family == 0x2 and $subtype == 0x3) {
@@ -325,7 +329,6 @@ sub process_snac($$) {
 
 			return unless Net::OSCAR::_BLInternal::blparse($session, join("", reverse @{$session->{blarray}}));
 			delete $session->{blarray};
-			$connection->snac_put(family => 0x13, subtype => 0x7);
 			got_buddylist($session, $connection);
 		}
 	} elsif($family == 0x13 and $subtype == 0x0E) {
@@ -521,30 +524,25 @@ sub process_snac($$) {
 sub got_buddylist($$) {
 	my($session, $connection) = @_;
 
-	$session->set_info("") unless $session->profile;
-
-	my $icbm_parm = 0x3;
-	$icbm_parm |= 0xB if $session->{capabilities}->{typing_status};
+	my $icbm_parm = 0;
+	$icbm_parm = 0xB if $session->{capabilities}->{typing_status};
 
 	$connection->log_print(OSCAR_DBG_DEBUG, "Adding ICBM parameters.");
 	$connection->snac_put(family => 0x4, subtype => 0x2, data =>
 		pack("n*", 0, 0, $icbm_parm, 0x1F40, 0x3E7, 0x3E7, 0, 0)
 	);
 
+	$connection->ready();
+
+	$session->set_extended_status("") if $session->{capabilities}->{extended_status};
+
 	$connection->log_print(OSCAR_DBG_DEBUG, "Setting idle.");
 	$connection->snac_put(family => 0x1, subtype => 0x11, data => pack("N", 0));
 
-	$connection->ready();
+	$connection->snac_put(family => 0x13, subtype => 0x7);
 
 	$session->{is_on} = 1;
 	$session->callback_signon_done() unless $session->{sent_done}++;
-
-	$connection->snac_put(family => 0x2, subtype => 0xB, data => pack("Ca*", length(normalize($session->screenname)), normalize($session->screenname)));
-
-	$connection->log_print(OSCAR_DBG_DEBUG, "Setting directory info.");
-	$connection->snac_put(family => 0x02, subtype => 0x09);
-
-	$connection->snac_put(family => 0x02, subtype => 0x0F);
 }
 
 1;
