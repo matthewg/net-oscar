@@ -2363,6 +2363,7 @@ sub callback_extended_status(@) { do_callback("extended_status", @_); }
 sub callback_im_ok(@) { do_callback("im_ok", @_); }
 sub callback_connection_changed(@) { do_callback("connection_changed", @_); }
 sub callback_auth_challenge(@) { do_callback("auth_challenge", @_); }
+sub callback_register_timer(@) { do_callback("register_timer", @_); }
 
 sub set_callback_error($\&) { set_callback("error", @_); }
 sub set_callback_buddy_in($\&) { set_callback("buddy_in", @_); }
@@ -2406,6 +2407,7 @@ sub set_callback_extended_status($\&) {
 sub set_callback_im_ok($\&) { set_callback("im_ok", @_); }
 sub set_callback_connection_changed($\&) { set_callback("connection_changed", @_); }
 sub set_callback_auth_challenge($\&) { set_callback("auth_challenge", @_); }
+sub set_callback_register_timer($\&) { set_callback("register_timer", @_); }
 
 =pod
 
