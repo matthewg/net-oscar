@@ -51,7 +51,7 @@ sub flap_encode($$;$) {
 sub flap_put($$;$) {
 	my($self, $msg, $channel) = @_;
 
-	return unless $self->{socket} and fileno($self->{socket}) and getpeername($self->{socket}); # and !$self->{socket}->error;
+	return unless $self->{socket} and CORE::fileno($self->{socket}) and getpeername($self->{socket}); # and !$self->{socket}->error;
 
 	my $emsg = $self->flap_encode($msg, $channel);
 	syswrite($self->{socket}, $emsg, length($emsg)) or return $self->{session}->crapout($self, "Couldn't write to socket: $!");
