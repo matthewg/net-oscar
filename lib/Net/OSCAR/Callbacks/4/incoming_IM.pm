@@ -4,7 +4,7 @@ use warnings;
 use vars qw($connection $snac $conntype $family $subtype $data $reqid $reqdata $session $protobit %data);
 sub {
 
-my $sender = $data{screenname};
+my $sender = Net::OSCAR::Screenname->new(\$data{screenname});
 my $sender_info = $session->{userinfo}->{$sender} ||= {};
 
 if($data{channel} == 1) { # Regular IM

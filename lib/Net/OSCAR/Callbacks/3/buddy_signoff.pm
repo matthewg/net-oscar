@@ -16,6 +16,6 @@ foreach (keys %$budinfo) {
 $budinfo->{online} = 0;
 
 $connection->log_print(OSCAR_DBG_DEBUG, "And so, another former ally has abandoned us.  Curse you, $buddy!");
-$session->callback_buddy_out($buddy, $grpname);
+$session->callback_buddy_out($budinfo->{screenname}, $grpname);
 
 };

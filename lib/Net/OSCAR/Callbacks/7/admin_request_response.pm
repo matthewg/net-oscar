@@ -48,7 +48,7 @@ if(exists($data{error_code})) {
 	$session->callback_admin_error($reqdesc, $errdesc, $data{error_url});
 } else {
 	if($reqdesc eq "screenname format") {
-		$session->{screenname} = $data{new_screenname};
+		$session->{screenname} = Net::OSCAR::Screenname->new(\$data{new_screenname});
 	} elsif($reqdesc eq "email change") {
 		$session->{email} = $data{new_email};
 	}

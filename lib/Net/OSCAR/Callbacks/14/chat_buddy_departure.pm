@@ -5,7 +5,7 @@ use vars qw($connection $snac $conntype $family $subtype $data $reqid $reqdata $
 sub {
 
 foreach (@{$data{departures}}) {
-	$session->callback_chat_buddy_out($_, $connection);
+	$session->callback_chat_buddy_out(Net::OSCAR::Screenname->new(\$_), $connection);
 }
 
 };

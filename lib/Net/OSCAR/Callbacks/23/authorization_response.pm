@@ -25,6 +25,8 @@ if($data{error}) {
 	$connection->disconnect;
 	$session->{screenname} = $data{screenname};
 	$session->{email} = $data{email};
+
+	Net::OSCAR::Screenname->new(\$session->{screenname});
 }
 
 };
