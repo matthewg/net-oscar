@@ -49,7 +49,7 @@ sub new($@) {
 	$self->{paused} = 0;
 	$self->{families} = {};
 	$self->{buffsize} = 65535;
-	$self->{buffer} = "";
+	$self->{buffer} = \"";
 
 	$self->connect($self->{peer}) if exists($self->{peer});
 
@@ -88,7 +88,7 @@ sub proto_send($%) {
 	$snac{data} = protoparse($self->{session}, $data{protobit})->pack(%{$data{protodata}});
 	foreach (qw(reqdata reqid flags1 flags2)) {
 		$snac{$_} = $data{$_} if exists($data{$_});
-	}
+}
 
 	if(exists($snac{family})) {
 		if($self->{paused} and !$data{nopause}) {
@@ -179,35 +179,43 @@ sub read($$;$) {
 
 	my $buffsize = $self->{buffsize};
 	$buffsize = $len if $len > $buffsize;
+	my $readlen = $buffsize - length(${$self->{buffer}});
 
-	if(length($self->{buffer}) >= $len) {
-		my $ret = substr($self->{buffer}, 0, $len, "");
-		$self->log_print_cond(OSCAR_DBG_PACKETS, sub { "Got '", hexdump($ret), "'" });
-		return $ret;
+	if($readlen > 0 and !$no_reread) {
+		my $buffer = "";
+		my $nchars = sysread($self->{socket}, $buffer, $buffsize - length(${$self->{buffer}}));
+		if(${$self->{buffer}}) {
+			${$self->{buffer}} .= $buffer;
+		} else {
+			$self->{buffer} = \$buffer;
+		}
+
+		if(!${$self->{buffer}} and !defined($nchars)) {
+			return "" if $! == EAGAIN;
+			$self->log_print(OSCAR_DBG_NOTICE, "Couldn't read from socket: $!");
+			$self->{sockerr} = 1;
+			$self->disconnect();
+			return undef;
+		} elsif(!${$self->{buffer}} and $nchars == 0) { # EOF
+			$self->log_print(OSCAR_DBG_NOTICE, "Got EOF on socket");
+			$self->{sockerr} = 1;
+			$self->disconnect();
+			return undef;
+		}
 	}
-	return "" if $no_reread;
 
-	my $buffer = "";
-	my $nchars = sysread($self->{socket}, $buffer, $buffsize - length($self->{buffer}));
-	$self->{buffer} .= $buffer;
-
-	if(!defined($nchars)) {
-		return "" if $! == EAGAIN;
-		$self->log_print(OSCAR_DBG_NOTICE, "Couldn't read from socket: $!");
-		$self->{sockerr} = 1;
-		$self->disconnect();
-		return undef;
-	} elsif($nchars == 0) { # EOF
-		$self->log_print(OSCAR_DBG_NOTICE, "Got EOF on socket");
-		$self->{sockerr} = 1;
-		$self->disconnect();
-		return undef;
-	} elsif(length($self->{buffer}) < $len) {
+	if(length(${$self->{buffer}}) < $len) {
 		return "";
 	} else {
-		my $ret = substr($self->{buffer}, 0, $len, "");
-		$self->log_print_cond(OSCAR_DBG_PACKETS, sub { "Got '", hexdump($ret), "'" });
-		return $ret;
+		my $ret;
+		if(length(${$self->{buffer}}) == $len) {	
+			$ret = $self->{buffer};
+			$self->{buffer} = \"";
+		} else {
+			$ret = \substr(${$self->{buffer}}, 0, $len, "");
+		}
+		$self->log_print_cond(OSCAR_DBG_PACKETS, sub { "Got '", hexdump($$ret), "'" });
+		return $$ret;
 	}
 }
 
