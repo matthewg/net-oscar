@@ -250,12 +250,21 @@ sub connect($$) {
 sub get_filehandle($) { shift->{socket}; }
 
 # $read/$write tell us if select indicated readiness to read and/or write
-sub process_one($$$) {
-	my($self, $read, $write) = @_;
+# Dittor for $error
+sub process_one($;$$$) {
+	my($self, $read, $write, $error) = @_;
 	my $snac;
 	my %tlv;
 
+	if($error) {
+		$self->{sockerr} = 1;
+		return $self->disconnect();
+	}
+
 	tie %tlv, "Net::OSCAR::TLV";
+
+	$read ||= 1;
+	$write ||= 1;
 
 	if($write && $self->{outbuff}) {
 		$self->log_print(OSCAR_DBG_DEBUG, "Flushing output buffer.");
@@ -265,7 +274,6 @@ sub process_one($$$) {
 	if($write && !$self->{connected}) {
 		$self->log_print(OSCAR_DBG_NOTICE, "Connected.");
 		$self->{connected} = 1;
-		#$self->set_blocking(1);
 		$self->{session}->callback_connection_changed($self, "read");
 		return 1;
 	} elsif($read && !$self->{ready}) {
