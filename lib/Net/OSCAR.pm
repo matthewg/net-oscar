@@ -309,6 +309,10 @@ convenient for use with multiple C<Net::OSCAR> objects or
 use with a C<select>-based event loop that you are also
 using for other purposes.
 
+You must include the file numbers of all sockets returned by
+the L<connections> method in both the readers, writers, and
+errors parameters of your select statement.
+
 See the L<connections> method for a way to get the file
 descriptors to add to your C<select>.
 
