@@ -3,7 +3,6 @@ package Net::OSCAR::Common;
 $VERSION = 0.09;
 
 use strict;
-use warnings;
 use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS $VERSION);
 use Scalar::Util qw(dualvar);
 use Net::OSCAR::TLV;

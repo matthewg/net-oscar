@@ -4,17 +4,17 @@ $VERSION = 0.09;
 
 use strict;
 use vars qw($VERSION);
-use warnings;
 use Carp;
 use Socket;
 use Symbol;
 use Digest::MD5;
 use Fcntl;
-use Errno;
+use POSIX qw(:errno_h);
 
 use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::TLV;
 use Net::OSCAR::Callbacks;
+use Net::OSCAR::OldPerl;
 
 sub new($$$$$$) { # Think you got enough parameters there, Chester?
 	my $class = ref($_[0]) || $_[0] || "Net::OSCAR::Connection";
@@ -51,7 +51,7 @@ sub flap_encode($$;$) {
 sub flap_put($$;$) {
 	my($self, $msg, $channel) = @_;
 	my $emsg = $self->flap_encode($msg, $channel);
-	syswrite($self->{socket}, $emsg) or return $self->{session}->crapout($self, "Couldn't write to socket: $!");
+	syswrite($self->{socket}, $emsg, length($emsg)) or return $self->{session}->crapout($self, "Couldn't write to socket: $!");
 	$self->log_print(OSCAR_DBG_PACKETS, "Put ", hexdump($emsg));
 }
 
@@ -225,7 +225,7 @@ sub connect($$) {
 	$self->set_blocking(0);
 	my $addr = inet_aton($host) or return $self->{session}->crapout($self, "Couldn't resolve $host.");
 	if(!connect($self->{socket}, sockaddr_in($port, $addr))) {
-		return 1 if $!{EINPROGRESS};
+		return 1 if $! == EINPROGRESS;
 		croak "Couldn't connect to $host:$port: $!";
 	}
 

@@ -1,6 +1,7 @@
 package Net::OSCAR::_BLInternal;
 
 use Net::OSCAR::Common qw(:all);
+use Net::OSCAR::OldPerl;
 
 # Heh, this is fun.
 # This is what we use as the first arg to Net::OSCAR::TLV when creating a new BLI.
@@ -43,7 +44,7 @@ sub blparse($$) {
 	while(length($data) > 4) {
 		my($name) = unpack("n/a*", $data);
 		substr($data, 0, 2+length($name)) = "";
-		my($gid, $bid, $type, $sublen) = unpack("n*", substr($data, 0, 8, ""));
+		my($gid, $bid, $type, $sublen) = unpack("n4", substr($data, 0, 8, ""));
 		my $typedata = tlv_decode(substr($data, 0, $sublen, ""));
 
 		$session->{blinternal}->{$type}->{$gid}->{$bid}->{name} = $name if $name;

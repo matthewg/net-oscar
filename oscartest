@@ -2,7 +2,9 @@
 
 use strict;
 use Net::OSCAR qw(:standard);
-use Data::Dumper;
+eval {
+	require Data::Dumper;
+};
 use vars qw($pid $oscar @chats @invites $loglevel);
 
 #$Carp::Verbose = 1;

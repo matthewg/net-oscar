@@ -9,6 +9,7 @@ Net::OSCAR - Implementation of AOL's OSCAR protocol for instant messaging
 =head1 SYNOPSIS
 
 	use Net::OSCAR qw(:standard);
+	use Net::OSCAR::OldPerl; # You may need to use this perls older than 5.6.
 
 	$oscar = Net::OSCAR->new();
 	$oscar->set_callback_foo(\&foo);
@@ -119,7 +120,6 @@ everyone on our buddylist.
 
 =cut
 
-sub BEGIN { require 5.006; }
 use strict;
 use vars qw($VERSION @ISA @EXPORT_OK %EXPORT_TAGS);
 use Carp;
@@ -132,8 +132,8 @@ use Net::OSCAR::Buddylist;
 use Net::OSCAR::Screenname;
 use Net::OSCAR::Chat;
 use Net::OSCAR::_BLInternal;
+use Net::OSCAR::OldPerl;
 
-use warnings;
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT_OK = @Net::OSCAR::Common::EXPORT_OK;

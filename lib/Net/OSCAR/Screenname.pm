@@ -4,9 +4,9 @@ $VERSION = 0.09;
 
 use strict;
 use vars qw($VERSION);
-use warnings;
 
 use Net::OSCAR::Common qw(normalize);
+use Net::OSCAR::OldPerl;
 
 use overload
 	"cmp" => "compare",

@@ -4,13 +4,13 @@ $VERSION = 0.09;
 
 use strict;
 use vars qw($VERSION);
-use warnings;
 use Carp;
 
 use Net::OSCAR::Common qw(:all);
 use Net::OSCAR::TLV;
 use Net::OSCAR::Buddylist;
 use Net::OSCAR::_BLInternal;
+use Net::OSCAR::OldPerl;
 
 use constant MAJOR => 4;
 use constant MINOR => 7;

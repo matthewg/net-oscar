@@ -14,3 +14,4 @@ OSCAR/Common.pm
 OSCAR/Connection.pm
 OSCAR/Screenname.pm
 OSCAR/TLV.pm
+OSCAR/OldPerl.pm
