@@ -1400,7 +1400,7 @@ Called when your evil level changes.  NEWEVIL is your new evil level,
 as a percentage (accurate to tenths of a percent.)  ENEMY is undef
 if the evil was anonymous (or if the message was triggered because
 your evil level naturally decreased), otherwise it is the screenname
-of the person who sent us the evil.  See the L<evil> method for
+of the person who sent us the evil.  See the L<"evil"> method for
 more information on evils.
 
 =item buddy_info(OSCAR, SCREENNAME, BUDDY DATA)
