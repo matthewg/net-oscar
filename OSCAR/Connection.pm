@@ -40,7 +40,8 @@ sub new($@) {
 	$self->{paused} = 0;
 	$self->{outbuff} = "";
 	$self->{state} ||= "write";
-	$self->connect($self->{peer}) if $self->{peer};
+
+	$self->connect($self->{peer}) if exists($self->{peer});
 
 	return $self;
 }

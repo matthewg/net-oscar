@@ -109,13 +109,19 @@
 	<!-- Random crap that's part of signon, protocol negotiation -->
 	<define name="authorization response" family="23" subtype="3">
 		<tlvchain>
+			<!-- If there's an error -->
 			<tlv type="8"><word name="error" /></tlv>
 			<tlv type="4"><data name="error_details" /></tlv>
 
+			<!-- Basic info -->
 			<tlv type="1"><data name="screenname" /></tlv>
 			<tlv type="17"><data name="email" /></tlv>
 			<tlv type="6"><data name="auth_cookie" /></tlv>
 			<tlv type="5"><data name="server_ip" /></tlv>
+
+			<!-- Other stuff -->
+			<tlv type="19"><word name="registration_status" /></tlv>
+			<tlv type="84"><data name="password_change_url" /></tlv>
 		</tlvchain>
 	</define>
 	<define name="rate info response" family="1" subtype="7" />

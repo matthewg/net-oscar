@@ -179,7 +179,7 @@ sub _protopack($$;@) {
 				} else {
 					$tlvmap->{$_->{num}} = $_ foreach (@{$datum->{items}});
 				}
-				while($tlvpacket and ($tlvmax and $tlvcount < $tlvmax)) {
+				while($tlvpacket and (!$tlvmax or $tlvcount < $tlvmax)) {
 					my($type, $length, $subtype, $value);
 					if($datum->{subtyped}) {
 						($type, $length, $subtype) = unpack("nCC", substr($tlvpacket, 0, 4, ""));

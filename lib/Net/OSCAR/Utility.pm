@@ -225,7 +225,7 @@ sub send_versions($$) {
 	my $conntype = $connection->{conntype};
 	my @services;
 
-	if($conntype != CONNTYPE_BOS()) {
+	if($conntype != CONNTYPE_BOS) {
 		@services = (1, $conntype);
 	} else {
 		@services = sort {$b <=> $a} grep {not OSCAR_TOOLDATA()->{$_}->{nobos}} keys %{OSCAR_TOOLDATA()};

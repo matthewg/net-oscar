@@ -433,6 +433,7 @@ sub addconn($@) {
 	$data{session} = $self;
 	my $connection;
 	my $conntype = $data{conntype};
+
 	if($conntype == CONNTYPE_CHAT) {
 		$connection = Net::OSCAR::Connection::Chat->new(%data);
 	} else {
