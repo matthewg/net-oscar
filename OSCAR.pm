@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = 0.55;
+$VERSION = 0.56;
 
 =head1 NAME
 
@@ -1989,6 +1989,30 @@ of C<Net::OSCAR::Connection>, not C<Net::OSCAR>.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+0.56, 2002-01-16
+
+=over 4
+
+=item *
+
+Fixed rate handling
+
+=item *
+
+Send multiple buddylist modifications per SNAC
+
+=item *
+
+Detect when someone else signs on with your screenname
+
+=item *
+
+Corrected attribution of ICQ support
+
+=back
 
 =item *
 
