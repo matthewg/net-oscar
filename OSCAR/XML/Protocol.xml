@@ -93,7 +93,11 @@
 
 			<!-- For AIM-style signons -->
 			<tlv type="37"><data name="auth_response" /></tlv>
-			<tlv type="76"><data name="betainfo" /></tlv>
+			<!--
+			   Set this if the password was hashed before putting
+			   it into the auth_response
+			-->
+			<tlv type="76"><data name="pass_is_hashed" /></tlv>
 
 			<!-- For ICQ-style signons -->
 			<tlv type="2"><data name="password" /></tlv>

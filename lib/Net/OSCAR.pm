@@ -231,6 +231,7 @@ sub new($) {
 	$self->{services} = tlv;
 	$self->{svcqueues} = tlv;
 	$self->{listener} = undef;
+	$self->{pass_is_hashed} = 0;
 
 	$self->{timeout} = 0.01;
 	$self->{capabilities} = {};
@@ -374,19 +375,20 @@ sub signon($@) {
 
 =pod
 
-=item auth_response (MD5_DIGEST, VERSION)
+=item auth_response (MD5_DIGEST[, PASS_IS_HASHED])
 
 Provide a response to an authentication challenge - see the L<"auth_challenge">
-callback for details.  C<VERSION> must be C<5.5>.
+callback for details.
 
 =cut
 
 sub auth_response($$$) {
-	my($self, $digest, $version) = @_;
+	my($self, $digest, $pass_is_hashed) = @_;
 
-	if($version != 5.5) {
-		$self->crapout($self, "Program uses obsolete auth_challenge/auth_response mechanism.  Please check the documentation for Net::OSCAR::auth_challenge and update the program.");
-		return;
+	if($pass_is_hashed) {
+		$self->{pass_is_hashed} = 1;
+	} else {
+		$self->{pass_is_hashed} = 0;
 	}
 
 	$self->log_print(OSCAR_DBG_SIGNON, "Got authentication response - proceeding with signon");
@@ -2078,10 +2080,11 @@ Called when the user is completely signed on to the service.
 =item auth_challenge (OSCAR, CHALLENGE, HASHSTR)
 
 B<New for Net::OSCAR 2.0>: AOL Instant Messenger has changed their encryption
-mechanisms; instead of using the password in the hash, you must now use
-the MD5 hash of the password.  You must also pass an extra parameter to
-C<auth_response> indicating that you are using the new encryption scheme.
-See below for an example.
+mechanisms; instead of using the password in the hash, you B<may> now use
+the MD5 hash of the password.  This allows your application to save the user's
+password in hashed form instead of plaintext if you're saving passwords.
+You must pass an extra parameter to C<auth_response> indicating that you are
+using the new encryption scheme.  See below for an example.
 
 OSCAR uses an MD5-based challenge/response system for authentication so that the
 password is never sent in plaintext over the network.  When a user wishes to sign on,
@@ -2100,7 +2103,7 @@ L<MD5::Digest> module:
 	$md5->add($challenge);
 	$md5->add(md5("password"));
 	$md5->add($hashstr);
-	$oscar->auth_response($md5->digest, 5.5);
+	$oscar->auth_response($md5->digest, 1);
 
 Note that this functionality is only available for certain services.  It is
 available for AIM but not ICQ.  Note also that the MD5 digest must be in binary

@@ -174,11 +174,19 @@ sub signon_tlv($;$$) {
 	if($session->{svcdata}->{hashlogin}) {
 		$protodata{password} = encode_password($session, $password);
 	} else {
-		$protodata{betainfo} = "";
 		if($session->{auth_response}) {
 			$protodata{auth_response} = delete $session->{auth_response};
 		} else {
-			$protodata{auth_response} = encode_password($session, $password, $key);
+			# As of AIM 5.5, the password can be MD5'd before
+			# going into the things-to-cat-together-and-MD5.
+			# This lets applications that store AIM passwords
+			# store the MD5'd password.  We do it by default
+			# because, well, AIM for Windows does.  We support
+			# the old way to preserve compatibility with
+			# our auth_challenge/auth_response API.
+
+			$protodata{pass_is_hashed} = "";
+			$protodata{auth_response} = encode_password($session, md5($password), $key);
 		}
 	}
 
@@ -189,15 +197,10 @@ sub encode_password($$;$) {
 	my($session, $password, $key) = @_;
 
 	if(!$session->{svcdata}->{hashlogin}) { # Use new SNAC-based method
-		# As of AIM 5.5, the password needs to be MD5'd before
-		# going into the things-to-cat-together-and-MD5...
-		# sekuritee -- it's like security, only not.
-		my $sekuritee = md5($password);
-
 		my $md5 = Digest::MD5->new;
 
 		$md5->add($key);
-		$md5->add($sekuritee);
+		$md5->add($password);
 		$md5->add("AOL Instant Messenger (SM)");
 		return $md5->digest();
 	} else { # Use old roasting method.  Courtesy of SDiZ Cheng.
