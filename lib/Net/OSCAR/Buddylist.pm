@@ -24,6 +24,7 @@ sub setorder {
 	my @end = grep { my $inbud = $_; not grep { $_ eq $inbud } @_ } @{$self->{ORDERFORM}};
 
 	@{$self->{ORDERFORM}} = @_;
+	push @{$self->{ORDER}}, @end;
 }
 
 sub TIEHASH {
