@@ -27,6 +27,7 @@ sub new($$$$$$) { # Think you got enough parameters there, Chester?
 	$self->{conntype} = shift;
 	$self->{description} = shift;
 	$self->{paused} = 0;
+	$self->{outbuff} = "";
 	$self->connect(shift);
 
 	return $self;
@@ -49,14 +50,28 @@ sub flap_encode($$;$) {
 	return pack("CCnna*", 0x2A, $channel, ++$self->{seqno}, length($msg), $msg);
 }
 
-sub flap_put($$;$) {
+sub flap_put($;$$) {
 	my($self, $msg, $channel) = @_;
+	my $emsg;
 
 	return unless $self->{socket} and CORE::fileno($self->{socket}) and getpeername($self->{socket}); # and !$self->{socket}->error;
 
-	my $emsg = $self->flap_encode($msg, $channel);
-	syswrite($self->{socket}, $emsg, length($emsg)) or return $self->{session}->crapout($self, "Couldn't write to socket: $!");
-	$self->log_print(OSCAR_DBG_PACKETS, "Put ", hexdump($emsg));
+	if($msg) {
+		$emsg = $self->flap_encode($msg, $channel);
+		$self->{outbuff} .= $emsg;
+	}
+	my $nchars = syswrite($self->{socket}, $self->{outbuff}, length($emsg));
+	if(!defined($nchars)) {
+		return "" if $! == EAGAIN;
+		$self->log_print(OSCAR_DBG_NOTICE, "Couldn't write to socket: $!");
+		$self->{sockerr} = 1;
+		$self->disconnect();
+		return undef;
+	} else {
+		$emsg = substr($self->{outbuff}, 0, $nchars, "");
+		$self->log_print(OSCAR_DBG_NOTICE, "Couldn't do complete write - had to buffer ", length($self->{outbuff}), " bytes.") if $self->{outbuff};
+		$self->log_print(OSCAR_DBG_PACKETS, "Put ", hexdump($emsg));
+	}
 }
 
 sub flap_get($) {
@@ -69,15 +84,13 @@ sub flap_get($) {
 		$self->{buffsize} ||= 6;
 		$self->{buffer} ||= "";
 
-		if(!sysread($self->{socket}, $buffer, $self->{buffsize} - length($self->{buffer}))) {
-			if($self == $self->{session}->{bos}) {
-				return $self->{session}->crapout($self, "$!");
-			} else {
-				$self->log_print(OSCAR_DBG_NOTICE, "Lost connection.");
-				$self->{sockerr} = 1;
-				$self->disconnect();
-				return undef;
-			}
+		$nchars = sysread($self->{socket}, $buffer, $self->{buffsize} - length($self->{buffer}));
+		if(!defined($nchars)) {
+			return "" if $! == EAGAIN;
+			$self->log_print(OSCAR_DBG_NOTICE, "Couldn't read from socket: $!");
+			$self->{sockerr} = 1;
+			$self->disconnect();
+			return undef;
 		} else {
 			$self->{buffer} .= $buffer;
 		}
@@ -93,8 +106,9 @@ sub flap_get($) {
 	}
 
 	$nchars = sysread($self->{socket}, $buffer, $self->{buffsize} - length($self->{buffer}));
-	if(!$nchars) {
-		$self->log_print(OSCAR_DBG_NOTICE, "Lost connection.");
+	if(!defined($nchars)) {
+		return "" if $! == EAGAIN;
+		$self->log_print(OSCAR_DBG_NOTICE, "Couldn't read from socket: $!");
 		$self->{sockerr} = 1;
 		$self->disconnect();
 		return undef;
@@ -228,20 +242,26 @@ sub connect($$) {
 
 sub get_filehandle($) { shift->{socket}; }
 
-sub process_one($) {
-	my $self = shift;
+# $read/$write tell us if select indicated readiness to read and/or write
+sub process_one($$$) {
+	my($self, $read, $write) = @_;
 	my $snac;
 	my %tlv;
 
 	tie %tlv, "Net::OSCAR::TLV";
 
-	if(!$self->{connected}) {
+	if($write && $self->{outbuff}) {
+		$self->log_print(OSCAR_DBG_DEBUG, "Flushing output buffer.");
+		$self->flap_put();
+	}
+
+	if($write && !$self->{connected}) {
 		$self->log_print(OSCAR_DBG_NOTICE, "Connected.");
 		$self->{connected} = 1;
 		#$self->set_blocking(1);
 		$self->{session}->callback_connection_changed($self, "read");
 		return 1;
-	} elsif(!$self->{ready}) {
+	} elsif($read && !$self->{ready}) {
 		$self->log_print(OSCAR_DBG_DEBUG, "Getting connack.");
 		my $flap = $self->flap_get();
 		if(!defined($flap)) {
@@ -281,7 +301,7 @@ sub process_one($) {
 		}
 		$self->log_print(OSCAR_DBG_DEBUG, "SNAC time.");
 		return $self->{ready} = 1;
-	} else {
+	} elsif($read) {
 		if(!$self->{session}->{svcdata}->{hashlogin}) {
 			$snac = $self->snac_get() or return 0;
 			return Net::OSCAR::Callbacks::process_snac($self, $snac);

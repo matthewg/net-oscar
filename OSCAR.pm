@@ -352,7 +352,7 @@ sub delconn($$) {
 				close $connection->{socket} if $connection->{socket};
 			};
 		} else {
-			if($connection->{conntype} == CONNTYPE_BOS) {
+			if($connection->{conntype} == CONNTYPE_BOS or $connection->{conntype} == CONNTYPE_LOGIN) {
 				$self->callback_connection_changed($connection, "deleted");
 				delete $connection->{socket};
 				return $self->crapout($connection, "Lost connection to BOS");
@@ -425,20 +425,24 @@ sub process_connections($\$\$\$) {
 
 	# Filter out our connections and remove them from the to-do list
 	foreach my $connection(@{$self->{connections}}) {
+		my($read, $write) = (0, 0);
 		next unless $connection->fileno;
 		if($connection->{connected}) {
 			next unless vec($$readers | $$errors, $connection->fileno, 1);
 			vec($$readers, $connection->fileno, 1) = 0;
-		} else {
+			$read = 1;
+		}
+		if(!$connection->{connected} or $connection->{outbuff}) {
 			next unless vec($$writers | $$errors, $connection->fileno, 1);
 			vec($$writers, $connection->fileno, 1) = 0;
+			$write = 1;
 		}
 		if(vec($$errors, $connection->fileno, 1)) {
 			vec($$errors, $connection->fileno, 1) = 0;
 			$connection->{sockerr} = 1;
 			$connection->disconnect();
 		} else {
-			$connection->process_one();
+			$connection->process_one($read, $write);
 		}
 	}
 }
@@ -1402,7 +1406,8 @@ sub selector_filenos($) {
 		next unless $connection->{socket};
 		if($connection->{connected}) {
 			vec($rin, fileno $connection->{socket}, 1) = 1;
-		} else {
+		}
+		if(!$connection->{connected} or $connection->{outbuff}) {
 			vec($win, fileno $connection->{socket}, 1) = 1;
 		}
 	}
