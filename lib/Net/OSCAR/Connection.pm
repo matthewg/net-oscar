@@ -162,14 +162,30 @@ sub snac_dump($$) {
 	return "family=".$snac->{family}." subtype=".$snac->{subtype};
 }
 
-sub encode_password($$$) {
+sub encode_password($$;$) {
 	my($self, $password, $key) = @_;
-	my $md5 = Digest::MD5->new;
 
-	$md5->add($key);
-	$md5->add($password);
-	$md5->add("AOL Instant Messenger (SM)");
-	return $md5->digest();
+	if(!$self->{session}->{svcdata}->{hashlogin}) { # Use new SNAC-based method
+		my $md5 = Digest::MD5->new;
+
+		$md5->add($key);
+		$md5->add($password);
+		$md5->add("AOL Instant Messenger (SM)");
+		return $md5->digest();
+	} else { # Use old roasting method.  Courtesy of SDiZ Cheng.
+		my $ret = "";
+		my @pass = map {ord($_)} split(//, $password);
+
+		my @encoding_table = map {hex($_)} qw(
+			F3 26 81 C4 39 86 DB 92 71 A3 B9 E6 53 7A 95 7C
+		);
+
+		for(my $i = 0; $i < length($password); $i++) {
+			$ret .= chr($pass[$i] ^ $encoding_table[$i]);
+		}
+
+		return $ret;
+	}
 }
 
 sub disconnect($) {
@@ -264,16 +280,21 @@ sub process_one($) {
 
 		if($self->{conntype} == CONNTYPE_LOGIN) {
 			$self->log_print(OSCAR_DBG_DEBUG, "Got connack.  Sending connack.");
-			$self->flap_put(pack("N", 1), FLAP_CHAN_NEWCONN);
+			$self->flap_put(pack("N", 1), FLAP_CHAN_NEWCONN) unless $self->{session}->{svcdata}->{hashlogin};
 			$self->log_print(OSCAR_DBG_SIGNON, "Connected to login server.");
 			$self->{ready} = 1;
 
 			$self->log_print(OSCAR_DBG_SIGNON, "Sending screenname.");
-			%tlv = (
-				0x17 => pack("C6", 0, 0, 0, 0, 0, 0),
-				0x01 => $self->{session}->{screenname}
-			);
-			$self->flap_put(tlv_encode(\%tlv));
+			if(!$self->{session}->{svcdata}->{hashlogin}) {
+				%tlv = (
+					0x17 => pack("C6", 0, 0, 0, 0, 0, 0),
+					0x01 => $self->{session}->{screenname}
+				);
+				$self->flap_put(tlv_encode(\%tlv));
+			} else {
+				%tlv = signon_tlv($self->{session}, $self->{auth});
+				$self->flap_put(pack("N", 1) . tlv_encode(\%tlv), FLAP_CHAN_NEWCONN);
+			}
 		} else {
 			$self->log_print(OSCAR_DBG_NOTICE, "Sending BOS-Signon.");
 			#%tlv = (0x06 =>$self->{auth});
@@ -287,8 +308,22 @@ sub process_one($) {
 		$self->log_print(OSCAR_DBG_DEBUG, "SNAC time.");
 		return $self->{ready} = 1;
 	} else {
-		$snac = $self->snac_get() or return 0;
-		return Net::OSCAR::Callbacks::process_snac($self, $snac);
+		if(!$self->{session}->{svcdata}->{hashlogin}) {
+			$snac = $self->snac_get() or return 0;
+			return Net::OSCAR::Callbacks::process_snac($self, $snac);
+		} else {
+			$snac = $self->flap_get() or return 0;
+			if($self->{channel} == FLAP_CHAN_CLOSE) {
+				$self->{conntype} = CONNTYPE_LOGIN;
+				$self->{family} = 0x17;
+				$self->{subtype} = 0x3;
+				$self->{data} = $snac;
+				$self->{reqid} = 0;
+				return Net::OSCAR::Callbacks::process_snac($self, $snac);
+			} else {
+				return Net::OSCAR::Callbacks::process_snac($self, $self->snac_decode($snac));
+			}
+		}
 	}
 }
 

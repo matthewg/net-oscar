@@ -34,6 +34,8 @@ require Exporter;
 		RATE_DISCONNECT
 		GROUPPERM_OSCAR
 		GROUPPERM_AOL
+		OSCAR_SVC_AIM
+		OSCAR_SVC_ICQ
 	)],
 	loglevels => [qw(
 		OSCAR_DBG_NONE
@@ -52,11 +54,11 @@ require Exporter;
 		FLAP_CHAN_NEWCONN FLAP_CHAN_SNAC FLAP_CHAN_ERR FLAP_CHAN_CLOSE
 		CONNTYPE_LOGIN CONNTYPE_BOS CONNTYPE_ADMIN CONNTYPE_CHAT CONNTYPE_CHATNAV
 		MODBL_ACTION_ADD MODBL_ACTION_DEL MODBL_WHAT_BUDDY MODBL_WHAT_GROUP MODBL_WHAT_PERMIT MODBL_WHAT_DENY
-		GROUPPERM_OSCAR GROUPPERM_AOL
+		GROUPPERM_OSCAR GROUPPERM_AOL OSCAR_SVC_AIM OSCAR_SVC_ICQ
 		BUDTYPES
 		ENCODING
 		ERRORS
-		randchars log_print log_printf hexdump normalize tlv_decode tlv_encode tlv send_error tlvtie bltie
+		randchars log_print log_printf hexdump normalize tlv_decode tlv_encode tlv send_error tlvtie bltie signon_tlv encode_password
 	)]
 );
 @EXPORT_OK = map { @$_ } values %EXPORT_TAGS;
@@ -117,6 +119,29 @@ use constant RATE_DISCONNECT => dualvar(4, "disconnect");
 
 use constant GROUPPERM_OSCAR => dualvar(0x18, "AOL Instant Messenger users");
 use constant GROUPPERM_AOL => dualvar(0x04, "AOL subscribers");
+
+use constant OSCAR_SVC_AIM => (
+	host => 'login.oscar.aol.com',
+	port => 5190,
+	major => 4,
+	minor => 7,
+	subminor => pack("n", 0),
+	build => 2480,
+	subbuild => pack("N", 0x9F),
+	clistr => "AOL Instant Messenger (SM), version 4.7.2480/WIN32",
+	hashlogin => 0,
+);
+use constant OSCAR_SVC_ICQ => ( # Courtesy of SDiZ Cheng
+	host => 'login.icq.com',
+	port => 5190,
+	major => '2000b',
+	minor => 4,
+	subminor => pack("n", 1),
+	build => 3279,
+	subbuild => pack("N", 85),
+	clistr => "ICQ Inc. - Product of ICQ (TM).200b.4.63.1.3279.85",
+	hashlogin => 0,
+);
 
 use constant BUDTYPES => ("buddy", "group", "permit entry", "deny entry", "visibility/misc. data", "presence");
 
@@ -298,5 +323,51 @@ sub tlvtie(;$) {
 	tie %$retval, "Net::OSCAR::TLV", shift;
 	return $retval;
 }
+
+sub signon_tlv($$;$) {
+	my($session, $password, $key) = @_;
+
+	return (
+		0x01 => $session->{screenname},
+		0x25 => encode_password($session, $password, $key),
+		0x03 => $session->{svcdata}->{clistr},
+		0x16 => pack("n", 0x109),
+		0x17 => pack("n", $session->{svcdata}->{major}),
+		0x18 => pack("n", $session->{svcdata}->{minor}),
+		0x19 => pack("n", $session->{svcdata}->{subminor}),
+		0x1A => pack("n", $session->{svcdata}->{build}),
+		0x14 => pack("N", $session->{svcdata}->{subbuild}),
+		0x0F => "en", # lang
+		0x0E => "us", # country
+		0x4A => pack("C", 1),
+	);
+}
+
+sub encode_password($$;$) {
+	my($session, $password, $key) = @_;
+
+	if(!$session->{svcdata}->{hashlogin}) { # Use new SNAC-based method
+		my $md5 = Digest::MD5->new;
+
+		$md5->add($key);
+		$md5->add($password);
+		$md5->add("AOL Instant Messenger (SM)");
+		return $md5->digest();
+	} else { # Use old roasting method.  Courtesy of SDiZ Cheng.
+		my $ret = "";
+		my @pass = map {ord($_)} split(//, $password);
+
+		my @encoding_table = map {hex($_)} qw(
+			F3 26 81 C4 39 86 DB 92 71 A3 B9 E6 53 7A 95 7C
+		);
+
+		for(my $i = 0; $i < length($password); $i++) {
+			$ret .= chr($pass[$i] ^ $encoding_table[$i]);
+		}
+
+		return $ret;
+	}
+}
+
 
 1;

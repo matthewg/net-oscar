@@ -12,10 +12,6 @@ use Net::OSCAR::Buddylist;
 use Net::OSCAR::_BLInternal;
 use Net::OSCAR::OldPerl;
 
-use constant MAJOR => 4;
-use constant MINOR => 7;
-use constant BUILD => 2480;
-
 sub capabilities() {
 	my $caps;
 
@@ -43,20 +39,8 @@ sub process_snac($$) {
 
 		$connection->log_print(OSCAR_DBG_SIGNON, "Sending password.");
 
-		%tlv = (
-			0x01 => $session->{screenname},
-			0x25 => $connection->encode_password($connection->{auth}, $key),
-			0x03 => "AOL Instant Messenger (SM), version ".MAJOR.".".MINOR.".".BUILD."/WIN32",
-			0x16 => pack("n", 0x109),
-			0x17 => pack("n", MAJOR),
-			0x18 => pack("n", MINOR),
-			0x19 => pack("n", 0),
-			0x1A => pack("n", BUILD),
-			0x14 => pack("N", 0x9F),
-			0x0F => "en", # lang
-			0x0E => "us", # country
-			0x4A => pack("C", 1),
-		);
+		%tlv = signon_tlv($session, $connection->{auth}, $key);
+
 		$connection->snac_put(family => 0x17, subtype => 0x2, data => tlv_encode(\%tlv));
 	} elsif($conntype == CONNTYPE_LOGIN and $family == 0x17 and $subtype == 0x3) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got authorization response.");
@@ -234,10 +218,12 @@ sub process_snac($$) {
 	} elsif($family == 0x4 and $subtype == 0x7) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got incoming IM.");
 		my($from, $msg, $away, $chat, $chaturl) = $session->im_parse($data);
-		if($chat) {
-			$session->callback_chat_invite($from, $msg, $chat, $chaturl);
-		} else {
-			$session->callback_im_in($from, $msg, $away);
+		if($from) {
+			if($chat) {
+				$session->callback_chat_invite($from, $msg, $chat, $chaturl);
+			} else {
+				$session->callback_im_in($from, $msg, $away);
+			}
 		}
 	} elsif($family == 0x1 and $subtype == 0xA) {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Got rate change.");
@@ -276,7 +262,7 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got IM ack $reqid.");
 		my($reqid) = unpack("xxxx N", $data);
 		delete $session->{cookies}->{$reqid};
-		$session->callback_im_ok($reqdata);
+		$session->callback_im_ok($reqdata, $reqid);
 	} elsif($family == 0x1 and $subtype == 0x1F) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got memory request.");
 	} elsif($family == 0x13 and $subtype == 0x3) {
