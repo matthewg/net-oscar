@@ -1,7 +1,7 @@
 package Net::OSCAR;
 
 $VERSION = '0.62';
-$REVISION = '$revision$';
+$REVISION = '$Revision$';
 
 =head1 NAME
 
