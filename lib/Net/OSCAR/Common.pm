@@ -6,6 +6,7 @@ use strict;
 use warnings;
 use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS $VERSION);
 use Scalar::Util qw(dualvar);
+use Net::OSCAR::TLV;
 require Exporter;
 @ISA = qw(Exporter);
 
@@ -31,6 +32,8 @@ require Exporter;
 		RATE_ALERT
 		RATE_LIMIT
 		RATE_DISCONNECT
+		GROUPPERM_OSCAR
+		GROUPPERM_AOL
 	)],
 	all => [qw(
 		ADMIN_TYPE_PASSWORD_CHANGE ADMIN_TYPE_EMAIL_CHANGE ADMIN_TYPE_SCREENNAME_FORMAT ADMIN_TYPE_ACCOUNT_CONFIRM
@@ -39,10 +42,10 @@ require Exporter;
 		FLAP_CHAN_NEWCONN FLAP_CHAN_SNAC FLAP_CHAN_ERR FLAP_CHAN_CLOSE
 		CONNTYPE_LOGIN CONNTYPE_BOS CONNTYPE_ADMIN CONNTYPE_CHAT CONNTYPE_CHATNAV
 		MODBL_ACTION_ADD MODBL_ACTION_DEL MODBL_WHAT_BUDDY MODBL_WHAT_GROUP MODBL_WHAT_PERMIT MODBL_WHAT_DENY
-		GROUP_PERMIT GROUP_DENY
+		GROUP_PERMIT GROUP_DENY GROUPPERM_OSCAR GROUPPERM_AOL
 		ENCODING
 		ERRORS
-		randchars debug_print debug_printf hexdump normalize
+		randchars debug_print debug_printf hexdump normalize tlv_decode tlv_encode tlv
 	)]
 );
 @EXPORT_OK = map { @$_ } values %EXPORT_TAGS;
@@ -92,6 +95,9 @@ use constant RATE_CLEAR => dualvar(1, "clear");
 use constant RATE_ALERT => dualvar(2, "alert");
 use constant RATE_LIMIT => dualvar(3, "limit");
 use constant RATE_DISCONNECT => dualvar(4, "disconnect");
+
+use constant GROUPPERM_OSCAR => dualvar(0x18, "AOL Instant Messenger users");
+use constant GROUPPERM_AOL => dualvar(0x04, "AOL subscribers");
 
 use constant ENCODING => 'text/aolrtf; charset="us-ascii"';
 
@@ -219,5 +225,49 @@ sub normalize($) {
 	return lc($temp);
 }
 
+sub tlv_decode($;$) {
+	my($tlv, $tlvcnt) = @_;
+	my($type, $len, $value, %retval);
+	my $currtlv = 0;
+	my $strpos = 0;
+
+	tie %retval, "Net::OSCAR::TLV";
+
+	while(length($tlv) >= 4 and (not $tlvcnt or $currtlv < $tlvcnt)) {
+		($type, $len) = unpack("nn", $tlv);
+		$len = 0x2 if $type == 0x13;
+		$strpos += 4;
+		substr($tlv, 0, 4) = "";
+		if($len) {
+			($value) = substr($tlv, 0, $len, "");
+		} else {
+			$value = "";
+		}
+		$strpos += $len;
+		$currtlv++ unless $type == 0;
+		$retval{$type} = $value;
+	}
+
+	return $tlvcnt ? (\%retval, $strpos) : \%retval;
+}
+
+sub tlv(@) {
+	my %tlv = ();
+	tie %tlv, "Net::OSCAR::TLV";
+	while(@_) { $tlv{shift} = shift; }
+	return tlv_encode(\%tlv);
+}
+
+sub tlv_encode(\%) {
+	my $tlv = shift;
+	my($buffer, $type, $value) = ("", 0, "");
+
+	confess "You must use a tied Net::OSCAR::TLV hash!" unless ref($tlv) eq "HASH" and tied(%$tlv)->isa("Net::OSCAR::TLV");
+	while (($type, $value) = each %$tlv) {
+		$buffer .= pack("nna*", $type, length($value), $value);
+
+	}
+	return $buffer;
+}
 
 1;
