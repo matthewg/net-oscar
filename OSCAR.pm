@@ -1096,14 +1096,14 @@ sub get_info($$) {
 	my($self, $screenname) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, family => 0x2, subtype => 0x5, data => pack("nCa*", 1, length($screenname), $screenname));
+	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, family => 0x2, subtype => 0x15, data => pack("nCa*", 1, length($screenname), $screenname));
 }
 
 sub get_away($$) {
 	my($self, $screenname) = @_;
 	return must_be_on($self) unless $self->{is_on};
 
-	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, family => 0x2, subtype => 0x5, data => pack("nCa*", 3, length($screenname), $screenname));
+	$self->svcdo(CONNTYPE_BOS, reqdata => $screenname, family => 0x2, subtype => 0x15, data => pack("nCa*", 3, length($screenname), $screenname));
 }
 
 =pod
