@@ -274,6 +274,19 @@ sub connection_changed($$$) {
 	$poll->mask($h => $mask);
 }
 
+sub buddylist_in($$$) {
+	my($oscar, $sender, $list) = @_;
+	print "Got buddylist from $sender\n";
+	print "================================\n";
+
+	foreach my $group (sort keys %$list) {
+		print "$group:\n";
+		foreach my $buddy (sort @{$list->{$group}}) {
+			print "\t$buddy\n";
+		}
+	}
+}
+
 my $loglevel = undef;
 my $do_md5 = 0;
 my $stealth = 0;
@@ -307,7 +320,7 @@ if(!defined($password)) {
 $poll = IO::Poll->new();
 $poll->mask(STDIN => POLLIN);
 
-$oscar = Net::OSCAR->new(capabilities => [qw(typing_status extended_status buddy_icons file_transfer)]);
+$oscar = Net::OSCAR->new(capabilities => [qw(typing_status extended_status buddy_icons file_transfer buddy_list_transfer)]);
 $oscar->set_callback_error(\&error);
 $oscar->set_callback_buddy_in(\&buddy_in);
 $oscar->set_callback_buddy_out(\&buddy_out);
@@ -336,6 +349,7 @@ $oscar->set_callback_im_ok(\&im_ok);
 $oscar->set_callback_stealth_changed(\&stealth_changed);
 $oscar->set_callback_buddy_icq_info(\&buddy_icq_info);
 $oscar->set_callback_connection_changed(\&connection_changed);
+$oscar->set_callback_buddylist_in(\&buddylist_in);
 
 $oscar->loglevel($loglevel) if defined($loglevel);
 # I specify local_port 5190 so that I can sniff that one port and get all OSCAR

@@ -178,6 +178,8 @@ iChat-style extended status messages
 
 Typing status notification
 
+=item buddy_list_transfer
+
 =back
 
 =back
@@ -201,7 +203,7 @@ sub new($) {
 		croak "Invalid parameter '$badparam' passed to Net::OSCAR::new.";
 	}
 	if($parameters{capabilities}) {
-		if(my($badcap) = grep { $_ ne "extended_status" and $_ ne "buddy_icons" and $_ ne "file_transfer" and $_ ne "file_sharing" and $_ ne "typing_status" and $_ ne "file_transfer" } @{$parameters{capabilities}}) {
+		if(my($badcap) = grep { $_ ne "extended_status" and $_ ne "buddy_icons" and $_ ne "file_transfer" and $_ ne "file_sharing" and $_ ne "typing_status" and $_ ne "file_transfer" and $_ ne "buddy_list_transfer" } @{$parameters{capabilities}}) {
 			croak "Invalid capability '$badcap' passed to Net::OSCAR::new.";
 		}
 	}
@@ -1058,6 +1060,13 @@ REQID is the request ID of the IM as returned by C<send_im>.
 Called when someone sends you an instant message.  If the AWAY parameter
 is non-zero, the message was generated as an automatic reply, perhaps because
 you sent that person a message and they had an away message set.
+
+=item buddylist_in (OSCAR, FROM, BUDDYLIST)
+
+Called when someone sends you a buddylist.  You must set the L<"buddy_list_transfer">
+capability for buddylists to be sent to you.  The buddylist will be a C<Net::OSCAR::Buddylist>
+hashref whose keys are the groups and whose values are listrefs of C<Net::OSCAR::Screenname>
+strings for the buddies in the group.
 
 =item buddy_info (OSCAR, SCREENNAME, BUDDY DATA)
 
@@ -2132,6 +2141,7 @@ sub callback_stealth_changed(@) { do_callback("stealth_changed", @_); }
 sub callback_snac_unknown(@) { do_callback("snac_unknown", @_); }
 sub callback_rendezvous_reject(@) { do_callback("rendezvous_reject", @_); }
 sub callback_rendezvous_accept(@) { do_callback("rendezvous_accept", @_); }
+sub callback_buddylist_in(@) { do_callback("buddylist_in", @_); }
 
 sub set_callback_error($\&) { set_callback("error", @_); }
 sub set_callback_buddy_in($\&) { set_callback("buddy_in", @_); }
@@ -2179,6 +2189,10 @@ sub set_callback_stealth_changed($\&) { set_callback("stealth_changed", @_); }
 sub set_callback_snac_unknown($\&) { set_callback("snac_unknown", @_); }
 sub set_callback_rendezvous_reject($\&) { set_callback("snac_rendezvous_reject", @_); }
 sub set_callback_rendezvous_accept($\&) { set_callback("snac_rendezvous_accept", @_); }
+sub set_callback_buddylist_in($\&) {
+	croak "This client does not support buddy list transfer." unless $_[0]->{capabilities}->{buddy_list_transfer};
+	set_callback("buddylist_in", @_);
+}
 
 =pod
 
@@ -3682,6 +3696,7 @@ sub capabilities($) {
 	push @caps, OSCAR_CAPS()->{buddyicon}->{value} if $self->{capabilities}->{buddy_icons};
 	push @caps, OSCAR_CAPS()->{filexfer}->{value} if $self->{capabilities}->{file_transfer};
 	push @caps, OSCAR_CAPS()->{fileshare}->{value} if $self->{capabilities}->{file_sharing};
+	push @caps, OSCAR_CAPS()->{sendlist}->{value} if $self->{capabilities}->{buddy_list_transfer};
 
 	return \@caps;
 }

@@ -313,7 +313,21 @@ sub process_snac($$) {
 				}
 			} elsif($type eq "filexfer") {
 				my %svcdata = protoparse($session, "file transfer rendezvous data")->unpack($data{svcdata});
+			} elsif($type eq "sendlist") {
+				my %svcdata = protoparse($session, "buddy list transfer rendezvous data")->unpack($data{svcdata});
+				delete $session->{rv_proposals}->{$data{cookie}};
 
+				my $list = bltie();
+				foreach my $group (@{$svcdata{group}}) {
+					$list->{$group->{name}} = [];
+
+					my $grouplist = $list->{$group->{name}};
+					foreach my $buddy (@{$group->{buddies}}) {
+						push @$grouplist, new Net::OSCAR::Screenname $buddy->{name};
+					}
+				}
+
+				$session->callback_buddylist_in($sender, $list);
 			} else {
 				$connection->log_print(OSCAR_DBG_INFO, "Unsupported rendezvous type '$type'");
 				$session->rendezvous_reject($data{cookie});

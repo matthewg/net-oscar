@@ -33,6 +33,18 @@
 	<define name="null_terminated_data"><data name="foo" null_terminated="yes" /><data name="bar" /></define>
 	<define name="null_separated_array"><data name="foo" count="-1" null_terminated="yes" /></define>
 	<define name="null_pad_data"><data name="foo" length="10" pad="0" /></define>
+	<define name="count_prefix_data">
+		<word count_prefix="byte" name="foo" />
+		<word name="bar" />
+	</define>
+	<define name="complex_count_prefix">
+		<data count="-1" name="foo">
+			<data length_prefix="word" name="bar" />
+			<data count_prefix="word" name="baz">
+				<data length_prefix="word" name="buzz" />
+			</data>
+		</data>
+	</define>
 
 	<!-- Count and Length -->
 	<define name="count_len"><data count="-1" length="1" name="foo" /></define>

@@ -769,6 +769,14 @@
 		<dword name="size" />
 		<data count="-1" null_terminated="yes" name="files" />
 	</define>
+	<define name="buddy list transfer rendezvous data">
+		<data count="-1" name="group">
+			<data length_prefix="word" name="name" />
+			<data count_prefix="word" name="buddies">
+				<data length_prefix="word" name="name" />
+			</data>
+		</data>
+	</define>
 
 
 	<!-- Direct-connect and file transfer stuff -->

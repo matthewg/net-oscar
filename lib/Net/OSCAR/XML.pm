@@ -137,7 +137,7 @@ sub _num_to_packlen($$) {
 		}
 	}
 
-	croak "Invalid num type: $type";
+	confess "Invalid num type: $type";
 }
 
 # Specification for OSCAR protocol template:

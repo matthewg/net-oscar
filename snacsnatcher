@@ -20,13 +20,12 @@ sub BEGIN {
 	die "Couldn't find net/bpf.ph.\nPlease create it by doing cd /usr/include ; h2ph net/bpf.h\n" if $@;
 }
 
-my $file = shift or die "Usage: snacsnatcher pcapfile [verbose]\n";
+my $file = shift or die "Usage: snacsnatcher pcapfile\n";
 
 # Quick and dirty protocol analyzer
 
-use vars qw($packet $verbose %buffer %bufflen %snacbuff %ft_states %seqnos $datalink @blarray);
+use vars qw($packet %buffer %bufflen %snacbuff %ft_states %seqnos $datalink @blarray);
 $packet = 0;
-$verbose = shift;
 
 sub ssdump_scalar($$);
 sub ssdump_list($$);
@@ -278,6 +277,15 @@ sub process_snac {
 				$channel_data = {protoparse($session, "standard IM footer")->unpack($data{message_body})};
 			} elsif($data{channel} == 2) {
 				$channel_data = {protoparse($session, "rendezvous IM")->unpack($data{message_body})};
+				my $type = OSCAR_CAPS_INVERSE()->{$channel_data->{capability}};
+
+				if($type eq "chat") {
+					$channel_data->{svcdata} = {protoparse($session, "chat invite rendezvous data")->unpack($channel_data->{svcdata})};
+				} elsif($type eq "filexfer") {
+					$channel_data->{svcdata} = {protoparse($session, "file transfer rendezvous data")->unpack($channel_data->{svcdata})};
+				} elsif($type eq "sendlist") {
+					$channel_data->{svcdata} = {protoparse($session, "buddy list transfer rendezvous data")->unpack($channel_data->{svcdata})};
+				}
 			} else {
 				$channel_data = $data{message_body};
 			}

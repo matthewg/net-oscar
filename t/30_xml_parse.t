@@ -14,7 +14,7 @@ use strict;
 use lib "./blib/lib";
 no warnings;
 
-Test::More->import(tests => 27);
+Test::More->import(tests => 29);
 
 require_ok("Net::OSCAR");
 require_ok("Net::OSCAR::XML");
@@ -34,6 +34,8 @@ is_deeply([sort keys(%Net::OSCAR::XML::xmlmap)], [sort qw(
 		null_terminated_data
 		null_separated_array
 		null_pad_data
+		count_prefix_data
+		complex_count_prefix
 		length_prefix
 		vax_prefix
 		repeated_data
@@ -110,6 +112,26 @@ is_deeply(
 		{type => 'data', name => "foo", pad => 0, len => 10}
 	],
 	"null-padded data"
+);
+is_deeply(
+	[protoparse($oscar, "count_prefix_data")],
+	[
+		{type => 'num', name => "foo", prefix => "count", prefix_packlet => "C", prefix_len => 1, packlet => 'n', len => 2},
+		{type => 'num', name => "bar", packlet => "n", len => 2}
+	],
+	"count prefix data"
+);
+is_deeply(
+	[protoparse($oscar, "complex_count_prefix")],
+	[
+		{type => 'data', count => -1, name => "foo", items => [
+			{type => 'data', name => "bar", prefix => "length", prefix_packlet => "n", prefix_len => 2},
+			{type => 'data', name => "baz", prefix => "count", prefix_packlet => "n", prefix_len => 2, items => [
+				{type => 'data', name => "buzz", prefix => "length", prefix_packlet => "n", prefix_len => 2},
+			]}
+		]}
+	],
+	"complex count prefix data"
 );
 
 is_deeply(

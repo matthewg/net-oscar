@@ -309,7 +309,7 @@ sub unpack($$) {
 		## Okay, we have the results from this datum, store them away.
 
 		if($datum->{name}) {
-			if($datum->{count}) {
+			if($datum->{count} or ($datum->{prefix} and $datum->{prefix} eq "count")) {
 				$data{$datum->{name}} = \@results;
 			} elsif(
 			  $datum->{type} eq "ref" or
@@ -347,15 +347,16 @@ sub pack($%) {
 	assert(ref($template) eq "ARRAY");
 	foreach my $datum (@$template) {
 		my $output = undef;
-		my $max_count = exists($datum->{count}) ? $datum->{count} : 1;
-		my $count = 0;
-
 
 		## Figure out what we're packing
 		my $value = undef;
 		$value = $data{$datum->{name}} if $datum->{name};
 		$value = $datum->{value} if !defined($value);
 		my @valarray = ref($value) eq "ARRAY" ? @$value : ($value); # Don't modify $value in-place!
+
+		$datum->{count} = @valarray if $datum->{prefix} and $datum->{prefix} eq "count";
+		my $max_count = exists($datum->{count}) ? $datum->{count} : 1;
+		my $count = 0;
 
 		assert($max_count == -1 or @valarray <= $max_count);
 
