@@ -36,8 +36,6 @@ sub blparse($$) {
 
 	$session->{visibility} = VISMODE_PERMITALL; # If we don't have p/d data, this is default.
 
-	substr($data, 0, 3, "");
-
 	delete $session->{blinternal};
 	$session->{blinternal} = tlvtie BLI_AUTOVIV;
 

@@ -275,16 +275,18 @@ sub process_snac($$) {
 		#$connection->snac_put(family => 0x13, subtype => 0x7);
 	} elsif($family == 0x13 and $subtype == 0x6) {
 		$connection->log_print(OSCAR_DBG_SIGNON, "Got buddylist.");
+
 		$session->{blarray} = [] unless exists($session->{blarray});
+		substr($data, 0, 3) = "";
+		substr($data, -4, 4) = "" if $snac->{flags2};
 		$session->{blarray}->[$snac->{flags2}] = $data;
+
 		if($snac->{flags2}) {
 			$connection->log_print(OSCAR_DBG_SIGNON, "Got buddylist part - need $snac->{flags2} more parts.");
-			substr($data, 0, 3) = "";
-			substr($data, -1, 4) = "";
 		} else {
 			delete $session->{gotbl};
 
-			return unless Net::OSCAR::_BLInternal::blparse($session, join("", @{$session->{blarray}}));
+			return unless Net::OSCAR::_BLInternal::blparse($session, join("", reverse @{$session->{blarray}}));
 			delete $session->{blarray};
 			$connection->snac_put(family => 0x13, subtype => 0x7);
 			got_buddylist($session, $connection);
