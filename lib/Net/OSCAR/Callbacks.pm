@@ -218,9 +218,14 @@ sub process_snac($$) {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Got incoming IM.");
 		my($from, $msg, $away, $chat, $chaturl) = $session->im_parse($data);
 		if($from) {
-			if($chat) {
+			# Ignore invites for chats that we're already in
+			if($chat and not
+				grep { $_->{url} eq $chaturl }
+					 grep { $_->{conntype} == CONNTYPE_CHAT }
+						@{$session->{connections}}
+			) {
 				$session->callback_chat_invite($from, $msg, $chat, $chaturl);
-			} else {
+			} elsif(!$chat) {
 				$session->callback_im_in($from, $msg, $away);
 			}
 		}
