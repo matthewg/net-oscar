@@ -231,6 +231,7 @@ sub BLI_to_OSCAR($$) {
 				my $oldentry = $oldbli->{$type}->{$gid}->{$bid};
 				my $olddata = tlv_encode($oldentry->{data});
 				$session->log_printf(OSCAR_DBG_DEBUG, "Old BLI entry %s 0x%04X/0x%04X/0x%04X with %d bytes of data:%s", $oldentry->{name}, $type, $gid, $bid, length($olddata), hexdump($olddata));
+				my $delete = 0;
 				if(exists($newbli->{$type}) and exists($newbli->{$type}->{$gid}) and exists($newbli->{$type}->{$gid}->{$bid})) {
 					my $newentry = $newbli->{$type}->{$gid}->{$bid};
 					my $newdata = tlv_encode($newentry->{data});
@@ -240,21 +241,30 @@ sub BLI_to_OSCAR($$) {
 						$newentry->{name} eq $oldentry->{name}
 					  and	$newdata eq $olddata;
 
-					$session->log_print(OSCAR_DBG_DEBUG, "Modifying.");
-					$modcount++;
+					# Apparently, we can't modify the name of a buddylist entry?
+					if($newentry->{name} ne $oldentry->{name}) {
+						$delete = 1;
+					} else {
+						$session->log_print(OSCAR_DBG_DEBUG, "Modifying.");
+						$modcount++;
 
-					push @snacqueue, $oscar->snac_encode(family => 0x13, subtype => 0x9, reqdata => {desc => "modifying ".(BUDTYPES)[$type]." $newentry->{name}", type => $type, gid => $gid, bid => $bid}, data =>
-						pack("na* nnn na*",
-							length($newentry->{name}),
-							$newentry->{name},
-							$gid,
-							$bid,
-							$type,
-							length($newdata),
-							$newdata
-						)
-					);
+						push @snacqueue, $oscar->snac_encode(family => 0x13, subtype => 0x9, reqdata => {desc => "modifying ".(BUDTYPES)[$type]." $newentry->{name}", type => $type, gid => $gid, bid => $bid}, data =>
+							pack("na* nnn na*",
+								length($newentry->{name}),
+								$newentry->{name},
+								$gid,
+								$bid,
+								$type,
+								length($newdata),
+								$newdata
+							)
+						);
+					}
 				} else {
+					$delete = 1;
+				}
+
+				if($delete) {
 					$session->log_print(OSCAR_DBG_DEBUG, "Deleting.");
 					$modcount++;
 
@@ -270,7 +280,7 @@ sub BLI_to_OSCAR($$) {
 	foreach my $type(keys %$newbli) {
 		foreach my $gid(keys %{$newbli->{$type}}) {
 			foreach my $bid(keys %{$newbli->{$type}->{$gid}}) {
-				next if exists($oldbli->{$type}) and exists($oldbli->{$type}->{$gid}) and exists($oldbli->{$type}->{$gid}->{$bid});
+				next if exists($oldbli->{$type}) and exists($oldbli->{$type}->{$gid}) and exists($oldbli->{$type}->{$gid}->{$bid}) and $oldbli->{$type}->{$gid}->{$bid}->{name} eq $newbli->{$type}->{$gid}->{$bid}->{name};
 				my $entry = $newbli->{$type}->{$gid}->{$bid};
 				my $data = tlv_encode($entry->{data});
 
