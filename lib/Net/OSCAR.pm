@@ -989,7 +989,22 @@ sub extract_userinfo($$) {
 	($retval->{membersince}) = unpack("N", $tlv->{2}) if exists($tlv->{2});
 	($retval->{onsince}) = unpack("N", $tlv->{3}) if exists($tlv->{3});
 	($retval->{idle}) = unpack("n", $tlv->{4}) if exists($tlv->{4});
-	($retval->{capabilities}) = $tlv->{0xD} if exists($tlv->{0xD});
+	if(exists($tlv->{0xD})) {
+		$self->log_print(OSCAR_DBG_DEBUG, "Got capabilities block.");
+		$retval->{capabilities} = {};
+		while($tlv->{0xD}) {
+			$self->log_print(OSCAR_DBG_DEBUG, "Got a capability.");
+			my $capability = substr($tlv->{0xD}, 0, 16, "");
+			if(OSCAR_CAPS_INVERSE()->{$capability}) {
+				my $capname = OSCAR_CAPS_INVERSE()->{$capability};
+				$self->log_print(OSCAR_DBG_DEBUG, "Got capability $capname.");
+				$retval->{capabilities}->{$capname} = OSCAR_CAPS()->{$capname}->{description};
+			} else {
+				$self->log_print(OSCAR_DBG_INFO, "Unknown capability: ", hexdump($capability));
+			}
+		}
+	}
+		
 
 	# Extended status information (iChat)
 	if(exists($tlv->{0x1D})) {
@@ -1001,6 +1016,14 @@ sub extract_userinfo($$) {
 			if($subtype == 0x02) {
 				my($msglen) = unpack("n", substr($subdata, 0, 2, ""));
 				$retval->{extended_status} = substr($subdata, 0, $msglen, "");
+			} elsif($subtype == 0x01 and $number == 1) {
+				my($icon_md5sum) = $subdata;
+				if(!exists($self->{userinfo}->{$retval->{screenname}})
+				   or !exists($self->{userinfo}->{$retval->{screenname}}->{icon_md5sum})
+				   or $self->{userinfo}->{$retval->{screenname}}->{icon_md5sum} ne $icon_md5sum) {
+					$retval->{icon_md5sum} = $icon_md5sum;
+					$self->callback_new_buddy_icon($retval->{screenname}, $retval);
+				}
 			}
 		}
 	}
@@ -1210,6 +1233,22 @@ sub im_parse($$) {
 			#	$cookie . pack("nCa*", 1, length($from), $from)
 			#);
 		}
+
+		if($tlv->{8} and $self->{capabilities}->{buddy_icons}) { # user has buddy icon
+			my($icon_length, $icon_checksum, $icon_timestamp) = unpack("NxxnN", $tlv->{8});
+			my $new_icon = 0;
+
+			if(!exists($self->{userinfo}->{$from}->{icon_timestamp})
+			   or $icon_timestamp > $self->{userinfo}->{$from}->{icon_timestamp}
+			   or $icon_checksum != $self->{userinfo}->{$from}->{icon_checksum}) {
+				$new_icon = 1;
+			}
+
+			($self->{userinfo}->{$from}->{icon_length}, $self->{userinfo}->{$from}->{icon_checksum}, $self->{userinfo}->{$from}->{icon_timestamp}) =
+				($icon_length, $icon_checksum, $icon_timestamp);
+
+			$self->callback_new_buddy_icon($from, $self->{userinfo}->{$from});
+		}
 	} else {
 		$data = $senderinfo->{chatdata};
 		$away = 0;
@@ -1361,10 +1400,15 @@ need to be called in order for the user's buddy icon to be set properly.
 See the file C<PROTOCOL>, included with the C<Net::OSCAR> distribution,
 for details of how we're storing this data.
 
+You should receive a L<buddy_icon_uploaded> callback in response to this
+method.
+
 =cut
 
 sub set_icon($$) {
 	my($self, $icon) = @_;
+
+	carp "This client does not support buddy icons!" unless $self->{capabilities}->{buddy_icons};
 
 	if($icon) {
 		$self->{icon} = $icon;
@@ -1380,6 +1424,34 @@ sub set_icon($$) {
 		delete $self->{icon_length};
 	}
 }
+
+=pod
+
+=item get_icon (SCREENNAME, CHECKSUM)
+
+Gets a user's buddy icon.  See L<set_icon> for details.  To make
+sure this method isn't called excessively, please check the
+C<icon_checksum> and C<icon_timestamp> data, which are available
+via the L<buddy> method (even for people not on the user's buddy
+list.)  You might as well, you need to pass this method the 
+correct icon checksum anyway...
+
+You should receive a L<buddy_icon_downloaded> callback in
+response to this method.
+
+=cut
+
+sub get_icon($$$) {
+	my($self, $screenname, $checksum) = @_;
+
+	carp "This client does not support buddy icons!" unless $self->{capabilities}->{buddy_icons};
+
+	$checksum = 
+
+	$self->svcdo(CONNTYPE_ICON, family => 0x10, subtype => 0x04, data => pack("Ca*CnCCa*",
+		length($screenname), $screenname, 1, 1, 1, length($checksum), $checksum
+	));
+}	
 
 =pod
 
@@ -1757,10 +1829,27 @@ The user is using a mobile device.
 
 The user is known to support typing status notification.  We only find this out if they send us an IM.
 
+=item capabilities
+
+The user's capabilities.  This is a reference to a hash whose keys are the user's capabilities, and
+whose values are descriptions of their respective capabilities.
+
+=item icon
+
+The user's buddy icon, if available.
+
 =item icon_checksum
 
 The checksum time of the user's buddy icon, if available.  Use this, in conjunction with
 the L<icon_checksum> method, to cache buddy icons.
+
+=item icon_timestamp
+
+The modification timestamp of the user's buddy icon, if available.
+
+=item icon_length
+
+The length of the user's buddy icon, if available.
 
 =item membersince
 
@@ -1938,9 +2027,26 @@ information about the error.
 
 This is called when an administrative function succeeds.  See L<admin_error> for more info.
 
+=item new_buddy_icon (OSCAR, SCREENNAME, BUDDY DATA)
+
+This is called when someone, either someone the user is talking with or someone on
+their buddylist, has a potentially new buddy icon.  The buddy data is guaranteed
+to have at least C<icon_checksum> available; C<icon_timestamp> and C<icon_length>
+may not be.  Specifically, if C<Net::OSCAR> found out about the buddy icon
+through a buddy status update (the sort that triggers a L<buddy_in> callback),
+these data will B<not> be available; if C<Net::OSCAR> found out about the
+icon via an incoming IM from the person, these data B<will> be available.
+
+Upon receiving this callback, an application should use the C<icon_checksum>
+to search for the icon in its cache, and call L<get_icon> if it can't find it.
+
 =item buddy_icon_uploaded (OSCAR)
 
 This is called when the user's buddy icon is successfully uploaded to the server.
+
+=item buddy_icon_downloaded (OSCAR, SCREENNAME, ICONDATA)
+
+This is called when a user's buddy icon is successfully downloaded from the server.
 
 =item chat_closed (OSCAR, CHAT, ERROR)
 
@@ -2129,7 +2235,9 @@ sub callback_buddylist_error(@) { do_callback("buddylist_error", @_); }
 sub callback_buddylist_ok(@) { do_callback("buddylist_ok", @_); }
 sub callback_admin_error(@) { do_callback("admin_error", @_); }
 sub callback_admin_ok(@) { do_callback("admin_ok", @_); }
+sub callback_new_buddy_icon(@) { do_callback("new_buddy_icon", @_); }
 sub callback_buddy_icon_uploaded(@) { do_callback("buddy_icon_uploaded", @_); }
+sub callback_buddy_icon_downloaded(@) { do_callback("buddy_icon_downloaded", @_); }
 sub callback_rate_alert(@) { do_callback("rate_alert", @_); }
 sub callback_signon_done(@) { do_callback("signon_done", @_); }
 sub callback_log(@) { do_callback("log", @_); }
@@ -2155,9 +2263,17 @@ sub set_callback_buddylist_error($\&) { set_callback("buddylist_error", @_); }
 sub set_callback_buddylist_ok($\&) { set_callback("buddylist_ok", @_); }
 sub set_callback_admin_error($\&) { set_callback("admin_error", @_); }
 sub set_callback_admin_ok($\&) { set_callback("admin_ok", @_); }
+sub set_callback_new_buddy_icon($\&) {
+	croak "This client does not support buddy icons." unless $_[0]->{capabilities}->{buddy_icons};
+	set_callback("new_buddy_icon", @_);
+}
 sub set_callback_buddy_icon_uploaded($\&) {
 	croak "This client does not support buddy icons." unless $_[0]->{capabilities}->{buddy_icons};
 	set_callback("buddy_icon_uploaded", @_);
+}
+sub set_callback_buddy_icon_downloaded($\&) {
+	croak "This client does not support buddy icons." unless $_[0]->{capabilities}->{buddy_icons};
+	set_callback("buddy_icon_downloaded", @_);
 }
 sub set_callback_rate_alert($\&) { set_callback("rate_alert", @_); }
 sub set_callback_signon_done($\&) { set_callback("signon_done", @_); }

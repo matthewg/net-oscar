@@ -59,7 +59,7 @@ require Exporter;
 		CONNTYPE_LOGIN CONNTYPE_BOS CONNTYPE_ADMIN CONNTYPE_CHAT CONNTYPE_CHATNAV CONNTYPE_ICON
 		MODBL_ACTION_ADD MODBL_ACTION_DEL MODBL_WHAT_BUDDY MODBL_WHAT_GROUP MODBL_WHAT_PERMIT MODBL_WHAT_DENY
 		GROUPPERM_OSCAR GROUPPERM_AOL OSCAR_SVC_AIM OSCAR_SVC_ICQ
-		OSCAR_CAPS OSCAR_TOOLDATA
+		OSCAR_CAPS OSCAR_CAPS_INVERSE OSCAR_TOOLDATA
 		BUDTYPES
 		ENCODING
 		ERRORS
@@ -208,9 +208,10 @@ use constant OSCAR_CAPS => {
 		"0xaa, 0x4a, 0x32, 0xb5, 0xf8, 0x84, 0x48, 0xc6, 0xa3, 0xd7, 0x8c, 0x50, 0x97, 0x19, 0xfd, 0x5b"))},
 	trilliancrypt => {description => "Trillian encryption", value => pack("C*", map{hex($_)} split(/[ \t\n,]+/,
 		"0xf2, 0xe7, 0xc7, 0xf4, 0xfe, 0xad, 0x4d, 0xfb, 0xb2, 0x35, 0x36, 0x79, 0x8b, 0xdf, 0x00, 0x00"))},
-	sms => {description => "SMS sending", value => pack("C*", map{hex($_)} split(/[ \t\n,]+/,
+	secureim => {description => "SecureIM encryption", value => pack("C*", map{hex($_)} split(/[ \t\n,]+/,
 		"0x09 0x46 0x01 0xff 0x4c 0x7f 0x11 0xd1 0x82 0x22 0x44 0x45 0x53 0x54 0x00 0x00"))},
 };
+use constant OSCAR_CAPS_INVERSE => { map { OSCAR_CAPS()->{$_}->{value} => $_ } keys %{OSCAR_CAPS()} };
 
 use constant OSCAR_TOOLDATA => tlv(
 	0x0001 => {version => 0x0003, toolid => 0x0110, toolversion => 0x0739},

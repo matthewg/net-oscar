@@ -500,6 +500,12 @@ sub process_snac($$) {
 	} elsif($family == 0x10 and $subtype == 0x03) {
 		$session->log_print(OSCAR_DBG_INFO, "Buddy icon uploaded.");
 		$session->callback_buddy_icon_uploaded();
+	} elsif($family == 0x10 and $subtype == 0x05) {
+		my($screenname, $flags, $number, $checksum, $icon) = unpack("C/a*nCC/a*n/a*", $data);
+		$session->log_print(OSCAR_DBG_INFO, "Buddy icon downloaded for $screenname.");
+		$session->{userinfo}->{$screenname} ||= {};
+		$session->{userinfo}->{icon_checksum} = $checksum;
+		$session->{userinfo}->{icon} = $icon;
 	} else {
 		$connection->log_print(OSCAR_DBG_NOTICE, "Unknown SNAC: ".hexdump($snac->{data}));
 	}

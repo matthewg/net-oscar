@@ -76,6 +76,24 @@ sub admin_ok($$) {
 	print "Your $reqtype request was successful.\n";
 }
 
+sub new_buddy_icon($$$) {
+	my($oscar, $screenname, $buddat) = @_;
+	print "$screenname claims to have a new buddy icon.\n";
+}
+
+sub buddy_icon_downloaded($) {
+	my($oscar, $screenname, $icon) = @_;
+
+	print "Buddy icon for $screenname downloaded...\n";
+	open(ICON, ">/tmp/$screenname.$$.icon") or do {
+		print "Couldn't open /tmp/$screenname.$$.icon for writing: $!\n";
+		return;
+	};
+	print ICON $icon;
+	close ICON;
+	print "Icon written to /tmp/$screenname.$$.icon.\n";
+}
+
 sub buddy_icon_uploaded($) {
 	my($oscar) = @_;
 
@@ -169,6 +187,10 @@ sub buddy_info($$$$) {
 
 	$extra .= "\nMember Since: $membersince" if $membersince;
 	$extra .= "\nIdle Time (secs): $buddat->{idle}" if exists($buddat->{idle}) and defined($buddat->{idle});
+	if($buddat->{capabilities}) {
+		$extra .= "\nCapabilities:";
+		$extra .= "\n\t$_" foreach values %{$buddat->{capabilities}};
+	}
 
 	my $profile = "";
 	if($buddat->{awaymsg}) {
@@ -260,6 +282,8 @@ $oscar->set_callback_buddylist_ok(\&buddylist_ok);
 $oscar->set_callback_admin_error(\&admin_error);
 $oscar->set_callback_admin_ok(\&admin_ok);
 $oscar->set_callback_rate_alert(\&rate_alert);
+$oscar->set_callback_new_buddy_icon(\&new_buddy_icon);
+$oscar->set_callback_buddy_icon_downloaded(\&buddy_icon_downloaded);
 $oscar->set_callback_buddy_icon_uploaded(\&buddy_icon_uploaded);
 $oscar->set_callback_typing_status(\&typing_status);
 $oscar->set_callback_extended_status(\&extended_status);
@@ -328,6 +352,7 @@ set_profile profile
 set_away awaymsg
 set_extended_status statusmsg
 set_icon iconpath
+get_icon screenname
 get_dir screenname
 set_dir [info]
 format_screenname screenname
@@ -456,6 +481,13 @@ EOF
 			close ICON;
 			$oscar->set_icon($icondata);
 			$oscar->commit_buddylist;
+		} elsif($cmd eq "get_icon") {
+			my $buddat = $oscar->buddy(join(" ", @params));
+			if(!$buddat or !$buddat->{icon_checksum}) {
+				print "Couldn't find icon checksum.\n";
+			} else {
+				$oscar->get_icon($buddat->{screenname}, $buddat->{icon_checksum});
+			}
 		} elsif($cmd eq "get_dir") {
 			print "Not implemented.\n";
 		} elsif($cmd eq "set_dir") {
