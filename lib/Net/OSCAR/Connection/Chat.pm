@@ -39,7 +39,7 @@ sub invite($$;$) {
 		cookie => $cookie,
 		invitation_msg => $message,
 		push_pull => 1,
-		status => 0,
+		status => "propose",
 		svcdata => $svcdata
 	);
 

@@ -195,11 +195,7 @@
 		</data>
 	</define>
 	<define name="rate_acknowledgement" family="1" subtype="8">
-		<word>1</word>
-		<word>2</word>
-		<word>3</word>
-		<word>4</word>
-		<word>5</word>
+		<word count="-1" name="classes" />
 	</define>
 	<define name="personal_info_request" family="1" subtype="14" />
 	<define name="buddylist_rights_request" family="19" subtype="2" />
@@ -238,7 +234,12 @@
 	</define>
 	<define name="rate_info_request" family="1" subtype="6" />
 	<define name="rate_change" family="1" subtype="10">
-		<word name="message_type" />
+		<enum type="word" name="message_type">
+			<edef name="change" value="1" />
+			<edef name="warning" value="2" />
+			<edef name="alert" value="3" />
+			<edef name="clear" value="4" />
+		</enum>
 		<ref name="rate_class_info" />
 	</define>
 	<define name="outgoing_warning" family="4" subtype="8">
@@ -413,7 +414,6 @@
 	</define>
 
 
-
 	<!-- IMs -->
 
 	<define name="standard_IM_header">
@@ -449,8 +449,11 @@
 	<define name="rendezvous_IM">
 		<tlvchain>
 			<tlv type="5">
-				<!-- 0=propose, 1=cancel, 2=accept -->
-				<word name="status" /> 
+				<enum type="word" name="status"> 
+					<edef name="propose" value="0" />
+					<edef name="cancel" value="1" />
+					<edef name="accept" value="2" />
+				</enum>
 
 				<data length="8" name="cookie" />
 

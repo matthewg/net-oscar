@@ -117,7 +117,7 @@ sub process_one($;$$$) {
 			$self->{session}->callback_connection_changed($self, "read");
 
 		        my %protodata = (
-				status => 2,
+				status => "accept",
 				cookie => $self->{rv}->{cookie},
 				capability => OSCAR_CAPS()->{$self->{rv}->{type}} ? OSCAR_CAPS()->{$self->{rv}->{type}}->{value} : $self->{rv}->{type},
 				client_1_ip => $ret->{ip},
@@ -153,7 +153,7 @@ sub process_one($;$$$) {
 		$self->{connected} = 1;
 
 	        my %protodata;
-	        $protodata{status} = 2;
+	        $protodata{status} = "accept";
 	        $protodata{cookie} = $self->{rv}->{cookie};
 		$protodata{capability} = OSCAR_CAPS()->{$self->{rv}->{type}} ? OSCAR_CAPS()->{$self->{rv}->{type}}->{value} : $self->{rv}->{type};
 		$self->{session}->send_message($self->{rv}->{sender}, 2, protoparse($self->{session}, "rendezvous_IM")->pack(%protodata));

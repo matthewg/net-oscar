@@ -45,13 +45,13 @@ if($data{channel} == 1) { # Regular IM
 	$session->{rv_proposals}->{$data{cookie}} ||= {};
 	my $rv = $session->{rv_proposals}->{$data{cookie}};
 
-	if($data{status} == 1) {
+	if($data{status} eq "cancel") {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Peer rejected proposal.");
 		$session->callback_rendezvous_reject($data{cookie});
 		$session->delconn($rv->{connection}) if $rv->{connection};
 		delete $session->{rv_proposals}->{$data{cookie}};
 		return;
-	} elsif($data{status} == 2) {
+	} elsif($data{status} eq "accept") {
 		$connection->log_print(OSCAR_DBG_DEBUG, "Peer accepted proposal.");
 		$rv->{accepted} = 1;
 

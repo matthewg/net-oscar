@@ -1602,7 +1602,7 @@ sub file_send($$@) {
 		invitation_msg => $message,
 		language => 101,
 		push_pull => 1,
-		status => 0,
+		status => "propose",
 		client_1_ip => $ip,
 		client_2_ip => $ip,
 		port => $port,
@@ -4073,7 +4073,7 @@ sub rendezvous_revise($$;$) {
 	my %protodata = (
 		capability => OSCAR_CAPS()->{filexfer}->{value},
 		cookie => $proposal->{cookie},
-		status => 0,
+		status => "propose",
 		client_1_ip => $self->{ip},
 		client_2_ip => $self->{ip},
 		port => $port,
@@ -4157,7 +4157,7 @@ sub rendezvous_reject($$) {
 	my $proposal = delete $self->{rv_proposals}->{$cookie};
 
 	my %protodata;
-	$protodata{status} = 1;
+	$protodata{status} = "cancel";
 	$protodata{cookie} = $cookie;
 	$protodata{capability} = OSCAR_CAPS()->{$proposal->{type}} ? OSCAR_CAPS()->{$proposal->{type}}->{value} : $proposal->{type};
 
