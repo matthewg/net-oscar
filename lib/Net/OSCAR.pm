@@ -1,6 +1,7 @@
 package Net::OSCAR;
 
 $VERSION = '0.62';
+$REVISION = '$revision$';
 
 =head1 NAME
 
@@ -137,7 +138,7 @@ everyone on our buddylist.
 =cut
 
 use strict;
-use vars qw($VERSION @ISA @EXPORT_OK %EXPORT_TAGS);
+use vars qw($VERSION $REVISION @ISA @EXPORT_OK %EXPORT_TAGS);
 use Carp;
 use Scalar::Util;
 use Digest::MD5 qw(md5);
