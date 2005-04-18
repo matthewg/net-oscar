@@ -44,10 +44,9 @@ sub new($@) {
 	bless $self, $class;
 	$self->{seqno} = 0;
 	$self->{icq_seqno} = 0;
-	$self->{paused} = 0;
 	$self->{outbuff} = "";
 	$self->{state} ||= "write";
-	$self->{paused} = 0;
+	$self->{paused} = 0 unless $self->{paused};
 	$self->{families} = {};
 	$self->{buffsize} = 65535;
 	$self->{buffer} = \"";

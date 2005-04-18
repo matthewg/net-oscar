@@ -22,6 +22,8 @@ if(@{$data{families}} == keys %{$connection->{families}} or @migfamilies == 0) {
 	$connection->{conntype} = -1 if $connection->{conntype} == CONNTYPE_BOS;
 	$session->delconn($connection);
 	$connection->{conntype} = $conntype;
+
+	$session->log_print(OSCAR_DBG_WARN, "Disconnected.");
 } else {
 	$connection->log_print(OSCAR_DBG_WARN, "Partial migration");
 
@@ -47,6 +49,7 @@ if(@{$data{families}} == keys %{$connection->{families}} or @migfamilies == 0) {
 	$connection->log_printf(OSCAR_DBG_WARN, "Migration pause queue: %d/%d", @{$pause_queue || []}, @{$connection->{pause_queue} || []});
 }
 
+$session->log_print(OSCAR_DBG_WARN, "Creating new connection");
 my $newconn = $session->addconn(
 	auth => $data{cookie},
 	conntype => $connection->{conntype},
@@ -55,5 +58,6 @@ my $newconn = $session->addconn(
 	paused => 1,
 	pause_queue => $pause_queue
 );
+$session->log_print(OSCAR_DBG_WARN, "Created.");
 
 };
