@@ -6,6 +6,8 @@ use Net::OSCAR::Utility qw(millitime);
 
 sub {
 
+$connection->unpause();
+
 if($session->{rate_manage_mode} != OSCAR_RATE_MANAGE_NONE) {
 	$connection->{rate_limits} ||= {classmap => {}};
 
