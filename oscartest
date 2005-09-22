@@ -176,7 +176,7 @@ sub evil($$$) {
 	print "$enemy has just evilled you!  Your new evil level is $newevil%.\n";
 }
 
-sub buddy_info($$$$) {
+sub buddy_info($$$) {
 	shift;
 	my($screenname, $buddat) = @_;
 	my $membersince = $buddat->{membersince} ? localtime($buddat->{membersince}) : "";
