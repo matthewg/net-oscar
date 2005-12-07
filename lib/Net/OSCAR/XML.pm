@@ -90,15 +90,8 @@ sub load_xml(;$) {
 	parse_xml($xmlparse);
 }
 
-sub parse_xml($) {
+sub add_xml_data($) {
 	my $xmlparse = shift;
-
-	%xmlmap = ();
-	%xml_revmap = ();
-	# We set the autovivification so that keys of xml_revmap are Net::OSCAR::TLV hashrefs.
-	if(!tied(%xml_revmap)) {
-		tie %xml_revmap, "Net::OSCAR::TLV", 'tie %$value, ref($self)';
-	}
 
 	my @tags = @{$xmlparse->[1]}; # Get contents of <oscar>
 	shift @tags;
@@ -113,6 +106,19 @@ sub parse_xml($) {
 		$xml_revmap{$attrs{family}}->{$attrs{subtype}} = $attrs{name} if exists($attrs{family}) and exists($attrs{subtype});
 		$xmlmap{$attrs{name}} = \%protobit;
 	}
+}
+
+sub parse_xml($) {
+	my $xmlparse = shift;
+
+	%xmlmap = ();
+	%xml_revmap = ();
+	# We set the autovivification so that keys of xml_revmap are Net::OSCAR::TLV hashrefs.
+	if(!tied(%xml_revmap)) {
+		tie %xml_revmap, "Net::OSCAR::TLV", 'tie %$value, ref($self)';
+	}
+
+	add_xml_data($xmlparse);
 
 	return 1;
 }
