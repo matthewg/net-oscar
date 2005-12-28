@@ -4276,7 +4276,7 @@ sub send_message($$$$;$$) {
 		screenname => $recipient,
 		message_body => $body,
 	);
-	$self->svcdo(CONNTYPE_BOS, reqdata => $recipient, protobit => "outgoing_IM", protodata => \%protodata, flags2 => $flags2);
+	$self->svcdo(CONNTYPE_BOS, reqdata => $recipient, reqid => $reqid, protobit => "outgoing_IM", protodata => \%protodata, flags2 => $flags2);
 
 	return ($reqid, $protodata{cookie});
 }
