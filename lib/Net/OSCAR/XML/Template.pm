@@ -293,7 +293,7 @@ sub unpack($$) {
 				} else {
 					if(exists($val->{name})) {
 						push @results, {
-							$val->{name} => @{$val->{outdata}}
+							$val->{name} => $val->{outdata}->[0]
 						};
 					} else {
 						push @results, $val->{outdata}->[0];

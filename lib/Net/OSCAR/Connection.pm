@@ -529,9 +529,6 @@ sub process_one($;$$$) {
 		return $self->disconnect();
 	}
 
-	$read ||= 1;
-	$write ||= 1;
-
 	if($write && $self->{outbuff}) {
 		$self->log_print(OSCAR_DBG_DEBUG, "Flushing output buffer.");
 		$self->flap_put();

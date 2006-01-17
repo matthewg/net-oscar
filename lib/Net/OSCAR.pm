@@ -1698,7 +1698,7 @@ sub do_one_loop($) {
 		next unless exists($connection->{socket});
 		if($connection->{connected}) {
 			vec($rin, fileno $connection->{socket}, 1) = 1;
-		} else {
+		} elsif(!$connection->{connected} or $connection->{outbuff}) {
 			vec($win, fileno $connection->{socket}, 1) = 1;
 		}
 	}
