@@ -10,7 +10,7 @@ This is a tied hash class that has that behavior for its keys.
 
 package Net::OSCAR::Buddylist;
 
-$VERSION = '1.999';
+$VERSION = '1.925';
 $REVISION = '$Revision$';
 
 use strict;

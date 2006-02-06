@@ -6,7 +6,7 @@ Net::OSCAR::Utility -- internal utility functions for Net::OSCAR
 
 package Net::OSCAR::Utility;
 
-$VERSION = '1.999';
+$VERSION = '1.925';
 $REVISION = '$Revision$';
 
 use strict;

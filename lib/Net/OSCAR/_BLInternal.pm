@@ -17,7 +17,7 @@ use Net::OSCAR::TLV;
 use Net::OSCAR::XML;
 
 use vars qw($VERSION $REVISION);
-$VERSION = '1.999';
+$VERSION = '1.925';
 $REVISION = '$Revision$';
 
 sub init_entry($$$$) {

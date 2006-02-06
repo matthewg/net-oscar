@@ -15,7 +15,6 @@ $build = Module::Build->new (
 		'Test::More' => '>= 0.01',
 		'XML::Parser' => '>= 0.01',
 		'Time::HiRes' => '>= 0.01',
-		'Heap::Simple' => '>= 0.01',
 		'MIME::Base64' => '>= 0.01'
 	},
 	create_makefile_pl => "traditional",

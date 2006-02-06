@@ -1,6 +1,6 @@
 package Net::OSCAR;
 
-$VERSION = '1.999';
+$VERSION = '1.925';
 $REVISION = '$Revision$';
 
 =pod
@@ -3147,6 +3147,56 @@ For optimum performance, use the L<"connection_changed"> callback.
 =head1 HISTORY
 
 =over 4
+
+=item *
+
+1.925, 2006-02-06
+
+=over 4
+
+=item *
+
+Many buddylist performance enhancements and bug fixes.
+
+=item *
+
+Added support for receiving dynamic buddylist changes from the server
+(C<callback_buddylist_changed>.)
+
+=item *
+
+Add support buddylist transfer (C<set_callback_buddylist_in>.)
+
+=item *
+
+Miscellaneous performance and scalability enhancements.
+
+=item *
+
+Added experimental migration support.
+
+=item *
+
+Added advanced rate limit management API.
+
+=item *
+
+Added C<oscarserv> server for testing.
+
+=item *
+
+Audited screennames exposed to application to verify that they are
+C<Net::OSCAR::Screenname> objects everywhere.
+
+=item *
+
+Began work on file transfer.
+
+=item *
+
+Connection status fix for compatibility with POE.
+
+=back
 
 =item *
 

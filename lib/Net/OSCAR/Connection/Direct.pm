@@ -6,7 +6,7 @@ Net::OSCAR::Connection::Direct -- OSCAR direct connections
 
 package Net::OSCAR::Connection::Direct;
 
-$VERSION = '1.11';
+$VERSION = '1.925';
 $REVISION = '$Revision$';
 
 use strict;

@@ -6,7 +6,7 @@ Net::OSCAR::Connection::Server -- Net::OSCAR server connection
 
 package Net::OSCAR::Connection::Server;
 
-$VERSION = '1.999';
+$VERSION = '1.925';
 $REVISION = '$Revision$';
 @ISA = qw(Net::OSCAR::Connection);
 

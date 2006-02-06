@@ -22,7 +22,7 @@ for every protocol element.
 
 package Net::OSCAR::XML;
 
-$VERSION = '1.999';
+$VERSION = '1.925';
 $REVISION = '$Revision$';
 
 use strict;
