@@ -203,6 +203,7 @@ sub signon_tlv($;$$) {
 	if($session->{svcdata}->{hashlogin}) {
 		$protodata{password} = encode_password($session, $password);
 	} else {
+		$protodata{pass_is_hashed} = "";
 		if($session->{auth_response}) {
 			$protodata{auth_response} = delete $session->{auth_response};
 		} else {
@@ -214,7 +215,6 @@ sub signon_tlv($;$$) {
 			# the old way to preserve compatibility with
 			# our auth_challenge/auth_response API.
 
-			$protodata{pass_is_hashed} = "";
 			my $hashpass = $session->{pass_is_hashed} ? $password : md5($password);
 
 			$protodata{auth_response} = encode_password($session, $hashpass, $key);
