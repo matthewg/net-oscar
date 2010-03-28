@@ -165,7 +165,8 @@ sub tlv_encode($) {
 	my $tlv = shift;
 	my($buffer, $type, $value) = ("", 0, "");
 
-	confess "You must use a tied Net::OSCAR::TLV hash!" unless defined($tlv) and ref($tlv) eq "HASH" and defined(%$tlv) and defined(tied(%$tlv)) and tied(%$tlv)->isa("Net::OSCAR::TLV");
+	confess "You must use a tied Net::OSCAR::TLV hash!" 
+	   unless defined($tlv) and ref($tlv) eq "HASH" and defined(tied(%$tlv)) and tied(%$tlv)->isa("Net::OSCAR::TLV");
 	while (($type, $value) = each %$tlv) {
 		$value ||= "";
 		$buffer .= pack("nna*", $type, length($value), $value);
